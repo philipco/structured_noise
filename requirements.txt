@@ -1,0 +1,6 @@
+numpy==1.16.4
+matplotlib
+tqdm
+scipy
+torch
+tensorflow
