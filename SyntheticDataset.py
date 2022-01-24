@@ -19,7 +19,7 @@ class SyntheticDataset:
         self.set_step_size()
 
     def generate_X(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
-        self.dim = dim  # 20
+        self.dim = dim
 
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
@@ -31,11 +31,11 @@ class SyntheticDataset:
         self.size_dataset = size_dataset
 
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=self.size_dataset)
-        self.X = (self.ortho_matrix.dot(self.X.T)).T
+        self.X = self.X.dot(self.ortho_matrix.T)
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
-        self.w_star = np.ones(self.dim)
+        self.w_star = np.ones(self.dim) #np.power(self.upper_sigma, 1/4) @
         self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
 
@@ -54,7 +54,7 @@ class SyntheticDataset:
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
-        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim)
+        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
 
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
@@ -68,7 +68,7 @@ class SyntheticDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.GAMMA = GAMMA_BACH_MOULINES / 2
+        self.GAMMA = OPTIMAL_GAMMA_COMPR
 
         print("Take step size:", self.GAMMA)
 

@@ -22,6 +22,7 @@ class SGD():
         self.GAMMA = self.synthetic_dataset.GAMMA
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
+        self.additive_stochastic_gradient = True
 
     def compute_empirical_risk(self, w, data, labels):
         if self.do_logistic_regression:
@@ -40,6 +41,10 @@ class SGD():
             return x.T.mv((s - 1) * y) / len(labels)
         return np.array((x @ w - y)).dot(x)
 
+    def compute_additive_stochastic_gradient(self, w, data, labels, index):
+        x, y = data[index], labels[index]
+        return self.synthetic_dataset.upper_sigma.dot(w) - y * x
+
     def sgd_update(self, w, gradient, gamma):
         return w - gamma * gradient
 
@@ -55,7 +60,10 @@ class SGD():
             for idx in tqdm(indices):
                 gamma = self.synthetic_dataset.GAMMA
                 it += 1
-                g = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx)
+                if self.additive_stochastic_gradient:
+                    g = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
+                else:
+                    g = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx)
                 matrix_grad[idx] = g
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
@@ -97,7 +105,11 @@ class SGD():
             for idx in tqdm(indices):
                 gamma = self.synthetic_dataset.GAMMA
                 it += 1
-                g = compressor.compress(self.compute_stochastic_gradient(current_w, self.X, self.Y, idx))
+                if self.additive_stochastic_gradient:
+                    grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
+                else:
+                    grad = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx)
+                g = compressor.compress(grad)
                 matrix_grad[idx] = g
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it

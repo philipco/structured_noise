@@ -15,7 +15,7 @@ DIM = 50
 def compute_diag_matrices(dim: int):
 
     dataset = SyntheticDataset()
-    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=4, use_ortho_matrix=True)
+    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=4, use_ortho_matrix=False)
     X_quantized = dataset.X.copy()
     X_sparsed = dataset.X.copy()
 
@@ -23,14 +23,14 @@ def compute_diag_matrices(dim: int):
 
     p = 1 / (quantizator.omega_c + 1)
     print("Sparsification proba: ", p)
-    sparsificator = RandomSparsification(p, dim, biased=True)
+    sparsificator = RandomSparsification(p, dim, biased=False)
 
     ortho_matrix = dataset.ortho_matrix.copy()
     # Matrix of probabilities for the sparsification operator.
     if sparsificator.biased:
         P = 1 / (p ** 2) * np.ones_like(ortho_matrix) + (1 / p - 1 / p ** 2) * np.identity(n=dim)
     else:
-        P = p * np.identity(n=dim)
+        P = np.identity(n=dim)
 
     for i in range(SIZE_DATASET):
         X_quantized[i] = quantizator.compress(dataset.X[i])
@@ -40,9 +40,13 @@ def compute_diag_matrices(dim: int):
     cov_matrix_qtz = X_quantized.T.dot(X_quantized) / SIZE_DATASET
     cov_matrix_sparse = P * (X_sparsed.T.dot(X_sparsed) / SIZE_DATASET)
 
-    diag = np.diag(dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix))
-    diag_qtz = np.diag(dataset.ortho_matrix.T.dot(cov_matrix_qtz).dot(dataset.ortho_matrix))
-    diag_sparse = np.diag(dataset.ortho_matrix.T.dot(cov_matrix_sparse).dot(dataset.ortho_matrix))
+    cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
+    cov_matrix_qtz = dataset.ortho_matrix.T.dot(cov_matrix_qtz).dot(dataset.ortho_matrix)
+    cov_matrix_sparse = dataset.ortho_matrix.T.dot(cov_matrix_sparse).dot(dataset.ortho_matrix)
+
+    diag = np.diag(cov_matrix)
+    diag_qtz = np.diag(cov_matrix_qtz)
+    diag_sparse = np.abs(np.diag(cov_matrix_sparse))
 
     return cov_matrix, cov_matrix_qtz, cov_matrix_sparse, diag, diag_qtz, diag_sparse
 
@@ -73,7 +77,7 @@ if __name__ == '__main__':
     ax.tick_params(axis='both', labelsize=15)
     ax.legend(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
-    ax.set_ylabel(r"$\log(Diag(\frac{X^T.X \Sigma}{n})_i)$", fontsize=15)
+    ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
     plt.legend(loc='best', fontsize=15)
 
     plt.show()
