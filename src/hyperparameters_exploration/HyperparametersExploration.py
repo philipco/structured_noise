@@ -8,11 +8,11 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
-from PickleHandler import pickle_saver
-from Utilities import get_project_root, create_folder_if_not_existing
-from hyperparameters_exploration import Explorer
-from hyperparameters_exploration.Hyperparameters import Hyperparameters
-from hyperparameters_exploration.Metric import Metric
+from src.PickleHandler import pickle_saver
+from src.Utilities import create_folder_if_not_existing
+from src.hyperparameters_exploration import Explorer
+from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
+from src.hyperparameters_exploration.Metric import Metric
 
 
 class Exploration:

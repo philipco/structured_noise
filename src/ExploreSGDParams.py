@@ -3,13 +3,13 @@ Created by Constantin Philippenko, 18th January 2022.
 """
 import numpy as np
 
-from CompressionModel import SQuantization, RandomSparsification
+from src.CompressionModel import SQuantization, RandomSparsification
 from HyperparametersExploration import Exploration
-from SGD import SGD
-from SyntheticDataset import SyntheticDataset
+from src.SGD import SGD
+from src.SyntheticDataset import SyntheticDataset
 from Metric import Metric
-from hyperparameters_exploration.Explorer import Explorer
-from hyperparameters_exploration.Hyperparameters import Hyperparameters
+from src.hyperparameters_exploration.Explorer import Explorer
+from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 
 
 SIZE_DATASET = 10000000
