@@ -12,8 +12,8 @@ from src.hyperparameters_exploration.Explorer import Explorer
 from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 
 
-SIZE_DATASET = 10000000
-DIM = 10
+SIZE_DATASET = int(1e6)
+DIM = int(1e2)
 POVER_COVARIANCE = 2
 
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     explorer = Explorer(["no compression", "quantization", "sparsification"], explore_by_dim)
 
-    hyperparameters = Hyperparameters(range_hyperparameters=[50, 100, 200, 500, 750, 1000],
+    hyperparameters = Hyperparameters(range_hyperparameters=[10, 100, 200, 500, 750, 1000],
                                       name=r"Impact of the dimension $d$",
                                       x_axis_label=r"$d \in \mathbb{N}$")
 

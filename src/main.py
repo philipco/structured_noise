@@ -7,12 +7,12 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 
-from CompressionModel import CompressionModel, RandomSparsification, SQuantization, RandomDithering, SignSGD
-from SGD import SGD
-from SyntheticDataset import SyntheticDataset
+from src.CompressionModel import CompressionModel, RandomSparsification, SQuantization, RandomDithering, SignSGD
+from src.SGD import SGD
+from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10000
-DIM = 200
+SIZE_DATASET = int(1e6)
+DIM = int(1e2)
 
 
 def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):

@@ -9,9 +9,12 @@ from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel
 
+DISABLE = True
+
 
 class SGD():
     NB_EPOCH = 1
+    DISABLE = True
     
     def __init__(self, synthetic_dataset) -> None:
         super().__init__()
@@ -57,7 +60,7 @@ class SGD():
         matrix_grad = self.X.copy()
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
-            for idx in tqdm(indices):
+            for idx in tqdm(indices, disable=DISABLE):
                 gamma = self.synthetic_dataset.GAMMA
                 it += 1
                 if self.additive_stochastic_gradient:

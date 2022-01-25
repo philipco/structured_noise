@@ -1,6 +1,8 @@
 """
 Created by Constantin Philippenko, 10th January 2022.
 """
+import sys
+
 import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group
@@ -32,6 +34,9 @@ class SyntheticDataset:
 
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=self.size_dataset)
         self.X = self.X.dot(self.ortho_matrix.T)
+
+        print("Memory footprint X", sys.getsizeof(self.X))
+        print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.

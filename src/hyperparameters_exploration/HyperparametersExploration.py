@@ -38,7 +38,7 @@ class Exploration:
         for idx_param in range(self.hyperparameters.nb_hyperparams):
             param = self.hyperparameters.range_hyperparameters[idx_param]
             print("Hyperparameter's value:", param)
-            self.blockPrint()
+            # self.blockPrint()
             for idx_run in range(self.nb_runs):
                 output = self.explorer.explore(param)
                 for i in range(len(output)):
