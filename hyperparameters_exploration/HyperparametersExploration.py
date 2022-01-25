@@ -1,12 +1,15 @@
 """
 Created by Constantin Philippenko, 18th January 2022.
 """
+import hashlib
 import os
 import sys
 
 import numpy as np
 from matplotlib import pyplot as plt
 
+from PickleHandler import pickle_saver
+from Utilities import get_project_root, create_folder_if_not_existing
 from hyperparameters_exploration import Explorer
 from hyperparameters_exploration.Hyperparameters import Hyperparameters
 from hyperparameters_exploration.Metric import Metric
@@ -22,17 +25,26 @@ class Exploration:
         self.metrics = metrics
         self.nb_runs = 3
         self.results = np.zeros((self.explorer.nb_outputs, self.nb_runs, self.hyperparameters.nb_hyperparams))
+        self.string_before_hash = str(self.hyperparameters.range_hyperparameters) + self.explorer.function.__name__
+        self.hash_string = hashlib.shake_256(self.string_before_hash.encode()).hexdigest(4) # returns a hash value of length 2*4
+        self.pickle_folder = "./pickle/"
+        self.pictures_folder = "./pictures/"
+        create_folder_if_not_existing(self.pickle_folder)
+        create_folder_if_not_existing(self.pictures_folder)
+
 
     def run_exploration(self):
         print("====> Starting exploration : ", self.name)
-        self.blockPrint()
         for idx_param in range(self.hyperparameters.nb_hyperparams):
             param = self.hyperparameters.range_hyperparameters[idx_param]
+            print("Hyperparameter's value:", param)
+            self.blockPrint()
             for idx_run in range(self.nb_runs):
                 output = self.explorer.explore(param)
                 for i in range(len(output)):
                     self.results[i, idx_run, idx_param] = self.metrics.compute(output[i])
-        self.enablePrint()
+                    pickle_saver(self, self.pickle_folder + self.hash_string)
+            self.enablePrint()
 
     def plot_exploration(self):
         fig, ax = plt.subplots(figsize=(8, 7))
@@ -40,15 +52,18 @@ class Exploration:
         for i in range(len(self.explorer.outputs_label)):
             plt.errorbar(range(self.hyperparameters.nb_hyperparams), np.mean(self.results[i], axis=0),
                          yerr=np.std(self.results[i], axis=0),
-                         label=self.explorer.outputs_label[i])
+                         label=self.explorer.outputs_label[i],
+                         lw=4)
         plt.xticks([i for i in range(0, len(self.hyperparameters.range_hyperparameters))],
                    self.hyperparameters.range_hyperparameters,
-                   rotation=40, fontsize=15)
+                   rotation=30, fontsize=15)
+        plt.yticks(fontsize=15)
         ax.set_xlabel(self.hyperparameters.x_axis_label, fontsize=15)
         ax.set_ylabel(self.metrics.y_axis_label, fontsize=15)
-        plt.title(self.hyperparameters.name)
+        plt.title(self.hyperparameters.name, fontsize=15)
         plt.legend(loc='best', fontsize=15)
-        plt.show()
+        plt.savefig('{0}.eps'.format(self.pictures_folder + self.hash_string), format='eps')
+        plt.close()
 
     # Disable
     def blockPrint(self):

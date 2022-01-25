@@ -11,7 +11,7 @@ from CompressionModel import CompressionModel, RandomSparsification, SQuantizati
 from SGD import SGD
 from SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 1000000
+SIZE_DATASET = 10000
 DIM = 200
 
 

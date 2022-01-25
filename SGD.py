@@ -22,7 +22,7 @@ class SGD():
         self.GAMMA = self.synthetic_dataset.GAMMA
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
-        self.additive_stochastic_gradient = True
+        self.additive_stochastic_gradient = False
 
     def compute_empirical_risk(self, w, data, labels):
         if self.do_logistic_regression:
