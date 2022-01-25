@@ -1,6 +1,14 @@
 """
 Created by Constantin Philippenko, 18th January 2022.
 """
+import matplotlib
+matplotlib.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+})
+
 import hashlib
 import os
 import sys

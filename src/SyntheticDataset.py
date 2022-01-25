@@ -22,6 +22,7 @@ class SyntheticDataset:
 
     def generate_X(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
         self.dim = dim
+        self.power_cov = power_cov
 
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
@@ -43,6 +44,8 @@ class SyntheticDataset:
         self.w_star = np.ones(self.dim) #np.power(self.upper_sigma, 1/4) @
         self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
+    def string_for_hash(self):
+        return "{0}{1}{2}{3}".format(self.size_dataset, self.dim, self.power_cov, self.GAMMA)
 
     def set_step_size(self):
         EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
