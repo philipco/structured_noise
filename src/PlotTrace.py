@@ -5,8 +5,8 @@ Created by Constantin Philippenko, 17th January 2022.
 import numpy as np
 import matplotlib.pyplot as plt
 
-from CompressionModel import SQuantization, RandomSparsification
-from SyntheticDataset import SyntheticDataset
+from src.CompressionModel import SQuantization, RandomSparsification
+from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10000
 

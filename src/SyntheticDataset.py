@@ -5,7 +5,7 @@ import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group
 
-from CompressionModel import SQuantization, RandomSparsification
+from src.CompressionModel import SQuantization, RandomSparsification
 
 
 class SyntheticDataset:

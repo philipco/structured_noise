@@ -4,10 +4,10 @@ Created by Constantin Philippenko, 18th January 2022.
 import numpy as np
 
 from src.CompressionModel import SQuantization, RandomSparsification
-from HyperparametersExploration import Exploration
+from src.hyperparameters_exploration.HyperparametersExploration import Exploration
 from src.SGD import SGD
 from src.SyntheticDataset import SyntheticDataset
-from Metric import Metric
+from src.hyperparameters_exploration.Metric import Metric
 from src.hyperparameters_exploration.Explorer import Explorer
 from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 

@@ -2,11 +2,6 @@
 Created by Constantin Philippenko, 20th January 2022.
 """
 
-from abc import ABC, abstractmethod
-
-import numpy as np
-
-
 class Metric:
 
     def __init__(self, name, y_axis_label, compute):
