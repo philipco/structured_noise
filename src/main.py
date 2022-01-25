@@ -22,8 +22,10 @@ from src.CompressionModel import CompressionModel, RandomSparsification, SQuanti
 from src.SGD import SGD
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = int(1e6)
-DIM = int(2e2)
+SIZE_DATASET = int(5e6)
+DIM = int(100)
+POWER_COV = 2
+R_SIGMA=1
 
 
 def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):
@@ -72,7 +74,8 @@ def setup_plot_with_SGD(loss_sgd, avg_loss_sgd, losses1, avg_losses1, label1, lo
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=2, use_ortho_matrix=False)
+    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
+                                       use_ortho_matrix=False)
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 

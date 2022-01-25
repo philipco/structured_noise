@@ -15,7 +15,7 @@ DIM = 50
 def compute_diag_matrices(dim: int):
 
     dataset = SyntheticDataset()
-    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=4, use_ortho_matrix=False)
+    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=4, r_sigma=0, use_ortho_matrix=False)
     X_quantized = dataset.X.copy()
     X_sparsed = dataset.X.copy()
 

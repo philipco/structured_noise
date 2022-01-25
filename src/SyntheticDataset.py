@@ -12,17 +12,18 @@ from src.CompressionModel import SQuantization, RandomSparsification
 
 class SyntheticDataset:
 
-    def __init__(self):#, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool) -> None:
+    def __init__(self):
         super().__init__()
 
-    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
-        self.generate_X(dim, size_dataset, power_cov, use_ortho_matrix)
+    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+        self.generate_X(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.generate_Y()
         self.set_step_size()
 
-    def generate_X(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
+    def generate_X(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
         self.dim = dim
         self.power_cov = power_cov
+        self.r_sigma = r_sigma
 
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
@@ -41,7 +42,10 @@ class SyntheticDataset:
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
-        self.w_star = np.ones(self.dim) #np.power(self.upper_sigma, 1/4) @
+        if self.r_sigma == 0:
+            self.w_star = np.ones(self.dim)
+        else:
+            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
         self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
     def string_for_hash(self):

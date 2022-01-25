@@ -24,7 +24,7 @@ class SGD():
         self.GAMMA = self.synthetic_dataset.GAMMA
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
-        self.additive_stochastic_gradient = True
+        self.additive_stochastic_gradient = False
 
     def compute_empirical_risk(self, w, data, labels):
         if self.do_logistic_regression:
@@ -104,7 +104,7 @@ class SGD():
         matrix_grad = self.X.copy()
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
-            for idx in tqdm(indices):
+            for idx in tqdm(indices, disable=DISABLE):
                 gamma = self.synthetic_dataset.GAMMA
                 it += 1
                 if self.additive_stochastic_gradient:
