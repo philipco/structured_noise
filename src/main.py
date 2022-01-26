@@ -14,6 +14,7 @@ matplotlib.rcParams.update({
     'font.family': 'serif',
     'text.usetex': True,
     'pgf.rcfonts': False,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
 from matplotlib import pyplot as plt
@@ -22,22 +23,25 @@ from src.CompressionModel import CompressionModel, RandomSparsification, SQuanti
 from src.SGD import SGD
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = int(5e6)
-DIM = int(100)
+SIZE_DATASET = 10**6
+DIM = 50
 POWER_COV = 2
-R_SIGMA=1
+R_SIGMA=1/4
 
 
 def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):
     losses, avg_losses = np.array(losses), np.array(avg_losses)
 
     # Uniform sampling of a log-xaxis
-    xaxis = [[math.pow(10, a) * math.pow(10, i/100) for i in range(100)] for a in range(np.int(math.log10(len(losses))))]
+    log_len = np.int(math.log10(len(losses)))
+    residual_len = math.log10(len((losses))) - log_len
+    xaxis = [[math.pow(10, a) * math.pow(10, i/100) for i in range(100)] for a in range(log_len)]
+    xaxis.append([math.pow(10, log_len) * math.pow(10, i/100) for i in range(int(100 * residual_len))])
     xaxis = np.concatenate(xaxis, axis=None)
     xaxis = np.unique(xaxis.astype(int))
 
     axes[0].plot(np.log10(xaxis), np.log10(np.take(losses, xaxis) - optimal_loss), label="SGD {0}".format(label))
-    axes[1].plot(np.log10(xaxis), np.log10(np.take(avg_losses, xaxis) - optimal_loss), label="Avg SGD {0}".format(label))
+    axes[1].plot(np.log10(xaxis), np.log10(np.take(avg_losses, xaxis) - optimal_loss), label="AvgSGD {0}".format(label))
 
 
 def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optimal_loss):
@@ -49,6 +53,7 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     ax.legend(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
     ax.set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
+    ax.grid(True)
     # ax.set_ylim(top=10)
     plt.show()
 
@@ -63,10 +68,11 @@ def setup_plot_with_SGD(loss_sgd, avg_loss_sgd, losses1, avg_losses1, label1, lo
     for ax in axes:
         ax.legend(loc='best', fontsize=15)
         ax.set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
+        ax.grid(True)
     axes[1].set_xlabel(r"$\log_{10}(n)$", fontsize=15)
 
     if hash_string:
-        plt.savefig('{0}.eps'.format("../pictures/" + hash_string), format='eps')
+        plt.savefig('{0}.eps'.format("./pictures/" + hash_string), format='eps')
         plt.close()
     else:
         plt.show()
@@ -87,12 +93,12 @@ if __name__ == '__main__':
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    losses_quantization, avg_losses_quantization, w, matrix_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
-    losses_random_sparsification, avg_losses_random_sparsification, w, matrix_sparse = \
-        sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+    losses_quantization, avg_losses_quantization, w, diag_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
+    losses_random_rdk, avg_losses_random_rdk, w, diag_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
 
-    setup_plot_with_SGD(losses, avg_losses, losses_quantization, avg_losses_quantization, "qtz", losses_random_sparsification,
-               avg_losses_random_sparsification, "rdk", optimal_loss, hash_string=hash_string)
+    setup_plot_with_SGD(losses, avg_losses, losses_quantization, avg_losses_quantization, "quantization",
+                        losses_random_rdk, avg_losses_random_rdk, "sparsification", optimal_loss,
+                        hash_string=synthetic_dataset.string_for_hash())
 
 
     # plt.imshow(matrix_grad)

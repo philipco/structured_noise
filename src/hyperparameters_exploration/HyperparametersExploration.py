@@ -7,6 +7,7 @@ matplotlib.rcParams.update({
     'font.family': 'serif',
     'text.usetex': True,
     'pgf.rcfonts': False,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
 import hashlib
@@ -31,7 +32,7 @@ class Exploration:
         self.hyperparameters = hyperparameters
         self.explorer = explorer
         self.metrics = metrics
-        self.nb_runs = 3
+        self.nb_runs = 1
         self.results = np.zeros((self.explorer.nb_outputs, self.nb_runs, self.hyperparameters.nb_hyperparams))
         self.string_before_hash = str(self.hyperparameters.range_hyperparameters) + self.explorer.function.__name__
         self.hash_string = hashlib.shake_256(self.string_before_hash.encode()).hexdigest(4) # returns a hash value of length 2*4
@@ -51,7 +52,7 @@ class Exploration:
                 output = self.explorer.explore(param)
                 for i in range(len(output)):
                     self.results[i, idx_run, idx_param] = self.metrics.compute(output[i])
-                    pickle_saver(self, self.pickle_folder + self.hash_string)
+                    pickle_saver(self, self.pickle_folder + self.string_before_hash)
             self.enablePrint()
 
     def plot_exploration(self):
@@ -70,6 +71,7 @@ class Exploration:
         ax.set_ylabel(self.metrics.y_axis_label, fontsize=15)
         plt.title(self.hyperparameters.name, fontsize=15)
         plt.legend(loc='best', fontsize=15)
+        ax.grid()
         plt.savefig('{0}.eps'.format(self.pictures_folder + self.hash_string), format='eps')
         plt.close()
 

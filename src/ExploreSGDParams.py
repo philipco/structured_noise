@@ -12,14 +12,16 @@ from src.hyperparameters_exploration.Explorer import Explorer
 from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 
 
-SIZE_DATASET = int(1e6)
-DIM = int(1e2)
-POVER_COVARIANCE = 2
+SIZE_DATASET = 10**2
+DIM = 10
+POWER_COVARIANCE = 2
+R_SIGMA = 0
 
 
 def explore_by_sigma(power_cov: int):
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=power_cov, use_ortho_matrix=False)
+    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=power_cov, r_sigma=R_SIGMA,
+                                       use_ortho_matrix=False)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -33,7 +35,8 @@ def explore_by_sigma(power_cov: int):
 
 def explore_by_omega(omega):
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(100, size_dataset=SIZE_DATASET, power_cov=POVER_COVARIANCE, use_ortho_matrix=False)
+    synthetic_dataset.generate_dataset(dim=DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
+                                       use_ortho_matrix=False)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -51,7 +54,8 @@ def explore_by_omega(omega):
 
 def explore_by_dim(dim: int):
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(dim, size_dataset=SIZE_DATASET, power_cov=2, use_ortho_matrix=False)
+    synthetic_dataset.generate_dataset(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
+                                       use_ortho_matrix=False)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -74,7 +78,7 @@ if __name__ == '__main__':
 
     hyperparameters = Hyperparameters(range_hyperparameters=[10, 100, 200, 500, 750, 1000],
                                       name=r"Impact of the dimension $d$",
-                                      x_axis_label=r"$d \in \mathbb{N}$")
+                                      x_axis_label="$d \in \mathbb{N}$")
 
     exploration = Exploration(name="Impact of dim", hyperparameters=hyperparameters, explorer=explorer,
                               metrics=metric)

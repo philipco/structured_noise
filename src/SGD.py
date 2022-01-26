@@ -21,7 +21,7 @@ class SGD():
         self.synthetic_dataset = synthetic_dataset
         self.X, self.Y = self.synthetic_dataset.X, self.synthetic_dataset.Y
         self.w_star = self.synthetic_dataset.w_star
-        self.GAMMA = self.synthetic_dataset.GAMMA
+        self.GAMMA = self.synthetic_dataset.gamma
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
         self.additive_stochastic_gradient = False
@@ -60,7 +60,7 @@ class SGD():
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
             for idx in tqdm(indices, disable=DISABLE):
-                gamma = self.synthetic_dataset.GAMMA
+                gamma = self.synthetic_dataset.gamma
                 it += 1
                 if self.additive_stochastic_gradient:
                     g = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
@@ -72,7 +72,7 @@ class SGD():
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return losses, avg_losses, current_w, matrix_cov
+        return losses, avg_losses, current_w, np.diag(matrix_cov)
 
     def gradient_descent_noised(self):
         current_w = self.w0
@@ -105,7 +105,7 @@ class SGD():
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
             for idx in tqdm(indices, disable=DISABLE):
-                gamma = self.synthetic_dataset.GAMMA
+                gamma = self.synthetic_dataset.gamma
                 it += 1
                 if self.additive_stochastic_gradient:
                     grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
@@ -119,4 +119,4 @@ class SGD():
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return losses, avg_losses, current_w, matrix_cov
+        return losses, avg_losses, current_w, np.diag(matrix_cov)

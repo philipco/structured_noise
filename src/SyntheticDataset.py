@@ -29,13 +29,12 @@ class SyntheticDataset:
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
         if use_ortho_matrix:
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
-        else:
-            self.ortho_matrix = np.diag(np.array([1 for i in range(1, dim + 1)]), k=0)
 
         self.size_dataset = size_dataset
 
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=self.size_dataset)
-        self.X = self.X.dot(self.ortho_matrix.T)
+        if use_ortho_matrix:
+            self.X = self.X.dot(self.ortho_matrix.T)
 
         print("Memory footprint X", sys.getsizeof(self.X))
         print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
@@ -49,7 +48,7 @@ class SyntheticDataset:
         self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
     def string_for_hash(self):
-        return "{0}{1}{2}{3}".format(self.size_dataset, self.dim, self.power_cov, self.GAMMA)
+        return "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
 
     def set_step_size(self):
         EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
@@ -80,7 +79,7 @@ class SyntheticDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.GAMMA = OPTIMAL_GAMMA_COMPR
+        self.gamma = OPTIMAL_GAMMA_COMPR
 
-        print("Take step size:", self.GAMMA)
+        print("Take step size:", self.gamma)
 
