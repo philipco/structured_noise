@@ -116,7 +116,7 @@ class RandomSparsification(CompressionModel):
 
     def __compress__(self, vector: np.ndarray):
         proba = self.level
-        indices = bernoulli.rvs(proba, size=len(vector))
+        indices = np.random.binomial(1, proba, len(vector))
         compression = np.zeros_like(vector)
         for i in range(len(vector)):
             if indices[i]:

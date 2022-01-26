@@ -9,24 +9,23 @@ import random
 import numpy as np
 
 import matplotlib
-matplotlib.rcParams.update({
-    "pgf.texsystem": "pdflatex",
-    'font.family': 'serif',
-    'text.usetex': True,
-    'pgf.rcfonts': False,
-    'text.latex.preamble': r'\usepackage{amsfonts}'
-})
+# matplotlib.rcParams.update({
+#     "pgf.texsystem": "pdflatex",
+#     'font.family': 'serif',
+#     'text.usetex': True,
+#     'pgf.rcfonts': False,
+#     'text.latex.preamble': r'\usepackage{amsfonts}'
+# })
 
 from matplotlib import pyplot as plt
 
-from src.CompressionModel import CompressionModel, RandomSparsification, SQuantization, RandomDithering, SignSGD
 from src.SGD import SGD
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**6
-DIM = 50
+SIZE_DATASET = 10**7
+DIM = 200
 POWER_COV = 2
-R_SIGMA=1/4
+R_SIGMA=0
 
 
 def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):
@@ -88,16 +87,16 @@ if __name__ == '__main__':
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
-    losses, avg_losses, w, matrix_grad = sgd.gradient_descent()
+    sgd_nocompr = sgd.gradient_descent()
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    losses_quantization, avg_losses_quantization, w, diag_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
-    losses_random_rdk, avg_losses_random_rdk, w, diag_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
+    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
 
-    setup_plot_with_SGD(losses, avg_losses, losses_quantization, avg_losses_quantization, "quantization",
-                        losses_random_rdk, avg_losses_random_rdk, "sparsification", optimal_loss,
+    setup_plot_with_SGD(sgd_nocompr.losses, sgd_nocompr.avg_losses, sgd_qtz.losses, sgd_qtz.avg_losses, "quantization",
+                        sgd_rdk.losses, sgd_rdk.avg_losses, "sparsification", optimal_loss,
                         hash_string=synthetic_dataset.string_for_hash())
 
 

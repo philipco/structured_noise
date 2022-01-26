@@ -25,12 +25,12 @@ def explore_by_sigma(power_cov: int):
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
-    losses, avg_losses, _, _ = sgd.gradient_descent()
+    sgd_nocompr = sgd.gradient_descent()
 
-    losses_quantization, avg_losses_quantization, _, _ = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
-    losses_sparsification, avg_losses_sparsification, _, _ = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
+    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
 
-    return [avg_losses - optimal_loss, avg_losses_quantization - optimal_loss, avg_losses_sparsification - optimal_loss]
+    return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss]
 
 
 def explore_by_omega(omega):
@@ -59,12 +59,12 @@ def explore_by_dim(dim: int):
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
-    losses, avg_losses, _, _ = sgd.gradient_descent()
+    sgd_nocompr = sgd.gradient_descent()
 
-    losses_quantization, avg_losses_quantization, _, _ = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
-    losses_sparsification, avg_losses_sparsification, _, _ = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
+    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
 
-    return [avg_losses - optimal_loss, avg_losses_quantization - optimal_loss, avg_losses_sparsification - optimal_loss]
+    return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss]
 
 
 def loss_average(loss):
