@@ -32,12 +32,12 @@ class Exploration:
         self.hyperparameters = hyperparameters
         self.explorer = explorer
         self.metrics = metrics
-        self.nb_runs = 1
+        self.nb_runs = 2
         self.results = np.zeros((self.explorer.nb_outputs, self.nb_runs, self.hyperparameters.nb_hyperparams))
         self.string_before_hash = str(self.hyperparameters.range_hyperparameters) + self.explorer.function.__name__
         self.hash_string = hashlib.shake_256(self.string_before_hash.encode()).hexdigest(4) # returns a hash value of length 2*4
         self.pickle_folder = "./pickle/"
-        self.pictures_folder = "./pictures/"
+        self.pictures_folder = "./pictures/exploration/"
         create_folder_if_not_existing(self.pickle_folder)
         create_folder_if_not_existing(self.pictures_folder)
 

@@ -19,17 +19,17 @@ import matplotlib
 
 from matplotlib import pyplot as plt
 
-from src.SGD import SGD
+from src.SGD import SGD, SGDRun
 from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10**7
 DIM = 200
 POWER_COV = 2
-R_SIGMA=0
+R_SIGMA=1/4
 
 
-def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):
-    losses, avg_losses = np.array(losses), np.array(avg_losses)
+def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
+    losses, avg_losses = np.array(sgd_run.losses), np.array(sgd_run.avg_losses)
 
     # Uniform sampling of a log-xaxis
     log_len = np.int(math.log10(len(losses)))
@@ -39,8 +39,8 @@ def plot_SGD_and_AVG(axes, losses, avg_losses, optimal_loss, label):
     xaxis = np.concatenate(xaxis, axis=None)
     xaxis = np.unique(xaxis.astype(int))
 
-    axes[0].plot(np.log10(xaxis), np.log10(np.take(losses, xaxis) - optimal_loss), label="SGD {0}".format(label))
-    axes[1].plot(np.log10(xaxis), np.log10(np.take(avg_losses, xaxis) - optimal_loss), label="AvgSGD {0}".format(label))
+    axes[0].plot(np.log10(xaxis), np.log10(np.take(losses, xaxis) - optimal_loss), label="SGD {0}".format(sgd_run.label))
+    axes[1].plot(np.log10(xaxis), np.log10(np.take(avg_losses, xaxis) - optimal_loss), label="AvgSGD {0}".format(sgd_run.label))
 
 
 def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optimal_loss):
@@ -49,7 +49,7 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     plot_SGD_and_AVG(losses2, avg_losses2, optimal_loss, label2)
 
     # ax.set_yscale('log')
-    ax.legend(loc='best', fontsize=15)
+    ax.label(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
     ax.set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     ax.grid(True)
@@ -57,12 +57,11 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     plt.show()
 
 
-def setup_plot_with_SGD(loss_sgd, avg_loss_sgd, losses1, avg_losses1, label1, losses2, avg_losses2, label2,
-                        optimal_loss, hash_string:str=None):
+def setup_plot_with_SGD(sgd_nocompr: SGDRun, sgd_try1: SGDRun, sgd_try2: SGDRun, optimal_loss, hash_string:str=None):
     fig, axes = plt.subplots(2, figsize=(8, 7))
-    plot_SGD_and_AVG(axes, loss_sgd, avg_loss_sgd, optimal_loss, "")
-    plot_SGD_and_AVG(axes, losses1, avg_losses1, optimal_loss, label1)
-    plot_SGD_and_AVG(axes, losses2, avg_losses2, optimal_loss, label2)
+    plot_SGD_and_AVG(axes, sgd_nocompr, optimal_loss)
+    plot_SGD_and_AVG(axes, sgd_try1, optimal_loss)
+    plot_SGD_and_AVG(axes, sgd_try2, optimal_loss)
 
     for ax in axes:
         ax.legend(loc='best', fontsize=15)
@@ -87,17 +86,15 @@ if __name__ == '__main__':
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
-    sgd_nocompr = sgd.gradient_descent()
+    sgd_nocompr = sgd.gradient_descent(label="no compression")
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
-    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator, label="quantization")
+    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator, label="sparsification")
 
-    setup_plot_with_SGD(sgd_nocompr.losses, sgd_nocompr.avg_losses, sgd_qtz.losses, sgd_qtz.avg_losses, "quantization",
-                        sgd_rdk.losses, sgd_rdk.avg_losses, "sparsification", optimal_loss,
-                        hash_string=synthetic_dataset.string_for_hash())
+    setup_plot_with_SGD(sgd_nocompr, sgd_qtz, sgd_rdk, optimal_loss, hash_string=synthetic_dataset.string_for_hash())
 
 
     # plt.imshow(matrix_grad)

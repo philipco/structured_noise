@@ -9,18 +9,18 @@ from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel
 
-DISABLE = False
+DISABLE = True
 
 
 class SGDRun:
 
-    def __init__(self, last_w, losses, avg_losses, diag_cov_gradients, legend=None) -> None:
+    def __init__(self, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.last_w = last_w
         self.losses = losses
         self.avg_losses = avg_losses
         self.diag_cov_gradients = diag_cov_gradients
-        self.legend = legend
+        self.label = label
 
 
 class SGD():
@@ -61,7 +61,7 @@ class SGD():
     def sgd_update(self, w, gradient, gamma):
         return w - gamma * gradient
 
-    def gradient_descent(self) -> SGDRun:
+    def gradient_descent(self, label: str = None) -> SGDRun:
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
@@ -83,9 +83,9 @@ class SGD():
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov))
+        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
 
-    def gradient_descent_noised(self) -> SGDRun:
+    def gradient_descent_noised(self, label: str) -> SGDRun:
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
@@ -103,9 +103,9 @@ class SGD():
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return SGDRun(current_w, losses, avg_losses, current_w, np.diag(matrix_cov))
+        return SGDRun(current_w, losses, avg_losses, current_w, np.diag(matrix_cov), label=label)
 
-    def gradient_descent_compression(self, compressor: CompressionModel) -> SGDRun:
+    def gradient_descent_compression(self, compressor: CompressionModel, label: str = None) -> SGDRun:
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
@@ -129,4 +129,4 @@ class SGD():
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov))
+        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
