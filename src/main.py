@@ -19,13 +19,13 @@ import matplotlib
 
 from matplotlib import pyplot as plt
 
-from src.SGD import SGD, SGDRun
+from src.SGD import SGD, SGDRun, SeriesOfSGD
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**7
-DIM = 200
-POWER_COV = 2
-R_SIGMA=1/4
+SIZE_DATASET = 10**5
+DIM = 1000
+POWER_COV = 3
+R_SIGMA=0
 
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
@@ -93,6 +93,9 @@ if __name__ == '__main__':
 
     sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator, label="quantization")
     sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator, label="sparsification")
+
+    sgd_series = SeriesOfSGD(sgd_nocompr, sgd_qtz, sgd_rdk)
+    sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
     setup_plot_with_SGD(sgd_nocompr, sgd_qtz, sgd_rdk, optimal_loss, hash_string=synthetic_dataset.string_for_hash())
 

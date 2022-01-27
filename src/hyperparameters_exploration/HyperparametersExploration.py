@@ -34,9 +34,9 @@ class Exploration:
         self.metrics = metrics
         self.nb_runs = 2
         self.results = np.zeros((self.explorer.nb_outputs, self.nb_runs, self.hyperparameters.nb_hyperparams))
-        self.string_before_hash = str(self.hyperparameters.range_hyperparameters) + self.explorer.function.__name__
-        self.hash_string = hashlib.shake_256(self.string_before_hash.encode()).hexdigest(4) # returns a hash value of length 2*4
-        self.pickle_folder = "./pickle/"
+        self.string_before_hash = str(self.hyperparameters.range_hyperparameters)
+        self.hash_string = self.explorer.function.__name__ + "-" + hashlib.shake_256(self.string_before_hash.encode()).hexdigest(4) # returns a hash value of length 2*4
+        self.pickle_folder = "./pickle/exploration/"
         self.pictures_folder = "./pictures/exploration/"
         create_folder_if_not_existing(self.pickle_folder)
         create_folder_if_not_existing(self.pictures_folder)
@@ -52,7 +52,7 @@ class Exploration:
                 output = self.explorer.explore(param)
                 for i in range(len(output)):
                     self.results[i, idx_run, idx_param] = self.metrics.compute(output[i])
-                    pickle_saver(self, self.pickle_folder + self.string_before_hash)
+                    pickle_saver(self, self.pickle_folder + self.hash_string)
             self.enablePrint()
 
     def plot_exploration(self):

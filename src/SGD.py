@@ -8,8 +8,27 @@ import numpy as np
 from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel
+from src.PickleHandler import pickle_saver
 
 DISABLE = True
+
+
+class SeriesOfSGD:
+
+    def __init__(self, *args) -> None:
+        super().__init__()
+        self.series = []
+        for serie in args:
+            assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
+            self.series.append(serie)
+
+    def append(self, *args):
+        for serie in args:
+            assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
+            self.series.append(serie)
+
+    def save(self, filename: str):
+        pickle_saver(self, filename)
 
 
 class SGDRun:
@@ -35,7 +54,7 @@ class SGD():
         self.GAMMA = self.synthetic_dataset.gamma
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
-        self.additive_stochastic_gradient = False
+        self.additive_stochastic_gradient = True
 
     def compute_empirical_risk(self, w, data, labels):
         if self.do_logistic_regression:

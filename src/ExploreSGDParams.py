@@ -15,8 +15,8 @@ from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 
 
 SIZE_DATASET = 10**7
-DIM = 200
-POWER_COVARIANCE = 2
+DIM = 100
+POWER_COVARIANCE = 3
 R_SIGMA = 0
 
 
@@ -84,6 +84,22 @@ def explore_by_dim(dim: int):
     return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_rdk.avg_losses - optimal_loss]
 
 
+def explore_by_gamma(gamma_factor: int):
+    synthetic_dataset = SyntheticDataset()
+    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
+                                       use_ortho_matrix=False)
+    synthetic_dataset.gamma = gamma_factor * synthetic_dataset.gamma
+    sgd = SGD(synthetic_dataset)
+    optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
+
+    sgd_nocompr = sgd.gradient_descent()
+
+    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator)
+    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator)
+
+    return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_rdk.avg_losses - optimal_loss]
+
+
 def loss_average(loss):
     return np.log10(loss[-1])
 
@@ -116,11 +132,25 @@ if __name__ == '__main__':
         exploration.plot_exploration()
 
     if sys.argv[1] == "cov":
-        explorer = Explorer(["no compression", "quantization", "sparsification"], explore_by_sigma)
+        explorer = Explorer(outputs_label=["no compression", "quantization", "sparsification"],
+                            function=explore_by_sigma)
 
         hyperparameters = Hyperparameters(range_hyperparameters=[1,2,3,4,5],
                                           name=r"Impact of the covariance matric $\Sigma$",
                                           x_axis_label=r"$r \in \mathbb{N}$, s.c. $\Sigma = Diag(1/i^r)_{i=1}^d$")
+
+        exploration = Exploration(name="Impact of sigma", hyperparameters=hyperparameters, explorer=explorer,
+                                  metrics=metric)
+        exploration.run_exploration()
+        exploration.plot_exploration()
+
+    if sys.argv[1] == "gamma":
+        explorer = Explorer(outputs_label=["no compression", "quantization", "sparsification"],
+                            function=explore_by_gamma)
+
+        hyperparameters = Hyperparameters(range_hyperparameters=[0.25,0.5,1,2,4,6],
+                                          name=r"Impact of the step size $\gamma$",
+                                          x_axis_label=r"$\rho \in \mathbb{N}$, s.c. $\gamma = \frac{\rho}{L ( 1 + 2 (\omega_c + 1))}$")
 
         exploration = Exploration(name="Impact of sigma", hyperparameters=hyperparameters, explorer=explorer,
                                   metrics=metric)
