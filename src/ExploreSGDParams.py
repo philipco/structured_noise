@@ -16,7 +16,7 @@ from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
 
 SIZE_DATASET = 10**7
 DIM = 100
-POWER_COVARIANCE = 3
+POWER_COVARIANCE = 4
 R_SIGMA = 0
 
 
@@ -50,23 +50,23 @@ def explore_by_wstar(r_sigma: int):
     return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_rdk.avg_losses - optimal_loss]
 
 
-def explore_by_omega(omega):
+def explore_by_level_qtz(level_qtzt):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(dim=DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
                                        use_ortho_matrix=False)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
-    level_qtzt = omega # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
+    sgd_nocompr = sgd.gradient_descent()
+
     quantizator = SQuantization(level_qtzt, dim=DIM)
+    level_rdk = 1 / (quantizator.omega_c + 1)
+    sparsificator = RandomSparsification(level_rdk, dim=DIM)
 
-    level_spar = 1 / (quantizator.omega_c + 1)
-    sparsificator = RandomSparsification(level_spar, dim=DIM)
+    sgd_qtz = sgd.gradient_descent_compression(quantizator)
+    sgd_rdk = sgd.gradient_descent_compression(sparsificator)
 
-    losses_quantization, avg_losses_quantization, w, matrix_qtz = sgd.gradient_descent_compression(quantizator)
-    losses_sparsification, avg_losses_sparsification, w, matrix_sparse = sgd.gradient_descent_compression(sparsificator)
-
-    return [avg_losses_quantization - optimal_loss, avg_losses_sparsification - optimal_loss]
+    return [sgd_nocompr.avg_losses - optimal_loss, sgd_qtz.avg_losses - optimal_loss, sgd_rdk.avg_losses - optimal_loss]
 
 
 def explore_by_dim(dim: int):
@@ -157,14 +157,16 @@ if __name__ == '__main__':
         exploration.run_exploration()
         exploration.plot_exploration()
 
-    # explorer = Explorer(["quantization", "sparsification"], explore_by_omega)
-    #
-    # hyperparameters = Hyperparameters(range_hyperparameters=[1, 2, 4, 8, 16],
-    #                                   name=r"Impact of $\omega_c$",
-    #                                   x_axis_label=r"$s \in \mathbb{N}$, the level for quantization")
-    #
-    # exploration = Exploration(name="Impact of omega", hyperparameters=hyperparameters, explorer=explorer,
-    #                           metrics=metric)
-    # exploration.run_exploration()
-    # exploration.plot_exploration()
+    if sys.argv[1] == "level_qtz":
+        explorer = Explorer(outputs_label=["no compression", "quantization", "sparsification"],
+                            function=explore_by_level_qtz)
+
+        hyperparameters = Hyperparameters(range_hyperparameters=[1, 2, 4, 8, 16, 0],
+                                          name=r"Impact of $\omega_c$",
+                                          x_axis_label=r"$s \in \mathbb{N}$, the level for quantization")
+
+        exploration = Exploration(name="Impact of omega", hyperparameters=hyperparameters, explorer=explorer,
+                                  metrics=metric)
+        exploration.run_exploration()
+        exploration.plot_exploration()
 
