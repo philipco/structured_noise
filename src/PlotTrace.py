@@ -5,8 +5,8 @@ Created by Constantin Philippenko, 17th January 2022.
 import numpy as np
 import matplotlib.pyplot as plt
 
-from CompressionModel import SQuantization, RandomSparsification
-from SyntheticDataset import SyntheticDataset
+from src.CompressionModel import SQuantization, RandomSparsification
+from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10000
 
@@ -14,7 +14,7 @@ SIZE_DATASET = 10000
 def compute_trace(dim: int) -> int:
 
     dataset = SyntheticDataset()
-    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=1, use_ortho_matrix=False)
+    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=1, r_sigma=0, use_ortho_matrix=False)
     X_quantized = dataset.X.copy()
     X_sparsed = dataset.X.copy()
 

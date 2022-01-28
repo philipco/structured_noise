@@ -6,8 +6,6 @@ This python file provide facilities to quantize tensors.
 from abc import ABC, abstractmethod
 
 import numpy as np
-import tensorflow as tf
-import torch
 from scipy.stats import bernoulli
 from math import sqrt
 
@@ -118,7 +116,7 @@ class RandomSparsification(CompressionModel):
 
     def __compress__(self, vector: np.ndarray):
         proba = self.level
-        indices = bernoulli.rvs(proba, size=len(vector))
+        indices = np.random.binomial(1, proba, len(vector))
         compression = np.zeros_like(vector)
         for i in range(len(vector)):
             if indices[i]:
@@ -169,7 +167,7 @@ class SQuantization(CompressionModel):
         p = ratio * self.level - np.floor(ratio * self.level)
 
         alea = np.random.binomial(1, p, len(vector))
-        all_levels = np.floor(self.level * ratio + alea) / self.level
+        all_levels = (np.floor(self.level * ratio) + alea)/ self.level
 
         signed_level = np.sign(vector) * all_levels
         qtzt = signed_level * norm_x

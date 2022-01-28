@@ -1,43 +1,54 @@
 """
 Created by Constantin Philippenko, 10th January 2022.
 """
+import sys
+
 import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group
 
-from CompressionModel import SQuantization, RandomSparsification
+from src.CompressionModel import SQuantization, RandomSparsification
 
 
 class SyntheticDataset:
 
-    def __init__(self):#, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool) -> None:
+    def __init__(self):
         super().__init__()
 
-    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
-        self.generate_X(dim, size_dataset, power_cov, use_ortho_matrix)
+    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+        self.generate_X(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.generate_Y()
         self.set_step_size()
 
-    def generate_X(self, dim: int, size_dataset: int, power_cov: int, use_ortho_matrix: bool):
-        self.dim = dim  # 20
+    def generate_X(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+        self.dim = dim
+        self.power_cov = power_cov
+        self.r_sigma = r_sigma
 
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
         if use_ortho_matrix:
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
-        else:
-            self.ortho_matrix = np.diag(np.array([1 for i in range(1, dim + 1)]), k=0)
 
         self.size_dataset = size_dataset
 
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=self.size_dataset)
-        self.X = (self.ortho_matrix.dot(self.X.T)).T
+        if use_ortho_matrix:
+            self.X = self.X.dot(self.ortho_matrix.T)
+
+        print("Memory footprint X", sys.getsizeof(self.X))
+        print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
-        self.w_star = np.ones(self.dim)
+        if self.r_sigma == 0:
+            self.w_star = np.ones(self.dim)
+        else:
+            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
         self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
+    def string_for_hash(self):
+        return "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
 
     def set_step_size(self):
         EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
@@ -54,7 +65,7 @@ class SyntheticDataset:
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
-        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim)
+        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
 
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
@@ -68,7 +79,7 @@ class SyntheticDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.GAMMA = GAMMA_BACH_MOULINES / 2
+        self.gamma = OPTIMAL_GAMMA_COMPR
 
-        print("Take step size:", self.GAMMA)
+        print("Take step size:", self.gamma)
 
