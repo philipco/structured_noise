@@ -4,7 +4,9 @@ Created by Constantin Philippenko, 10th January 2022.
 import sys
 
 import numpy as np
+from matplotlib import pyplot as plt
 from numpy.random import multivariate_normal
+from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification
@@ -15,7 +17,9 @@ class SyntheticDataset:
     def __init__(self):
         super().__init__()
 
-    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
+                         do_logistic_regression: bool):
+        self.do_logistic_regression = do_logistic_regression
         self.generate_X(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.generate_Y()
         self.set_step_size()
@@ -45,7 +49,13 @@ class SyntheticDataset:
             self.w_star = np.ones(self.dim)
         else:
             self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
-        self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
+
+        if self.do_logistic_regression:
+            self.Y = self.X @ self.w_star
+            self.Y = np.random.binomial(1, expit(self.Y))
+            self.Y[self.Y == 0] = -1
+        else:
+            self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=self.size_dataset)
 
     def string_for_hash(self):
         return "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)

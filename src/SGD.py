@@ -5,12 +5,17 @@ Created by Constantin Philippenko, 10th January 2022.
 import copy
 
 import numpy as np
+import torch
+from sklearn.linear_model._logistic import _logistic_loss, _logistic_loss_and_grad
+from sklearn.utils.extmath import log_logistic, safe_sparse_dot
 from tqdm import tqdm
+
+from scipy.special import expit
 
 from src.CompressionModel import CompressionModel
 from src.PickleHandler import pickle_saver
 
-DISABLE = True
+DISABLE = False
 
 
 class SeriesOfSGD:
@@ -47,34 +52,36 @@ class SGD():
     
     def __init__(self, synthetic_dataset) -> None:
         super().__init__()
-        self.do_logistic_regression = False
+        self.do_logistic_regression = synthetic_dataset.do_logistic_regression
         self.synthetic_dataset = synthetic_dataset
         self.X, self.Y = self.synthetic_dataset.X, self.synthetic_dataset.Y
         self.w_star = self.synthetic_dataset.w_star
         self.GAMMA = self.synthetic_dataset.gamma
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         self.w0 = np.random.normal(0, 1, size = self.DIM)
-        self.additive_stochastic_gradient = True
+        self.additive_stochastic_gradient = False
 
     def compute_empirical_risk(self, w, data, labels):
         if self.do_logistic_regression:
-            return  -np.sum(np.log(np.sigmoid(labels * data @ w))) / len(labels)
+            return -np.sum(np.log(expit(labels * (data @ w)))) / len(labels)
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
     def compute_true_risk(self, w, data, labels):
         if self.do_logistic_regression:
-            return  -np.sum(np.log(np.sigmoid(labels * data @ w))) / len(labels)
+            return -np.sum(log_logistic(labels * (data @ w))) / len(labels)
         return 0.5 * (w - self.w_star).T @ self.synthetic_dataset.upper_sigma @ (w - self.w_star)
 
     def compute_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
         if self.do_logistic_regression:
-            s = np.sigmoid(y * x @ w)
-            return x.T.mv((s - 1) * y) / len(labels)
+            s = expit(y * x @ w)
+            return x * ((s - 1) * y)
         return np.array((x @ w - y)).dot(x)
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
+        if self.additive_stochastic_gradient:
+            raise ValueError("Compute only additive stochastic gradient is not possible in the logistic setting")
         return self.synthetic_dataset.upper_sigma.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):

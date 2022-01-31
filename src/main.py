@@ -22,10 +22,12 @@ from matplotlib import pyplot as plt
 from src.SGD import SGD, SGDRun, SeriesOfSGD
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**5
-DIM = 1000
-POWER_COV = 3
+SIZE_DATASET = 10*6
+DIM = 100
+POWER_COV = 2
 R_SIGMA=0
+
+DO_LOGISTIC_REGRESSION = True
 
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
@@ -79,7 +81,7 @@ if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 
@@ -87,6 +89,7 @@ if __name__ == '__main__':
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
     sgd_nocompr = sgd.gradient_descent(label="no compression")
+    # optimal_loss = sgd_nocompr.avg_losses[-1] * 0.9999
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
