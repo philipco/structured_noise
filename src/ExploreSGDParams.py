@@ -19,11 +19,13 @@ DIM = 100
 POWER_COVARIANCE = 4
 R_SIGMA = 0
 
+DO_LOGISTIC_REGRESSION = False
+
 
 def explore_by_sigma(power_cov: int):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=power_cov, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -38,7 +40,7 @@ def explore_by_sigma(power_cov: int):
 def explore_by_wstar(r_sigma: int):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=r_sigma,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -53,7 +55,7 @@ def explore_by_wstar(r_sigma: int):
 def explore_by_level_qtz(level_qtzt):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(dim=DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -72,7 +74,7 @@ def explore_by_level_qtz(level_qtzt):
 def explore_by_dim(dim: int):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
 
@@ -87,7 +89,7 @@ def explore_by_dim(dim: int):
 def explore_by_gamma(gamma_factor: int):
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COVARIANCE, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False)
+                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
     synthetic_dataset.gamma = gamma_factor * synthetic_dataset.gamma
     sgd = SGD(synthetic_dataset)
     optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
