@@ -19,15 +19,15 @@ import matplotlib
 
 from matplotlib import pyplot as plt
 
-from src.SGD import SGD, SGDRun, SeriesOfSGD
+from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10*6
+SIZE_DATASET = 10**7
 DIM = 100
-POWER_COV = 2
+POWER_COV = 4
 R_SIGMA=0
 
-DO_LOGISTIC_REGRESSION = True
+DO_LOGISTIC_REGRESSION = False
 
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
@@ -85,22 +85,20 @@ if __name__ == '__main__':
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 
-    sgd = SGD(synthetic_dataset)
-    optimal_loss = sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X, synthetic_dataset.Y)
-
-    sgd_nocompr = sgd.gradient_descent(label="no compression")
-    # optimal_loss = sgd_nocompr.avg_losses[-1] * 0.9999
+    vanilla_sgd = SGDVanilla(copy.deepcopy(synthetic_dataset))
+    sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression")
+    optimal_loss = vanilla_sgd.compute_true_risk(synthetic_dataset.w_star, None, None)
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    sgd_qtz = sgd.gradient_descent_compression(synthetic_dataset.quantizator, label="quantization")
-    sgd_rdk = sgd.gradient_descent_compression(synthetic_dataset.sparsificator, label="sparsification")
+    sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(label="quantization")
+    sgd_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sparsificator).gradient_descent(label="sparsification")
 
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_qtz, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_nocompr, sgd_qtz, sgd_rdk, optimal_loss, hash_string=synthetic_dataset.string_for_hash())
+    setup_plot_with_SGD(sgd_nocompr, sgd_qtz, sgd_rdk, 0, hash_string=synthetic_dataset.string_for_hash())
 
 
     # plt.imshow(matrix_grad)
@@ -119,9 +117,9 @@ if __name__ == '__main__':
     # plt.show()
 
     # fig, ax = plt.subplots(figsize=(8, 7))
-    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(np.diag(matrix_grad)), label="No compression")
-    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(np.diag(matrix_qtz)), label="Quantization")
-    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(np.diag(matrix_sparse)), label="Sparsification")
+    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_nocompr.diag_cov_gradients), label="No compression")
+    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_qtz.diag_cov_gradients), label="Quantization")
+    # plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_rdk.diag_cov_gradients), label="Sparsification")
     # ax.tick_params(axis='both', labelsize=15)
     # ax.legend(loc='best', fontsize=15)
     # ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)

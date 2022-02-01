@@ -3,6 +3,7 @@ Created by Constantin Philippenko, 10th January 2022.
 """
 
 import copy
+from abc import abstractmethod, ABC
 
 import numpy as np
 import torch
@@ -14,6 +15,7 @@ from scipy.special import expit
 
 from src.CompressionModel import CompressionModel
 from src.PickleHandler import pickle_saver
+from src.SyntheticDataset import MAX_SIZE_DATASET
 
 DISABLE = False
 
@@ -47,7 +49,7 @@ class SGDRun:
         self.label = label
 
 
-class SGD():
+class SGD(ABC):
     NB_EPOCH = 1
     
     def __init__(self, synthetic_dataset) -> None:
@@ -58,6 +60,7 @@ class SGD():
         self.w_star = self.synthetic_dataset.w_star
         self.GAMMA = self.synthetic_dataset.gamma
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
+        np.random.seed(25)
         self.w0 = np.random.normal(0, 1, size = self.DIM)
         self.additive_stochastic_gradient = False
 
@@ -93,61 +96,20 @@ class SGD():
         it = 1
         losses = [self.compute_empirical_risk(current_w, self.X, self.Y)]
         avg_losses = [self.compute_empirical_risk(avg_w, self.X, self.Y)]
-        matrix_grad = self.X.copy()
+        matrix_grad = np.zeros((self.SIZE_DATASET, self.DIM))
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
             for idx in tqdm(indices, disable=DISABLE):
-                gamma = self.synthetic_dataset.gamma
-                it += 1
-                if self.additive_stochastic_gradient:
-                    g = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
-                else:
-                    g = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx)
-                matrix_grad[idx] = g
-                current_w = self.sgd_update(current_w, g, gamma)
-                avg_w = current_w / it + avg_w * (it - 1) / it
-                losses.append(self.compute_true_risk(current_w, self.X, self.Y))
-                avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
-        matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
-
-    def gradient_descent_noised(self, label: str) -> SGDRun:
-        current_w = self.w0
-        avg_w = copy.deepcopy(current_w)
-        it = 1
-        losses = [self.compute_empirical_risk(current_w, self.X, self.Y)]
-        avg_losses = [self.compute_empirical_risk(avg_w, self.X, self.Y)]
-        matrix_grad = self.X.copy()
-        for epoch in range(self.NB_EPOCH):
-            indices = np.arange(self.SIZE_DATASET)
-            for idx in tqdm(indices):
-                it += 1
-                g = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx) + np.random.normal(0, 1, size = self.DIM)
-                matrix_grad[idx] = g
-                current_w = self.sgd_update(current_w, g, self.GAMMA)
-                avg_w = current_w / it + avg_w * (it - 1) / it
-                losses.append(self.compute_true_risk(current_w, self.X, self.Y))
-                avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
-        matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
-        return SGDRun(current_w, losses, avg_losses, current_w, np.diag(matrix_cov), label=label)
-
-    def gradient_descent_compression(self, compressor: CompressionModel, label: str = None) -> SGDRun:
-        current_w = self.w0
-        avg_w = copy.deepcopy(current_w)
-        it = 1
-        losses = [self.compute_empirical_risk(current_w, self.X, self.Y)]
-        avg_losses = [self.compute_empirical_risk(avg_w, self.X, self.Y)]
-        matrix_grad = self.X.copy()
-        for epoch in range(self.NB_EPOCH):
-            indices = np.arange(self.SIZE_DATASET)
-            for idx in tqdm(indices, disable=DISABLE):
+                if idx % MAX_SIZE_DATASET == 0 and idx != 0:
+                    print("Regenerating ...")
+                    self.synthetic_dataset.regenerate_dataset()
                 gamma = self.synthetic_dataset.gamma
                 it += 1
                 if self.additive_stochastic_gradient:
                     grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx)
                 else:
                     grad = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx)
-                g = compressor.compress(grad)
+                g = self.gradient_processing(grad)
                 matrix_grad[idx] = g
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
@@ -156,3 +118,32 @@ class SGD():
 
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
         return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
+
+    @abstractmethod
+    def gradient_processing(self, grad):
+        pass
+
+
+class SGDVanilla(SGD):
+
+    def gradient_processing(self, grad):
+        return grad
+
+
+class SGDNoised(SGD):
+
+    def gradient_processing(self, grad):
+        return grad + np.random.normal(0, 1, size=self.DIM)
+
+
+class SGDCompressed(SGD):
+
+    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
+        super().__init__(synthetic_dataset)
+        self.compressor = compressor
+
+    def gradient_processing(self, grad):
+        return self.compressor.compress(grad)
+
+
+
