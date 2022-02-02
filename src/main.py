@@ -27,6 +27,7 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
+USE_ORTHO_MATRIX = False
 DO_LOGISTIC_REGRESSION = False
 
 
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=False, do_logistic_regression=DO_LOGISTIC_REGRESSION)
+                                       use_ortho_matrix=USE_ORTHO_MATRIX, do_logistic_regression=DO_LOGISTIC_REGRESSION)
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 

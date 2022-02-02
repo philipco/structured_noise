@@ -16,8 +16,9 @@ from scipy.special import expit
 from src.CompressionModel import CompressionModel
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
+from src.Utilities import print_mem_usage
 
-DISABLE = False
+DISABLE = True
 
 
 class SeriesOfSGD:
@@ -117,6 +118,7 @@ class SGD(ABC):
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
         matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
+        print_mem_usage("End of sgd descent ...")
         return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
 
     @abstractmethod

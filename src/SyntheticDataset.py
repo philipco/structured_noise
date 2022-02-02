@@ -7,10 +7,12 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy.random import multivariate_normal
+from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification
+from src.Utilities import print_mem_usage
 
 MAX_SIZE_DATASET = 10**7
 
@@ -55,7 +57,7 @@ class AbstractDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.gamma = OPTIMAL_GAMMA_COMPR
+        self.gamma = OPTIMAL_GAMMA_COMPR  # Il faut jouer sur le pas gamma !
 
         print("Take step size:", self.gamma)
 
@@ -79,6 +81,7 @@ class SyntheticDataset(AbstractDataset):
         self.generate_X(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.generate_Y()
         self.set_step_size()
+        print_mem_usage("Just created the dataset ...")
 
     def regenerate_dataset(self):
         self.generate_X(self.dim, self.size_dataset, self.power_cov, self.r_sigma, self.use_ortho_matrix)
@@ -93,14 +96,16 @@ class SyntheticDataset(AbstractDataset):
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
         if self.use_ortho_matrix:
+            # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+            self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
 
         self.size_dataset = size_dataset
 
-        size_generator = max(self.size_dataset, MAX_SIZE_DATASET)
+        size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
-        if use_ortho_matrix:
-            self.X = self.X.dot(self.ortho_matrix.T)
+        # if use_ortho_matrix:
+        #     self.X = self.X.dot(self.ortho_matrix.T)
 
         print("Memory footprint X", sys.getsizeof(self.X))
         print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
@@ -117,7 +122,7 @@ class SyntheticDataset(AbstractDataset):
             self.Y = np.random.binomial(1, expit(self.Y))
             self.Y[self.Y == 0] = -1
         else:
-            size_generator = max(self.size_dataset, MAX_SIZE_DATASET)
+            size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
             self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
 

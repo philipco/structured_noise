@@ -5,6 +5,8 @@ Created by Constantin Philippenko, 25th January 2022.
 import os
 from pathlib import Path
 
+import psutil
+
 
 def get_project_root() -> str:
     import pathlib
@@ -23,5 +25,14 @@ def create_folder_if_not_existing(folder):
 def file_exist(filename: str):
     return os.path.isfile(filename)
 
+
 def remove_file(filename: str):
     os.remove(filename)
+
+
+def print_mem_usage(info = None):
+    if info:
+        print(info)
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss * 10**-9 # Memory in Gb.
+    print("Memory usage: {0:1.2f}Gb".format(mem))
