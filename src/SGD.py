@@ -13,13 +13,16 @@ from tqdm import tqdm
 
 from scipy.special import expit
 
-from src.CompressionModel import CompressionModel
+from src.CompressionModel import CompressionModel, RandomSparsification
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
 
 DISABLE = False
-CORRECTION = False
+CORRECTION_SQUARE_COV = False
+CORRECTION_DIAG = False
+
+assert not (CORRECTION_SQUARE_COV == CORRECTION_DIAG == True), "The two correction can not be set at True simultaneously."
 
 
 class SeriesOfSGD:
@@ -68,12 +71,22 @@ class SGD(ABC):
         self.transition_matrix = inv(sqrtm(self.synthetic_dataset.upper_sigma))
         self.inv_transition_matrix = sqrtm(self.synthetic_dataset.upper_sigma)
 
+    def BFGS_hessian_approximation(self, H, gk, gk_prev, wk, wk_prev):
+        # https://transp-or.epfl.ch/courses/optimization2011/slides/09-bfgs.pdf
+        dir_grad = gk - gk_prev
+        dir_model = wk - wk_prev
+        term1 = (dir_grad @ dir_grad.T) / (dir_grad.T @ dir_model)
+        term2 = H @ (dir_model @ dir_model.T) @ H / (dir_model.T @ H @ dir_model)
+        return H + term1 - term2
+
     # @jit
     def compute_empirical_risk(self, w, data, labels):
         # if self.do_logistic_regression:
         #     return -np.sum(np.log(expit(labels * (data @ w)))) / len(labels)
-        if CORRECTION:
+        if CORRECTION_SQUARE_COV:
             data = data @ self.transition_matrix.T
+        if CORRECTION_DIAG:
+            data = data @ self.synthetic_dataset.Q
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
     # @jit
@@ -84,9 +97,12 @@ class SGD(ABC):
         # if self.do_logistic_regression:
         #     return -np.sum(log_logistic(labels * (data @ w))) / len(labels)
         # w = self.inv_transition_matrix @ w
-        if CORRECTION:
+        if CORRECTION_SQUARE_COV:
             w_star = self.inv_transition_matrix @ self.w_star
             return 0.5 * (w - w_star).T @ (w - w_star)
+        elif CORRECTION_DIAG:
+            w_star = self.synthetic_dataset.Q.T @ self.w_star
+            return 0.5 * (w - w_star).T @ self.synthetic_dataset.D @ (w - w_star)
         return 0.5 * (w - self.w_star).T @ self.synthetic_dataset.upper_sigma @ (w - self.w_star)
 
     # @jit
@@ -95,8 +111,10 @@ class SGD(ABC):
         # if self.do_logistic_regression:
         #     s = expit(y * x @ w)
         #     return x * ((s - 1) * y)
-        if CORRECTION:
+        if CORRECTION_SQUARE_COV:
             x = self.transition_matrix @ x
+        elif CORRECTION_DIAG:
+            x = self.synthetic_dataset.Q.T @ x
         return np.array((x @ w - y)).dot(x)
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
@@ -112,8 +130,8 @@ class SGD(ABC):
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        losses = [self.compute_empirical_risk(current_w, self.X, self.Y)]
-        avg_losses = [self.compute_empirical_risk(avg_w, self.X, self.Y)]
+        losses = [self.compute_true_risk(current_w, self.X, self.Y)]
+        avg_losses = [self.compute_true_risk(avg_w, self.X, self.Y)]
         matrix_grad = np.zeros((self.SIZE_DATASET, self.DIM))
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
@@ -161,7 +179,19 @@ class SGDCompressed(SGD):
         super().__init__(synthetic_dataset)
         self.compressor = compressor
 
+    # def compute_stochastic_gradient(self, w, data, labels, index):
+    #     x, y = data[index], labels[index]
+    #     if isinstance(self.compressor, RandomSparsification):
+    #         x = self.compressor.compress(x)
+    #         p = self.compressor.level
+    #         term1 = (1/p) * x * ( (x.dot(w)) / p - y)
+    #         term2 = (1-p)/p**2 * (x**2) @ w #np.diag(np.diag(np.array([x]).T @ np.array([x])))
+    #         return term1 - term2
+    #     return np.array((x @ w - y)).dot(x)
+
     def gradient_processing(self, grad):
+        # if isinstance(self.compressor, RandomSparsification):
+        # return grad
         return self.compressor.compress(grad)
 
 

@@ -124,6 +124,6 @@ if __name__ == '__main__':
     # ax.tick_params(axis='both', labelsize=15)
     # ax.legend(loc='best', fontsize=15)
     # ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
-    # ax.set_ylabel(r"$\log(Diag(\frac{X^T.X \Sigma}{n})_i)$", fontsize=15)
+    # ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
     # plt.legend(loc='best', fontsize=15)
     # plt.show()

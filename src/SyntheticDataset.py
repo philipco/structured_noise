@@ -10,6 +10,7 @@ from numpy.random import multivariate_normal
 from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
+from sympy import Matrix, matrix2numpy
 
 from src.CompressionModel import SQuantization, RandomSparsification
 from src.Utilities import print_mem_usage
@@ -45,6 +46,9 @@ class AbstractDataset:
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
 
+        self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.size_dataset)])
+        print("L_max=", self.L_max)
+
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
         print("Qtz compression:", self.quantizator.omega_c)
@@ -57,7 +61,7 @@ class AbstractDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.gamma = OPTIMAL_GAMMA_COMPR  # Il faut jouer sur le pas gamma !
+        self.gamma = OPTIMAL_GAMMA_COMPR # Il faut jouer sur le pas gamma !
 
         print("Take step size:", self.gamma)
 
@@ -99,13 +103,13 @@ class SyntheticDataset(AbstractDataset):
             # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
+            self.Q, self.D = Matrix(self.upper_sigma).diagonalize()
+            self.Q, self.D = matrix2numpy(self.Q, dtype='float64'), matrix2numpy(self.D, dtype='float64')
 
         self.size_dataset = size_dataset
 
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
-        # if use_ortho_matrix:
-        #     self.X = self.X.dot(self.ortho_matrix.T)
+        self.X = multivariate_normal(np.zeros(dim), self.upper_sigma, size=size_generator)
 
         print("Memory footprint X", sys.getsizeof(self.X))
         print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
