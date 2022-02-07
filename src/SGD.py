@@ -14,15 +14,17 @@ from tqdm import tqdm
 from scipy.special import expit
 
 from src.CompressionModel import CompressionModel, RandomSparsification
+from src.JITProduct import *
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
 
 DISABLE = False
-CORRECTION_SQUARE_COV = False
+CORRECTION_SQUARE_COV = True
 CORRECTION_DIAG = False
 
-assert not (CORRECTION_SQUARE_COV == CORRECTION_DIAG == True), "The two correction can not be set at True simultaneously."
+# CORRECTION_ORTHO = None
+# "The correction in the orthogonal case must be in: None, 'square_cov', 'diagonalization'."
 
 
 class SeriesOfSGD:
@@ -68,8 +70,14 @@ class SGD(ABC):
         np.random.seed(25)
         self.w0 = np.random.normal(0, 1, size = self.DIM)
         self.additive_stochastic_gradient = False
-        self.transition_matrix = inv(sqrtm(self.synthetic_dataset.upper_sigma))
-        self.inv_transition_matrix = sqrtm(self.synthetic_dataset.upper_sigma)
+        self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
+        self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
+
+        # self.algo_sgd = AbstractAlgoSGD("diagonalization", self.synthetic_dataset.upper_sigma,
+        #                                     self.inv_root_square_upper_sigma, self.synthetic_dataset.Q,
+        #                                     self.synthetic_dataset.D)
+        # else:
+        #     self.algo_sgd = AbstractAlgoSGD(CORRECTION_ORTHO, self.synthetic_dataset.upper_sigma)
 
     def BFGS_hessian_approximation(self, H, gk, gk_prev, wk, wk_prev):
         # https://transp-or.epfl.ch/courses/optimization2011/slides/09-bfgs.pdf
@@ -79,17 +87,15 @@ class SGD(ABC):
         term2 = H @ (dir_model @ dir_model.T) @ H / (dir_model.T @ H @ dir_model)
         return H + term1 - term2
 
-    # @jit
     def compute_empirical_risk(self, w, data, labels):
         # if self.do_logistic_regression:
         #     return -np.sum(np.log(expit(labels * (data @ w)))) / len(labels)
         if CORRECTION_SQUARE_COV:
-            data = data @ self.transition_matrix.T
+            data = data @ self.inv_root_square_upper_sigma.T
         if CORRECTION_DIAG:
             data = data @ self.synthetic_dataset.Q
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
-    # @jit
     def compute_true_risk(self, w, data, labels):
         if data is None:
             return 0
@@ -98,24 +104,23 @@ class SGD(ABC):
         #     return -np.sum(log_logistic(labels * (data @ w))) / len(labels)
         # w = self.inv_transition_matrix @ w
         if CORRECTION_SQUARE_COV:
-            w_star = self.inv_transition_matrix @ self.w_star
-            return 0.5 * (w - w_star).T @ (w - w_star)
+            w_star = self.inv_root_square_upper_sigma @ self.w_star
+            return constant_product(0.5, vectorial_norm(minus(w, w_star)))
         elif CORRECTION_DIAG:
-            w_star = self.synthetic_dataset.Q.T @ self.w_star
-            return 0.5 * (w - w_star).T @ self.synthetic_dataset.D @ (w - w_star)
-        return 0.5 * (w - self.w_star).T @ self.synthetic_dataset.upper_sigma @ (w - self.w_star)
+            w_star = matrix_vector_product(self.synthetic_dataset.Q.T, self.w_star)
+            return wAw_product(0.5, minus(w, w_star), self.synthetic_dataset.D)
+        return wAw_product(0.5, minus(w, self.w_star), self.synthetic_dataset.upper_sigma)
 
-    # @jit
     def compute_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
         # if self.do_logistic_regression:
         #     s = expit(y * x @ w)
         #     return x * ((s - 1) * y)
         if CORRECTION_SQUARE_COV:
-            x = self.transition_matrix @ x
+            x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
         elif CORRECTION_DIAG:
-            x = self.synthetic_dataset.Q.T @ x
-        return np.array((x @ w - y)).dot(x)
+            x = matrix_vector_product(self.synthetic_dataset.Q.T, x)
+        return constant_product(minus(scalar_product(x, w), y), x)
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
@@ -124,7 +129,7 @@ class SGD(ABC):
         return self.synthetic_dataset.upper_sigma.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
-        return w - gamma * gradient
+        return minus(w,constant_product(gamma, gradient))
 
     def gradient_descent(self, label: str = None) -> SGDRun:
         current_w = self.w0
@@ -132,7 +137,7 @@ class SGD(ABC):
         it = 1
         losses = [self.compute_true_risk(current_w, self.X, self.Y)]
         avg_losses = [self.compute_true_risk(avg_w, self.X, self.Y)]
-        matrix_grad = np.zeros((self.SIZE_DATASET, self.DIM))
+        # matrix_grad = np.zeros((self.SIZE_DATASET, self.DIM))
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
             for idx in tqdm(indices, disable=DISABLE):
@@ -146,15 +151,15 @@ class SGD(ABC):
                 else:
                     grad = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
                 g = self.gradient_processing(grad)
-                matrix_grad[idx] = g
+                # matrix_grad[idx] = g
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
-        matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
+        # matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
         print_mem_usage("End of sgd descent ...")
-        return SGDRun(current_w, losses, avg_losses, np.diag(matrix_cov), label=label)
+        return SGDRun(current_w, losses, avg_losses, None, label=label)
 
     @abstractmethod
     def gradient_processing(self, grad):

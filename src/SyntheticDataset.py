@@ -48,8 +48,8 @@ class AbstractDataset:
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
 
-        self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.X.shape[0])])
-        print("L_max=", self.L_max)
+        # self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.X.shape[0])])
+        # print("L_max=", self.L_max)
 
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
@@ -111,8 +111,8 @@ class SyntheticDataset(AbstractDataset):
             self.Q, self.D = Matrix(self.upper_sigma).diagonalize()
             self.Q, self.D = matrix2numpy(self.Q, dtype='float64'), matrix2numpy(self.D, dtype='float64')
 
-    def regenerate_dataset(self):#, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
-        self.generate_X() #self.dim, self.size_dataset, self.power_cov, self.r_sigma, self.use_ortho_matrix)
+    def regenerate_dataset(self):
+        self.generate_X()
         self.generate_Y()
 
     def generate_X(self):
