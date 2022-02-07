@@ -31,7 +31,9 @@ class AbstractDataset:
 
     def set_step_size(self):
         EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
-        self.L = np.max(EIGEN_VALUES) / self.size_dataset
+        # We generate a dataset of a maximal size.
+        size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
+        self.L = np.max(EIGEN_VALUES) / size_generator
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -39,14 +41,14 @@ class AbstractDataset:
 
         GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
 
-        TARGET_OMEGA = 1 # 10 if dim=500, else = 4
+        TARGET_OMEGA = 1
         self.LEVEL_QTZ = 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
 
-        self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.size_dataset)])
+        self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.X.shape[0])])
         print("L_max=", self.L_max)
 
         print("Level qtz:", self.LEVEL_QTZ)
@@ -82,23 +84,26 @@ class SyntheticDataset(AbstractDataset):
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
                          do_logistic_regression: bool):
         self.do_logistic_regression = do_logistic_regression
-        self.generate_X(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
+        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
+        self.generate_X()
         self.generate_Y()
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def regenerate_dataset(self):
-        self.generate_X(self.dim, self.size_dataset, self.power_cov, self.r_sigma, self.use_ortho_matrix)
-        self.generate_Y()
-
-    def generate_X(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
+        self.size_dataset = size_dataset
+
+        if self.r_sigma == 0:
+            self.w_star = np.ones(self.dim)
+        else:
+            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
 
         # Used to generate self.X
-        self.upper_sigma = np.diag(np.array([1 / (i ** power_cov) for i in range(1, dim + 1)]), k=0)
+        self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
         if self.use_ortho_matrix:
             # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
@@ -106,20 +111,19 @@ class SyntheticDataset(AbstractDataset):
             self.Q, self.D = Matrix(self.upper_sigma).diagonalize()
             self.Q, self.D = matrix2numpy(self.Q, dtype='float64'), matrix2numpy(self.D, dtype='float64')
 
-        self.size_dataset = size_dataset
+    def regenerate_dataset(self):#, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+        self.generate_X() #self.dim, self.size_dataset, self.power_cov, self.r_sigma, self.use_ortho_matrix)
+        self.generate_Y()
 
+    def generate_X(self):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.X = multivariate_normal(np.zeros(dim), self.upper_sigma, size=size_generator)
+        self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
 
         print("Memory footprint X", sys.getsizeof(self.X))
         print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
-        if self.r_sigma == 0:
-            self.w_star = np.ones(self.dim)
-        else:
-            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
 
         if self.do_logistic_regression:
             self.Y = self.X @ self.w_star
