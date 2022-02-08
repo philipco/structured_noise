@@ -13,6 +13,7 @@ from scipy.stats import ortho_group
 from sympy import Matrix, matrix2numpy
 
 from src.CompressionModel import SQuantization, RandomSparsification
+from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
 MAX_SIZE_DATASET = 10**7
@@ -97,19 +98,19 @@ class SyntheticDataset(AbstractDataset):
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
 
+        # Used to generate self.X
+        self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
+
         if self.r_sigma == 0:
             self.w_star = np.ones(self.dim)
         else:
             self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
 
-        # Used to generate self.X
-        self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
         if self.use_ortho_matrix:
             # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
-            self.Q, self.D = Matrix(self.upper_sigma).diagonalize()
-            self.Q, self.D = matrix2numpy(self.Q, dtype='float64'), matrix2numpy(self.D, dtype='float64')
+            self.Q, self.D = diagonalization(self.upper_sigma)
 
     def regenerate_dataset(self):
         self.generate_X()

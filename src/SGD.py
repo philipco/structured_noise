@@ -5,6 +5,7 @@ Created by Constantin Philippenko, 10th January 2022.
 import copy
 from abc import abstractmethod, ABC
 
+from matplotlib import pyplot as plt
 from numba import jit
 import numpy as np
 from numpy.linalg import inv
@@ -20,7 +21,7 @@ from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
 
 DISABLE = False
-CORRECTION_SQUARE_COV = True
+CORRECTION_SQUARE_COV = False
 CORRECTION_DIAG = False
 
 # CORRECTION_ORTHO = None
@@ -73,19 +74,9 @@ class SGD(ABC):
         self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
         self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
 
-        # self.algo_sgd = AbstractAlgoSGD("diagonalization", self.synthetic_dataset.upper_sigma,
-        #                                     self.inv_root_square_upper_sigma, self.synthetic_dataset.Q,
-        #                                     self.synthetic_dataset.D)
-        # else:
-        #     self.algo_sgd = AbstractAlgoSGD(CORRECTION_ORTHO, self.synthetic_dataset.upper_sigma)
-
-    def BFGS_hessian_approximation(self, H, gk, gk_prev, wk, wk_prev):
-        # https://transp-or.epfl.ch/courses/optimization2011/slides/09-bfgs.pdf
-        dir_grad = gk - gk_prev
-        dir_model = wk - wk_prev
-        term1 = (dir_grad @ dir_grad.T) / (dir_grad.T @ dir_model)
-        term2 = H @ (dir_model @ dir_model.T) @ H / (dir_model.T @ H @ dir_model)
-        return H + term1 - term2
+        self.Q, self.D = np.identity(self.DIM), np.identity(self.DIM)
+        self.approx_hessian = np.identity(self.DIM)
+        self.debiased_hessian = np.identity(self.DIM)
 
     def compute_empirical_risk(self, w, data, labels):
         # if self.do_logistic_regression:
@@ -93,7 +84,7 @@ class SGD(ABC):
         if CORRECTION_SQUARE_COV:
             data = data @ self.inv_root_square_upper_sigma.T
         if CORRECTION_DIAG:
-            data = data @ self.synthetic_dataset.Q
+            data = data @ self.Q
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
     def compute_true_risk(self, w, data, labels):
@@ -107,8 +98,8 @@ class SGD(ABC):
             w_star = self.inv_root_square_upper_sigma @ self.w_star
             return constant_product(0.5, vectorial_norm(minus(w, w_star)))
         elif CORRECTION_DIAG:
-            w_star = matrix_vector_product(self.synthetic_dataset.Q.T, self.w_star)
-            return wAw_product(0.5, minus(w, w_star), self.synthetic_dataset.D)
+            w_star = matrix_vector_product(self.Q.T, self.w_star)
+            return wAw_product(0.5, minus(w, w_star), self.D)
         return wAw_product(0.5, minus(w, self.w_star), self.synthetic_dataset.upper_sigma)
 
     def compute_stochastic_gradient(self, w, data, labels, index):
@@ -119,7 +110,7 @@ class SGD(ABC):
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
         elif CORRECTION_DIAG:
-            x = matrix_vector_product(self.synthetic_dataset.Q.T, x)
+            x = matrix_vector_product(self.Q.T, x)
         return constant_product(minus(scalar_product(x, w), y), x)
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
@@ -146,23 +137,40 @@ class SGD(ABC):
                     self.synthetic_dataset.regenerate_dataset()
                 gamma = self.synthetic_dataset.gamma
                 it += 1
+
+                self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D
+
                 if self.additive_stochastic_gradient:
                     grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
                 else:
                     grad = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
                 g = self.gradient_processing(grad)
+
                 # matrix_grad[idx] = g
+
+                if idx == 0:
+                    self.approx_hessian = np.kron(g, g).reshape((self.DIM, self.DIM))
+                else:
+                    self.approx_hessian = + np.kron(g, g).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
+
+                self.hessian_processing()
+
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
+        self.hessian_processing()
         # matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
         print_mem_usage("End of sgd descent ...")
-        return SGDRun(current_w, losses, avg_losses, None, label=label)
+        return SGDRun(current_w, losses, avg_losses, np.diag(self.debiased_hessian), label=label)
 
     @abstractmethod
     def gradient_processing(self, grad):
+        pass
+
+    @abstractmethod
+    def hessian_processing(self):
         pass
 
 
@@ -171,11 +179,17 @@ class SGDVanilla(SGD):
     def gradient_processing(self, grad):
         return grad
 
+    def hessian_processing(self):
+        self.debiased_hessian = self.approx_hessian
+
 
 class SGDNoised(SGD):
 
     def gradient_processing(self, grad):
         return grad + np.random.normal(0, 1, size=self.DIM)
+
+    def hessian_processing(self):
+        self.debiased_hessian = self.approx_hessian
 
 
 class SGDCompressed(SGD):
@@ -183,6 +197,9 @@ class SGDCompressed(SGD):
     def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
         super().__init__(synthetic_dataset)
         self.compressor = compressor
+        if isinstance(compressor, RandomSparsification):
+            p = compressor.level
+            self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
 
     # def compute_stochastic_gradient(self, w, data, labels, index):
     #     x, y = data[index], labels[index]
@@ -193,6 +210,12 @@ class SGDCompressed(SGD):
     #         term2 = (1-p)/p**2 * (x**2) @ w #np.diag(np.diag(np.array([x]).T @ np.array([x])))
     #         return term1 - term2
     #     return np.array((x @ w - y)).dot(x)
+
+    def hessian_processing(self):
+        if isinstance(self.compressor, RandomSparsification):
+            self.debiased_hessian = self.approx_hessian * self.inv_proba_matrix
+        else:
+            self.debiased_hessian = self.approx_hessian
 
     def gradient_processing(self, grad):
         # if isinstance(self.compressor, RandomSparsification):

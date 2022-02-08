@@ -1,8 +1,9 @@
 """
 Created by Constantin Philippenko, 7th February 2022.
 """
-
+import numpy as np
 from numba import jit
+from sympy import Matrix, matrix2numpy
 
 
 @jit(nopython=True)
@@ -33,3 +34,10 @@ def constant_product(alpha, x):
 @jit(nopython=True)
 def minus(x, y):
     return x-y
+
+
+# @jit(nopython=True)
+# Il y a un bug parce que ça passe en complex.
+def diagonalization(matrix):
+    D, Q = np.linalg.eig(matrix)
+    return Q.real, np.diag(D).real
