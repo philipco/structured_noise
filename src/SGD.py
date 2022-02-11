@@ -20,9 +20,11 @@ from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
 
+ONLY_ADDITIVE_NOISE = False
+
 DISABLE = False
 CORRECTION_SQUARE_COV = False
-CORRECTION_DIAG = False
+CORRECTION_DIAG = True
 
 # CORRECTION_ORTHO = None
 # "The correction in the orthogonal case must be in: None, 'square_cov', 'diagonalization'."
@@ -70,7 +72,7 @@ class SGD(ABC):
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
         np.random.seed(25)
         self.w0 = np.random.normal(0, 1, size = self.DIM)
-        self.additive_stochastic_gradient = False
+        self.additive_stochastic_gradient = ONLY_ADDITIVE_NOISE
         self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
         self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
 
@@ -115,7 +117,7 @@ class SGD(ABC):
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
-        if self.additive_stochastic_gradient:
+        if self.additive_stochastic_gradient and self.do_logistic_regression:
             raise ValueError("Compute only additive stochastic gradient is not possible in the logistic setting")
         return self.synthetic_dataset.upper_sigma.dot(w) - y * x
 
@@ -138,7 +140,7 @@ class SGD(ABC):
                 gamma = self.synthetic_dataset.gamma
                 it += 1
 
-                self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D
+                self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D #diagonalization(self.debiased_hessian) #
 
                 if self.additive_stochastic_gradient:
                     grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
