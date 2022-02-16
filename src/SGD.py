@@ -3,6 +3,7 @@ Created by Constantin Philippenko, 10th January 2022.
 """
 
 import copy
+import math
 from abc import abstractmethod, ABC
 
 from matplotlib import pyplot as plt
@@ -21,10 +22,12 @@ from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
 
 ONLY_ADDITIVE_NOISE = False
+USE_MOMENTUM = False
+BETA = 0
 
 DISABLE = False
 CORRECTION_SQUARE_COV = False
-CORRECTION_DIAG = True
+CORRECTION_DIAG = False
 
 # CORRECTION_ORTHO = None
 # "The correction in the orthogonal case must be in: None, 'square_cov', 'diagonalization'."
@@ -53,10 +56,22 @@ class SGDRun:
     def __init__(self, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.last_w = last_w
-        self.losses = losses
-        self.avg_losses = avg_losses
+        self.xaxis, self.losses = self.uniform_sampling(losses)
+        _, self.avg_losses = self.uniform_sampling(avg_losses)
         self.diag_cov_gradients = diag_cov_gradients
         self.label = label
+
+    def uniform_sampling(self, losses):
+        losses = np.array(losses)
+        # Uniform sampling of a log-xaxis
+        log_len = np.int(math.log10(len(losses)))
+        residual_len = math.log10(len((losses))) - log_len
+        xaxis = [[math.pow(10, a) * math.pow(10, i / 100) for i in range(100)] for a in range(log_len)]
+        xaxis.append([math.pow(10, log_len) * math.pow(10, i / 100) for i in range(int(100 * residual_len))])
+        xaxis = np.concatenate(xaxis, axis=None)
+        xaxis = np.unique(xaxis.astype(int))
+        # We return the loss at the indices from xaxis.
+        return xaxis, np.take(losses, xaxis)
 
 
 class SGD(ABC):
@@ -119,7 +134,11 @@ class SGD(ABC):
         x, y = data[index], labels[index]
         if self.additive_stochastic_gradient and self.do_logistic_regression:
             raise ValueError("Compute only additive stochastic gradient is not possible in the logistic setting")
-        return self.synthetic_dataset.upper_sigma.dot(w) - y * x
+        if CORRECTION_SQUARE_COV:
+            x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
+        elif CORRECTION_DIAG:
+            x = matrix_vector_product(self.Q.T, x)
+        return self.D.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
         return minus(w,constant_product(gamma, gradient))
@@ -140,7 +159,8 @@ class SGD(ABC):
                 gamma = self.synthetic_dataset.gamma
                 it += 1
 
-                self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D #diagonalization(self.debiased_hessian) #
+                if CORRECTION_DIAG:
+                    self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D #diagonalization(self.debiased_hessian) #
 
                 if self.additive_stochastic_gradient:
                     grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
@@ -153,19 +173,18 @@ class SGD(ABC):
                 if idx == 0:
                     self.approx_hessian = np.kron(g, g).reshape((self.DIM, self.DIM))
                 else:
-                    self.approx_hessian = + np.kron(g, g).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
+                    self.approx_hessian = np.kron(g, g).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
 
-                self.hessian_processing()
+                # self.hessian_processing()
 
                 current_w = self.sgd_update(current_w, g, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 losses.append(self.compute_true_risk(current_w, self.X, self.Y))
                 avg_losses.append(self.compute_true_risk(avg_w, self.X, self.Y))
 
-        self.hessian_processing()
-        # matrix_cov = matrix_grad.T.dot(matrix_grad) / self.SIZE_DATASET
         print_mem_usage("End of sgd descent ...")
-        return SGDRun(current_w, losses, avg_losses, np.diag(self.debiased_hessian), label=label)
+        return SGDRun(current_w, losses, avg_losses, np.diag(self.approx_hessian), label=label)
+        # return SGDRun(current_w, losses, avg_losses, np.diag(self.synthetic_dataset.Q.T @ self.approx_hessian @ self.synthetic_dataset.Q), label=label)
 
     @abstractmethod
     def gradient_processing(self, grad):
@@ -214,10 +233,10 @@ class SGDCompressed(SGD):
     #     return np.array((x @ w - y)).dot(x)
 
     def hessian_processing(self):
-        if isinstance(self.compressor, RandomSparsification):
-            self.debiased_hessian = self.approx_hessian * self.inv_proba_matrix
-        else:
-            self.debiased_hessian = self.approx_hessian
+        # if isinstance(self.compressor, RandomSparsification):
+        #     self.debiased_hessian = self.approx_hessian * self.inv_proba_matrix
+        # else:
+        self.debiased_hessian = self.approx_hessian
 
     def gradient_processing(self, grad):
         # if isinstance(self.compressor, RandomSparsification):

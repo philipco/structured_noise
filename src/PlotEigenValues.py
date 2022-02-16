@@ -9,19 +9,20 @@ from tqdm import tqdm
 from src.CompressionModel import SQuantization, RandomSparsification
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 100000
-DIM = 100
-POWER_COV = 3
+SIZE_DATASET = 10**5
+DIM = 1000
+POWER_COV = 4
 R_SIGMA=0
 
-USE_ORTHO_MATRIX = False
+USE_ORTHO_MATRIX = True
 
 
 def compute_diag_matrices(dim: int):
 
     dataset = SyntheticDataset()
-    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
+    dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
                        use_ortho_matrix=USE_ORTHO_MATRIX)
+    dataset.generate_X()
     X_quantized = dataset.X.copy()
     X_sparsed = dataset.X.copy()
 
@@ -43,6 +44,13 @@ def compute_diag_matrices(dim: int):
         cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
         cov_matrix_qtz = dataset.ortho_matrix.T.dot(cov_matrix_qtz).dot(dataset.ortho_matrix)
         cov_matrix_sparse = dataset.ortho_matrix.T.dot(cov_matrix_sparse).dot(dataset.ortho_matrix)
+
+    # diag, _ = np.linalg.eig(cov_matrix)
+    # diag_qtz, _ = np.linalg.eig(cov_matrix_qtz)
+    # # diag_sparse, _ = np.linalg.eig(cov_matrix_sparse)
+    # diag = np.diag(diag)
+    # diag_qtz = np.diag(diag_qtz)
+    # diag_sparse = np.diag(diag_sparse)
 
     diag = np.diag(cov_matrix)
     diag_qtz = np.diag(cov_matrix_qtz)
