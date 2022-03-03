@@ -1,7 +1,9 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
 """
+import cmath
 
+import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -9,12 +11,26 @@ from tqdm import tqdm
 from src.CompressionModel import SQuantization, RandomSparsification
 from src.SyntheticDataset import SyntheticDataset
 
+matplotlib.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
+
 SIZE_DATASET = 10**5
-DIM = 1000
+DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
 USE_ORTHO_MATRIX = True
+
+
+def prepare_sparsification(x, p):
+    rademacher = np.random.binomial(1, 0.5, size=len(x))
+    rademacher[rademacher == 0] = -1
+    return x * (rademacher) # * cmath.sqrt(p-1))
 
 
 def compute_diag_matrices(dim: int):
@@ -87,6 +103,8 @@ if __name__ == '__main__':
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
     ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
     plt.legend(loc='best', fontsize=15)
+
+    plt.savefig("pictures/eigenvalues.eps", format='eps')
 
     plt.show()
 

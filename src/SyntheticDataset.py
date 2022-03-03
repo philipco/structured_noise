@@ -1,22 +1,21 @@
 """
 Created by Constantin Philippenko, 10th January 2022.
 """
-import math
-import sys
+import copy
 
 import numpy as np
-from matplotlib import pyplot as plt
 from numpy.random import multivariate_normal
 from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
-from sympy import Matrix, matrix2numpy
 
 from src.CompressionModel import SQuantization, RandomSparsification
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
 MAX_SIZE_DATASET = 10**7
+
+MISSING_VALUE_MODE = True
 
 
 class AbstractDataset:
@@ -30,6 +29,20 @@ class AbstractDataset:
             return "{0}-N{1}-D{2}-P{3}-R{4}".format(self.name, self.size_dataset, self.dim, self.power_cov, self.r_sigma)
         return "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
 
+    def define_compressors(self):
+        TARGET_OMEGA = 1
+        self.LEVEL_QTZ = 5  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
+        self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
+
+        self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
+        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
+        print("Level sparsification:", self.sparsificator.level)
+
+        print("Level qtz:", self.LEVEL_QTZ)
+        print("Level rdk:", self.LEVEL_RDK)
+        print("Qtz compression:", self.quantizator.omega_c)
+        print("Rdk compression:", self.sparsificator.omega_c)
+
     def set_step_size(self):
         EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
         # We generate a dataset of a maximal size.
@@ -42,20 +55,12 @@ class AbstractDataset:
 
         GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
 
-        TARGET_OMEGA = 1
-        self.LEVEL_QTZ = 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
-        self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
-
-        self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
-        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
-
-        # self.L_max = (1/self.sparsificator.level**2) * max([np.linalg.norm(self.X[k]) for k in range(self.X.shape[0])])
-        # print("L_max=", self.L_max)
-
-        print("Level qtz:", self.LEVEL_QTZ)
-        print("Level rdk:", self.LEVEL_RDK)
-        print("Qtz compression:", self.quantizator.omega_c)
-        print("Rdk compression:", self.sparsificator.omega_c)
+        if MISSING_VALUE_MODE:
+            L_SPORTISSE = max([np.linalg.norm(self.X[k])**2 for k in range(self.size_dataset)])
+        else:
+            L_SPORTISSE = max([np.linalg.norm(self.sparsificator.compress(self.X[k])) ** 2 for k in range(self.size_dataset)])
+        print("L SPORTISSE=", L_SPORTISSE)
+        GAMMA_SPORTISSE = 1 / (2 * L_SPORTISSE)
 
         OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (SQuantization(self.LEVEL_QTZ, dim=self.dim).omega_c + 1)))
         print("Optimal gamma for compression:", OPTIMAL_GAMMA_COMPR)
@@ -64,7 +69,9 @@ class AbstractDataset:
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.gamma = OPTIMAL_GAMMA_COMPR # Il faut jouer sur le pas gamma !
+        print("Gamma sportisse:", GAMMA_SPORTISSE)
+
+        self.gamma = GAMMA_SPORTISSE # Il faut jouer sur le pas gamma !
 
         print("Take step size:", self.gamma)
 
@@ -86,6 +93,7 @@ class SyntheticDataset(AbstractDataset):
                          do_logistic_regression: bool):
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
+        self.define_compressors()
         self.generate_X()
         self.generate_Y()
         self.set_step_size()
@@ -119,19 +127,22 @@ class SyntheticDataset(AbstractDataset):
     def generate_X(self):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
+        self.X_complete = copy.deepcopy(self.X)
 
-        print("Memory footprint X", sys.getsizeof(self.X))
-        print("Memory footprint SIGMA", sys.getsizeof(self.upper_sigma))
+        if MISSING_VALUE_MODE:
+            compress_data = RandomSparsification(0.7, dim=self.dim, biased=False)
+            for i in range(size_generator):
+                self.X[i] = compress_data.compress(self.X[i])
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
 
         if self.do_logistic_regression:
-            self.Y = self.X @ self.w_star
+            self.Y = self.X_complete @ self.w_star
             self.Y = np.random.binomial(1, expit(self.Y))
             self.Y[self.Y == 0] = -1
         else:
             size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-            self.Y = self.X @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
+            self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
 

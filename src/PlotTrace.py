@@ -8,13 +8,19 @@ import matplotlib.pyplot as plt
 from src.CompressionModel import SQuantization, RandomSparsification
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10000
+SIZE_DATASET = 10**3
+DIM = 100
+POWER_COV = 2
+R_SIGMA=0
+
+USE_ORTHO_MATRIX = False
 
 
 def compute_trace(dim: int) -> int:
-
     dataset = SyntheticDataset()
-    dataset.generate_X(dim, size_dataset=SIZE_DATASET, power_cov=1, r_sigma=0, use_ortho_matrix=False)
+    dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
+                               use_ortho_matrix=USE_ORTHO_MATRIX)
+    dataset.generate_X()
     X_quantized = dataset.X.copy()
     X_sparsed = dataset.X.copy()
 
@@ -24,20 +30,18 @@ def compute_trace(dim: int) -> int:
     print("Sparsification proba: ", p)
     sparsificator = RandomSparsification(p, dim, biased=True)
 
-    ortho_matrix = dataset.ortho_matrix.copy()
-    # Matrix of probabilities for the sparsification operator.
-    if sparsificator.biased:
-        P = 1 / (p ** 2) * np.ones_like(ortho_matrix) + (1 / p - 1 / p ** 2) * np.identity(n=dim)
-    else:
-        P = p * np.identity(n=dim)
-
     for i in range(SIZE_DATASET):
         X_quantized[i] = quantizator.compress(dataset.X[i])
         X_sparsed[i] = sparsificator.compress(dataset.X[i])
 
     cov_matrix = dataset.X.T.dot(dataset.X) / SIZE_DATASET
     cov_matrix_qtz = X_quantized.T.dot(X_quantized) / SIZE_DATASET
-    cov_matrix_sparse = P * (X_sparsed.T.dot(X_sparsed) / SIZE_DATASET)
+    cov_matrix_sparse = X_sparsed.T.dot(X_sparsed) / SIZE_DATASET
+
+    # if USE_ORTHO_MATRIX:
+    #     cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
+    #     cov_matrix_qtz = dataset.ortho_matrix.T.dot(cov_matrix_qtz).dot(dataset.ortho_matrix)
+    #     cov_matrix_sparse = dataset.ortho_matrix.T.dot(cov_matrix_sparse).dot(dataset.ortho_matrix)
 
     trace = np.trace(cov_matrix.dot(np.linalg.inv(dataset.upper_sigma)))
     trace_qtz = np.trace(cov_matrix_qtz.dot(np.linalg.inv(dataset.upper_sigma)))
