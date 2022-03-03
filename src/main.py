@@ -30,6 +30,7 @@ R_SIGMA=0
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
+MISSING_VALUE_MODE = True
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
 
@@ -79,7 +80,8 @@ if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=USE_ORTHO_MATRIX, do_logistic_regression=DO_LOGISTIC_REGRESSION)
+                                       use_ortho_matrix=USE_ORTHO_MATRIX, do_logistic_regression=DO_LOGISTIC_REGRESSION,
+                                       missing_value_mode=MISSING_VALUE_MODE)
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 
@@ -88,21 +90,32 @@ if __name__ == '__main__':
 
     w_ERM = (np.linalg.pinv(synthetic_dataset.X_complete.T.dot(synthetic_dataset.X_complete))
              .dot(synthetic_dataset.X_complete.T)).dot(synthetic_dataset.Y)
-    optimal_loss = vanilla_sgd.compute_empirical_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
+    optimal_loss = vanilla_sgd.compute_empirical_risk(w_ERM, synthetic_dataset.X_complete,
                                                       synthetic_dataset.Y)
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    # sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(label="quantization")
-    sgd_rdk = SGDSparsification(copy.deepcopy(synthetic_dataset)).gradient_descent(label="sparsification")
-    sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset)).gradient_descent(
-        label="sportisse")
+    sgd_rdk = SGDSparsification(copy.deepcopy(synthetic_dataset),
+                                synthetic_dataset.sparsificator,
+                                missing_value_mode=MISSING_VALUE_MODE).gradient_descent(label="sparsification")
+
+    if MISSING_VALUE_MODE:
+        sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset)).gradient_descent(
+            label="sportisse")
+    else:
+        sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(
+            label="quantization")
 
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_rdk, sgd_sportisse, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss, hash_string=synthetic_dataset.string_for_hash())
+    if MISSING_VALUE_MODE:
+        setup_plot_with_SGD(sgd_rdk, sgd_sportisse, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+                            hash_string=synthetic_dataset.string_for_hash())
+    else:
+        setup_plot_with_SGD(sgd_rdk, sgd_qtz, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+                            hash_string=synthetic_dataset.string_for_hash())
 
 
     # plt.imshow(matrix_grad)
@@ -122,8 +135,11 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots(figsize=(8, 7))
     plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_nocompr.diag_cov_gradients), label=sgd_nocompr.label)
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_sportisse.diag_cov_gradients), label=sgd_sportisse.label)
     plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_rdk.diag_cov_gradients), label=sgd_rdk.label)
+    if MISSING_VALUE_MODE:
+        plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_sportisse.diag_cov_gradients), label=sgd_sportisse.label)
+    else:
+        plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_qtz.diag_cov_gradients), label=sgd_sportisse.label)
     ax.tick_params(axis='both', labelsize=15)
     ax.legend(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)

@@ -15,8 +15,6 @@ from src.Utilities import print_mem_usage
 
 MAX_SIZE_DATASET = 10**7
 
-MISSING_VALUE_MODE = True
-
 
 class AbstractDataset:
 
@@ -55,7 +53,7 @@ class AbstractDataset:
 
         GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
 
-        if MISSING_VALUE_MODE:
+        if self.missing_value_mode:
             L_SPORTISSE = max([np.linalg.norm(self.X[k])**2 for k in range(self.size_dataset)])
         else:
             L_SPORTISSE = max([np.linalg.norm(self.sparsificator.compress(self.X[k])) ** 2 for k in range(self.size_dataset)])
@@ -90,8 +88,10 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool):
+                         do_logistic_regression: bool, missing_value_mode: bool):
+        np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
+        self.missing_value_mode = missing_value_mode
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.define_compressors()
         self.generate_X()
@@ -129,10 +129,12 @@ class SyntheticDataset(AbstractDataset):
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
         self.X_complete = copy.deepcopy(self.X)
 
-        if MISSING_VALUE_MODE:
-            compress_data = RandomSparsification(0.7, dim=self.dim, biased=False)
+        if self.missing_value_mode:
+            compress_data = RandomSparsification(0.7, dim=self.dim, biased=True)
             for i in range(size_generator):
                 self.X[i] = compress_data.compress(self.X[i])
+            self.estimated_p = 1 - np.count_nonzero(self.X==0) / (self.size_dataset * self.dim)
+            print("Estimated p:", self.estimated_p)
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.

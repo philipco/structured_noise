@@ -77,12 +77,12 @@ class SGD(ABC):
     
     def __init__(self, synthetic_dataset, reg: int = REGULARIZATION) -> None:
         super().__init__()
+        np.random.seed(25)
         self.do_logistic_regression = synthetic_dataset.do_logistic_regression
         self.synthetic_dataset = synthetic_dataset
         self.X, self.Y = self.synthetic_dataset.X, self.synthetic_dataset.Y
         self.w_star = self.synthetic_dataset.w_star
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
-        np.random.seed(25)
         self.w0 = np.random.normal(0, 1, size = self.DIM)
         self.additive_stochastic_gradient = ONLY_ADDITIVE_NOISE
         self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
@@ -207,17 +207,26 @@ class SGDSportisse(SGD):
         return grad
 
     def compute_stochastic_gradient(self, w, data, labels, index):
+        """Can be used only in the MISSING VALUE MODE."""
         x, y = data[index], labels[index]
-        p = self.synthetic_dataset.sparsificator.level
+        p = self.synthetic_dataset.estimated_p
         # x**2 is enough because we only need the diag of the kronecker product of x by x.
-        g = x * (w @ x - y) - (1 - p) * np.diag(x**2) @ w
+        g = x/ p * (w @ x / p - y) - (1 - p) * np.diag(x**2) @ w / p**2
         return g
 
 
 class SGDSparsification(SGD):
 
+    def __init__(self, synthetic_dataset, compressor: CompressionModel, missing_value_mode) -> None:
+        super().__init__(synthetic_dataset)
+        self.missing_value_mode = missing_value_mode
+        self.compressor = compressor
+
     def gradient_processing(self, grad):
-        return grad
+        if self.missing_value_mode:
+            return grad
+        else:
+            return self.compressor.compress(grad)
 
     def compute_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
