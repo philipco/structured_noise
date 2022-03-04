@@ -23,13 +23,18 @@ class AbstractDataset:
         self.name = name
 
     def string_for_hash(self):
+        hash = "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
         if self.name:
-            return "{0}-N{1}-D{2}-P{3}-R{4}".format(self.name, self.size_dataset, self.dim, self.power_cov, self.r_sigma)
-        return "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
+            hash = "{0}-{1}".format(self.name, hash)
+        if self.use_ortho_matrix:
+            hash = "{0}-ortho".format(hash)
+        if self.missing_values_mode:
+            hash = "{0}-NA".format(hash)
+        return hash
 
     def define_compressors(self):
         TARGET_OMEGA = 1
-        self.LEVEL_QTZ = 5  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
+        self.LEVEL_QTZ = 1  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
@@ -42,7 +47,7 @@ class AbstractDataset:
         print("Rdk compression:", self.sparsificator.omega_c)
 
     def set_step_size(self):
-        EIGEN_VALUES, _ = np.linalg.eig(self.X.T @ self.X)
+        EIGEN_VALUES, _ = np.linalg.eig(self.X_complete.T @ self.X_complete)
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.L = np.max(EIGEN_VALUES) / size_generator
@@ -53,10 +58,7 @@ class AbstractDataset:
 
         GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
 
-        if self.missing_value_mode:
-            L_SPORTISSE = max([np.linalg.norm(self.X[k])**2 for k in range(self.size_dataset)])
-        else:
-            L_SPORTISSE = max([np.linalg.norm(self.sparsificator.compress(self.X[k])) ** 2 for k in range(self.size_dataset)])
+        L_SPORTISSE = max([np.linalg.norm(self.X[k]) ** 2 for k in range(size_generator)])
         print("L SPORTISSE=", L_SPORTISSE)
         GAMMA_SPORTISSE = 1 / (2 * L_SPORTISSE)
 
@@ -69,9 +71,9 @@ class AbstractDataset:
 
         print("Gamma sportisse:", GAMMA_SPORTISSE)
 
-        self.gamma = GAMMA_SPORTISSE # Il faut jouer sur le pas gamma !
+        self.gamma = 0.01
 
-        print("Take step size:", self.gamma)
+        print("Taken step size:", self.gamma)
 
 
 class RealLifeDataset(AbstractDataset):
@@ -88,10 +90,10 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool, missing_value_mode: bool):
+                         do_logistic_regression: bool, missing_values_mode: bool):
         np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
-        self.missing_value_mode = missing_value_mode
+        self.missing_values_mode = missing_values_mode
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.define_compressors()
         self.generate_X()
@@ -105,6 +107,7 @@ class SyntheticDataset(AbstractDataset):
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
+        self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
         self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
@@ -129,12 +132,12 @@ class SyntheticDataset(AbstractDataset):
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
         self.X_complete = copy.deepcopy(self.X)
 
-        if self.missing_value_mode:
-            compress_data = RandomSparsification(0.7, dim=self.dim, biased=True)
-            for i in range(size_generator):
-                self.X[i] = compress_data.compress(self.X[i])
-            self.estimated_p = 1 - np.count_nonzero(self.X==0) / (self.size_dataset * self.dim)
-            print("Estimated p:", self.estimated_p)
+        self.D = copy.deepcopy(self.X_complete)
+        for i in range(size_generator):
+            self.D[i] = np.random.binomial(n=1, p=self.LEVEL_RDK, size=self.dim)
+            self.X[i] = self.X[i] * self.D[i] / self.LEVEL_RDK
+        self.estimated_p = 1 - np.count_nonzero(self.X==0) / (size_generator * self.dim)
+        print("Estimated p:", self.estimated_p)
 
     def generate_Y(self):
         lower_sigma = 1  # Used only to introduce noise in the true labels.
