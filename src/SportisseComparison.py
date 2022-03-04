@@ -213,10 +213,9 @@ def run(dim, power_cov, gamma, use_ortho_matrix):
 
 
 if __name__ == '__main__':
-    for dim in [10, 100, 200, 400, 1000]:
-        for power_cov in [1,2,3,4,5,6]:
-            for gamma in [0.1, 0.01, 0.001]:
-                    run(dim=sys.argv[1], power_cov=power_cov, gamma=gamma, use_ortho_matrix=True)
+    for power_cov in [1,2,3,4,5,6]:
+        for gamma in [0.1, 0.01, 0.001]:
+                run(dim=int(sys.argv[1]), power_cov=power_cov, gamma=gamma, use_ortho_matrix=True)
 
 
 
