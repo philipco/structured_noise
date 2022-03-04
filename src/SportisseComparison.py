@@ -3,6 +3,7 @@ Created by Constantin Philippenko, 3th March 2022.
 """
 import copy
 import math
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +14,10 @@ from tqdm import tqdm
 from src.CompressionModel import RandomSparsification, SQuantization
 from src.SyntheticDataset import SyntheticDataset, MAX_SIZE_DATASET
 from src.Utilities import create_folder_if_not_existing
+
+MAX_LOSS = 10**4
+
+DISABLE = True
 
 SIZE_DATASET = 10**5
 DIM = 400
@@ -68,7 +73,7 @@ def sportisse_NA():
     avg_w = copy.deepcopy(current_w)
     losses = [compute_empirical_risk(current_w)]
     avg_losses = [losses[-1]]
-    for idx in tqdm(np.arange(dataset.size_dataset)):
+    for idx in tqdm(np.arange(dataset.size_dataset), disable=DISABLE):
         if idx % MAX_SIZE_DATASET == 0 and idx != 0:
             print("Regenerating ...")
             dataset.regenerate_dataset()
@@ -79,6 +84,11 @@ def sportisse_NA():
         if idx in LOG_XAXIS[1:]:
             losses.append(compute_empirical_risk(current_w))
             avg_losses.append(compute_empirical_risk(avg_w))
+        if losses[-1] == math.inf or losses[-1] > 1e9:
+            losses[-1] = MAX_LOSS
+            losses = losses + [losses[-1] for i in range(len(LOG_XAXIS) - len(losses))]
+            avg_losses = avg_losses + [avg_losses[-1] for i in range(len(LOG_XAXIS) - len(avg_losses))]
+            break
     return losses, avg_losses
 
 
@@ -88,7 +98,7 @@ def sportisse_Rdk():
     avg_w = copy.deepcopy(current_w)
     losses = [compute_empirical_risk(current_w)]
     avg_losses = [losses[-1]]
-    for idx in tqdm(np.arange(dataset.size_dataset)):
+    for idx in tqdm(np.arange(dataset.size_dataset), disable=DISABLE):
         if idx % MAX_SIZE_DATASET == 0 and idx != 0:
             print("Regenerating ...")
             dataset.regenerate_dataset()
@@ -99,6 +109,11 @@ def sportisse_Rdk():
         if idx in LOG_XAXIS[1:]:
             losses.append(compute_empirical_risk(current_w))
             avg_losses.append(compute_empirical_risk(avg_w))
+        if losses[-1] == math.inf or losses[-1] > 1e9:
+            losses[-1] = MAX_LOSS
+            losses = losses + [losses[-1] for i in range(len(LOG_XAXIS) - len(losses))]
+            avg_losses = avg_losses + [avg_losses[-1] for i in range(len(LOG_XAXIS) - len(avg_losses))]
+            break
     return losses, avg_losses
 
 
@@ -108,7 +123,7 @@ def compression_SGD(compressor):
     avg_w = copy.deepcopy(current_w)
     losses = [compute_empirical_risk(current_w)]
     avg_losses = [losses[-1]]
-    for idx in tqdm(np.arange(dataset.size_dataset)):
+    for idx in tqdm(np.arange(dataset.size_dataset), disable=DISABLE):
         if idx % MAX_SIZE_DATASET == 0 and idx != 0:
             print("Regenerating ...")
             dataset.regenerate_dataset()
@@ -120,6 +135,12 @@ def compression_SGD(compressor):
         if idx in LOG_XAXIS[1:]:
             losses.append(compute_empirical_risk(current_w))
             avg_losses.append(compute_empirical_risk(avg_w))
+
+        if losses[-1] == math.inf or losses[-1] > 1e9:
+            losses[-1] = MAX_LOSS
+            losses = losses + [losses[-1] for i in range(len(LOG_XAXIS) - len(losses))]
+            avg_losses = avg_losses + [avg_losses[-1] for i in range(len(LOG_XAXIS) - len(avg_losses))]
+            break
     return losses, avg_losses
 
 
@@ -143,8 +164,7 @@ def setup_plot_with_SGD(losses, avg_losses, labels, optimal_loss, picture_name: 
 def run(dim, power_cov, gamma, use_ortho_matrix):
 
     dataset.generate_dataset(dim, size_dataset=SIZE_DATASET, power_cov=power_cov, r_sigma=R_SIGMA,
-                             use_ortho_matrix=use_ortho_matrix, do_logistic_regression=False,
-                             missing_values_mode=False)
+                             use_ortho_matrix=use_ortho_matrix, do_logistic_regression=False)
     dataset.gamma = gamma
     folder = "./pictures/sportisse/"
     create_folder_if_not_existing(folder)
@@ -196,8 +216,7 @@ if __name__ == '__main__':
     for dim in [10, 100, 200, 400, 1000]:
         for power_cov in [1,2,3,4,5,6]:
             for gamma in [0.1, 0.01, 0.001]:
-                for use_ortho_matrix in [True, False]:
-                    run(dim=dim, power_cov=power_cov, gamma=gamma, use_ortho_matrix=use_ortho_matrix)
+                    run(dim=sys.argv[1], power_cov=power_cov, gamma=gamma, use_ortho_matrix=True)
 
 
 

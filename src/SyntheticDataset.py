@@ -28,8 +28,6 @@ class AbstractDataset:
             hash = "{0}-{1}".format(self.name, hash)
         if self.use_ortho_matrix:
             hash = "{0}-ortho".format(hash)
-        if self.missing_values_mode:
-            hash = "{0}-NA".format(hash)
         return hash
 
     def define_compressors(self):
@@ -90,10 +88,9 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool, missing_values_mode: bool):
+                         do_logistic_regression: bool):
         np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
-        self.missing_values_mode = missing_values_mode
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
         self.define_compressors()
         self.generate_X()
