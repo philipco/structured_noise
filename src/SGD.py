@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from scipy.special import expit
 
-from src.CompressionModel import CompressionModel, RandomSparsification
+from src.CompressionModel import CompressionModel
 from src.JITProduct import *
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
@@ -80,10 +80,8 @@ class SGD(ABC):
         np.random.seed(25)
         self.do_logistic_regression = synthetic_dataset.do_logistic_regression
         self.synthetic_dataset = synthetic_dataset
-        self.X, self.Y = self.synthetic_dataset.X, self.synthetic_dataset.Y
         self.w_star = self.synthetic_dataset.w_star
         self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
-        self.w0 = np.random.normal(0, 1, size = self.DIM)
         self.additive_stochastic_gradient = ONLY_ADDITIVE_NOISE
         self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
         self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
@@ -137,14 +135,14 @@ class SGD(ABC):
         return self.D.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
-        return w - gamma * gradient - self.reg * (w - self.w0)
+        return w - gamma * gradient - self.reg * (w - self.synthetic_dataset.w0)
 
     def gradient_descent(self, label: str = None) -> SGDRun:
         log_xaxis = log_sampling_xaxix(self.synthetic_dataset.size_dataset)
-        current_w = self.w0
+        current_w = self.synthetic_dataset.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        losses = [self.compute_empirical_risk(current_w, self.synthetic_dataset.X_complete, self.Y)]
+        losses = [self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y)]
         avg_losses = [losses[-1]]
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
@@ -159,9 +157,11 @@ class SGD(ABC):
                     self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D #diagonalization(self.debiased_hessian) #
 
                 if self.additive_stochastic_gradient:
-                    grad = self.compute_additive_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
+                    grad = self.compute_additive_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
+                                                                     self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
                 else:
-                    grad = self.compute_stochastic_gradient(current_w, self.X, self.Y, idx % MAX_SIZE_DATASET)
+                    grad = self.compute_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
+                                                            self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
                 grad = self.gradient_processing(grad)
 
                 if idx == 0:
@@ -172,13 +172,15 @@ class SGD(ABC):
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 if idx in log_xaxis[1:]:
-                    losses.append(self.compute_empirical_risk(current_w, self.synthetic_dataset.X_complete, self.Y))
-                    avg_losses.append(self.compute_empirical_risk(avg_w, self.synthetic_dataset.X_complete, self.Y))
+                    losses.append(self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
+                    avg_losses.append(self.compute_true_risk(avg_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
 
         print_mem_usage("End of sgd descent ...")
 
         if self.synthetic_dataset.use_ortho_matrix:
             cov_matrix = self.synthetic_dataset.ortho_matrix.T.dot(self.approx_hessian).dot(self.synthetic_dataset.ortho_matrix)
+        else:
+            cov_matrix = self.approx_hessian
 
         return SGDRun(self.synthetic_dataset.size_dataset, current_w, losses, avg_losses, np.diag(cov_matrix), 
                       label=label)
@@ -201,53 +203,48 @@ class SGDNoised(SGD):
         return grad + np.random.normal(0, 1, size=self.DIM)
 
 
+class SGDCompressed(SGD):
+
+    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
+        super().__init__(synthetic_dataset)
+        self.compressor = compressor
+        # if isinstance(compressor, RandomSparsification):
+        #     p = compressor.level
+        #     self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
+
+    def gradient_processing(self, grad):
+        return self.compressor.compress(grad)
+
+
 class SGDSportisse(SGD):
+
+    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
+        super().__init__(synthetic_dataset)
+        self.compressor = compressor
 
     def gradient_processing(self, grad):
         return grad
 
     def compute_stochastic_gradient(self, w, data, labels, index):
         """Can be used only in the MISSING VALUE MODE."""
-        x, y = data[index], labels[index]
+        x, y = self.synthetic_dataset.X[index], self.synthetic_dataset.Y[index]
         p = self.synthetic_dataset.estimated_p
-        # x**2 is enough because we only need the diag of the kronecker product of x by x.
-        g = x/ p * (w @ x / p - y) - (1 - p) * np.diag(x**2) @ w / p**2
+        g = x * (w @ x - y) - (1 - p) * np.diag(x ** 2) @ w
         return g
 
 
-class SGDSparsification(SGD):
-
-    def __init__(self, synthetic_dataset, compressor: CompressionModel, missing_value_mode) -> None:
-        super().__init__(synthetic_dataset)
-        self.missing_value_mode = missing_value_mode
-        self.compressor = compressor
+class SGDNaiveSparsification(SGDCompressed):
 
     def gradient_processing(self, grad):
-        if self.missing_value_mode:
-            return grad
-        else:
-            return self.compressor.compress(grad)
+        return self.compressor.compress(grad)
+
+    def gradient_processing(self, grad):
+        return grad
 
     def compute_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
-        p = self.synthetic_dataset.sparsificator.level
-        # Ké passa kan w_k = w_star ?
-        g = x * (w @ x - y) #- (1 - p) * np.diag(x**2) @ w
+        x = self.synthetic_dataset.sparsificator.compress(x)
+        p = self.synthetic_dataset.estimated_p
+        g = x * (w @ x - y) #- (1 - p) * np.diag(x ** 2) @ w => Sportisse !
         return g
-
-class SGDCompressed(SGD):
-
-    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
-        super().__init__(synthetic_dataset)
-        self.compressor = compressor
-        if isinstance(compressor, RandomSparsification):
-            p = compressor.level
-            self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
-
-    def gradient_processing(self, grad):
-        if isinstance(self.compressor, RandomSparsification):
-            return grad
-        return self.compressor.compress(grad)
-
-
 
