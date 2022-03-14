@@ -9,7 +9,7 @@ from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
-from src.CompressionModel import SQuantization, RandomSparsification
+from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -31,14 +31,21 @@ class AbstractDataset:
         return hash
 
     def define_compressors(self):
+
         TARGET_OMEGA = 1
         self.LEVEL_QTZ = 1  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
+        self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1) #self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
+        self.sketcher = Sketching(self.LEVEL_RDK, self.dim)
+        self.rand_sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
+
+        print("No compr: {0:1.2f} bits/iter.".format(32 * self.dim))
+        print("Quantiz: {0:1.2f} bits/iter.".format(self.quantizator.nb_bits_by_iter()))
+        print("Sparsif: {0:1.2f} bits/iter.".format(self.sparsificator.nb_bits_by_iter()))
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
         print("Qtz compression:", self.quantizator.omega_c)
@@ -69,7 +76,7 @@ class AbstractDataset:
 
         print("Gamma sportisse:", GAMMA_SPORTISSE)
 
-        self.gamma = 0.01
+        self.gamma = OPTIMAL_GAMMA_COMPR
 
         print("Taken step size:", self.gamma)
 

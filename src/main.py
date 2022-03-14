@@ -24,8 +24,8 @@ from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDSportisse
 from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10**5
-DIM = 10
-POWER_COV = 1
+DIM = 100
+POWER_COV = 4
 R_SIGMA=0
 
 USE_ORTHO_MATRIX = True
@@ -65,6 +65,7 @@ def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string:st
 
     for ax in axes:
         ax.legend(loc='best', fontsize=15)
+        ax.set_ylim(top=1)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
@@ -76,6 +77,19 @@ def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string:st
     else:
         plt.show()
 
+
+def plot_eigen_values(*args):
+    fig, ax = plt.subplots(figsize=(8, 7))
+    for sgd_try in args:
+        plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_try.diag_cov_gradients), label=sgd_try.label)
+    ax.tick_params(axis='both', labelsize=15)
+    ax.legend(loc='best', fontsize=15)
+    ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
+    ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
+    plt.legend(loc='best', fontsize=15)
+    plt.show()
+
+
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
@@ -84,8 +98,8 @@ if __name__ == '__main__':
 
     hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
 
-    sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset),
-                                 synthetic_dataset.sparsificator).gradient_descent(label="sportisse")
+    # sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset),
+    #                              synthetic_dataset.sparsificator).gradient_descent(label="sportisse")
 
     vanilla_sgd = SGDVanilla(copy.deepcopy(synthetic_dataset))
     sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression")
@@ -98,8 +112,13 @@ if __name__ == '__main__':
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
     # setup_plot(losses, avg_losses, "", losses_noised, avg_losses_noised, "noised", optimal_loss)
 
-    sgd_naive_rdk = SGDNaiveSparsification(copy.deepcopy(synthetic_dataset),
-                                synthetic_dataset.sparsificator).gradient_descent(label="naive sparsif.")
+    # sgd_naive_rdk = SGDNaiveSparsification(copy.deepcopy(synthetic_dataset),
+    #                             synthetic_dataset.sparsificator).gradient_descent(label="naive sparsif.")
+
+    sgd_sketching = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sketcher).gradient_descent(
+        label="sketching")
+    sgd_rand_sketching = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.rand_sketcher).gradient_descent(
+        label="rand sketching")
 
     sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(
         label="quantization")
@@ -110,8 +129,10 @@ if __name__ == '__main__':
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_naive_rdk, sgd_sportisse, sgd_qtz, sgd_rdk, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_sketching, sgd_rand_sketching, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
                         hash_string=synthetic_dataset.string_for_hash())
+
+    plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_sketching, sgd_rand_sketching)
 
 
     # plt.imshow(matrix_grad)
@@ -128,16 +149,3 @@ if __name__ == '__main__':
     # plt.colorbar()
     # plt.title("Sparsification", fontsize=15)
     # plt.show()
-
-    fig, ax = plt.subplots(figsize=(8, 7))
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_nocompr.diag_cov_gradients), label=sgd_nocompr.label)
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_naive_rdk.diag_cov_gradients), label=sgd_naive_rdk.label)
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_sportisse.diag_cov_gradients), label=sgd_sportisse.label)
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_qtz.diag_cov_gradients), label=sgd_qtz.label)
-    plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_rdk.diag_cov_gradients), label=sgd_rdk.label)
-    ax.tick_params(axis='both', labelsize=15)
-    ax.legend(loc='best', fontsize=15)
-    ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
-    ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
-    plt.legend(loc='best', fontsize=15)
-    plt.show()

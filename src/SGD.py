@@ -213,7 +213,7 @@ class SGDCompressed(SGD):
         #     self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
 
     def gradient_processing(self, grad):
-        return self.compressor.compress(grad)
+        return self.compressor.decompress(self.compressor.compress(grad))
 
 
 class SGDSportisse(SGD):
@@ -244,7 +244,6 @@ class SGDNaiveSparsification(SGDCompressed):
     def compute_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
         x = self.synthetic_dataset.sparsificator.compress(x)
-        p = self.synthetic_dataset.estimated_p
-        g = x * (w @ x - y) #- (1 - p) * np.diag(x ** 2) @ w => Sportisse !
+        g = x * (w @ x - y)
         return g
 

@@ -8,14 +8,11 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.random import multivariate_normal
-from scipy.stats import ortho_group
 from tqdm import tqdm
 
-from src.CompressionModel import RandomSparsification, SQuantization
+from src.CompressionModel import SQuantization
 from src.SyntheticDataset import SyntheticDataset, MAX_SIZE_DATASET
 from src.Utilities import create_folder_if_not_existing
-
-MAX_LOSS = 10**4
 
 DISABLE = True
 
@@ -25,6 +22,7 @@ POWER_COV = 4
 R_SIGMA=0
 
 USE_ORTHO_MATRIX = False
+MAX_LOSS = 10**4
 
 
 def log_sampling_xaxix(size_dataset):
@@ -158,7 +156,6 @@ def setup_plot_with_SGD(losses, avg_losses, labels, optimal_loss, picture_name: 
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
     axes[1].set_xlabel(r"$\log_{10}(n)$", fontsize=15)
-    # plt.show()
     plt.savefig(picture_name + ".eps", format='eps')
 
 def run(dim, power_cov, gamma, use_ortho_matrix):
