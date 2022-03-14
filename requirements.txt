@@ -4,3 +4,5 @@ tqdm
 scipy
 torch
 tensorflow
+numba
+sympy

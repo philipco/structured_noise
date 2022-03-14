@@ -17,7 +17,7 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
-from src.PickleHandler import pickle_saver
+from src.PickleHandler import pickle_saver, pickle_loader
 from src.Utilities import create_folder_if_not_existing
 from src.hyperparameters_exploration import Explorer
 from src.hyperparameters_exploration.Hyperparameters import Hyperparameters
@@ -54,6 +54,11 @@ class Exploration:
                     self.results[i, idx_run, idx_param] = self.metrics.compute(output[i])
                     pickle_saver(self, self.pickle_folder + self.hash_string)
             self.enablePrint()
+
+    def load(self):
+        self.results = pickle_loader(self.pickle_folder + self.hash_string).results[:,:,:-1]
+        self.hyperparameters.range_hyperparameters = self.hyperparameters.range_hyperparameters[:-1]
+        self.hyperparameters.nb_hyperparams -= 1
 
     def plot_exploration(self):
         fig, ax = plt.subplots(figsize=(8, 7))
