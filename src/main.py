@@ -9,27 +9,30 @@ import random
 import numpy as np
 
 import matplotlib
-# matplotlib.rcParams.update({
-#     "pgf.texsystem": "pdflatex",
-#     'font.family': 'serif',
-#     'text.usetex': True,
-#     'pgf.rcfonts': False,
-#     'text.latex.preamble': r'\usepackage{amsfonts}'
-# })
+matplotlib.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
 
 from matplotlib import pyplot as plt
 
+from src.CompressionModel import Sketching
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDSportisse, \
     SGDNaiveSparsification
 from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10**5
 DIM = 100
-POWER_COV = 4
+POWER_COV = 3
 R_SIGMA=0
 
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
+
+SEED = 25
 
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
@@ -55,7 +58,7 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     plt.show()
 
 
-def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string:str=None):
+def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
     plot_SGD_and_AVG(axes, sgd_nocompr, optimal_loss)
@@ -65,7 +68,7 @@ def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string:st
 
     for ax in axes:
         ax.legend(loc='best', fontsize=15)
-        ax.set_ylim(top=1)
+        ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
@@ -78,16 +81,20 @@ def setup_plot_with_SGD(*args, sgd_nocompr: SGDRun, optimal_loss, hash_string:st
         plt.show()
 
 
-def plot_eigen_values(*args):
-    fig, ax = plt.subplots(figsize=(8, 7))
+def plot_eigen_values(*args, hash_string: str = None):
+    fig, ax = plt.subplots(figsize=(6.5, 6))
     for sgd_try in args:
-        plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_try.diag_cov_gradients), label=sgd_try.label)
+        plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_try.diag_cov_gradients), label=sgd_try.label, lw=2)
     ax.tick_params(axis='both', labelsize=15)
     ax.legend(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
-    ax.set_ylabel(r"$\log(Diag(\frac{X^T.X}{n})_i)$", fontsize=15)
+    ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
     plt.legend(loc='best', fontsize=15)
-    plt.show()
+    if hash_string:
+        plt.savefig('{0}-eigenvalues.eps'.format("./pictures/" + hash_string), format='eps')
+        plt.close()
+    else:
+        plt.show()
 
 
 if __name__ == '__main__':
@@ -100,6 +107,14 @@ if __name__ == '__main__':
 
     # sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset),
     #                              synthetic_dataset.sparsificator).gradient_descent(label="sportisse")
+
+    # sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="rdk")
+
+    sgd_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sparsificator).gradient_descent(
+        label="sparsification")
+
+    # sgd_rand_sketching_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_sketcher).gradient_descent(
+    #     label="rand sketch rdk")
 
     vanilla_sgd = SGDVanilla(copy.deepcopy(synthetic_dataset))
     sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression")
@@ -115,24 +130,35 @@ if __name__ == '__main__':
     # sgd_naive_rdk = SGDNaiveSparsification(copy.deepcopy(synthetic_dataset),
     #                             synthetic_dataset.sparsificator).gradient_descent(label="naive sparsif.")
 
-    sgd_sketching = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sketcher).gradient_descent(
-        label="sketching")
-    sgd_rand_sketching = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.rand_sketcher).gradient_descent(
-        label="rand sketching")
+    sgd_gauss = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sketcher).gradient_descent(
+        label="gauss")
+    sgd_rand_gauss = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.rand_sketcher).gradient_descent(
+        label="rand-gauss")
+
+    sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=False, type_proj="sparse")
+    sgd_sparse = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_sketcher).gradient_descent(
+        label="sparse")
+    sparse_rand_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="sparse")
+    sgd_rand_sparse = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_rand_sketcher).gradient_descent(
+        label="rand-sparse")
 
     sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(
         label="quantization")
 
-    sgd_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sparsificator).gradient_descent(
-        label="sparsification")
-
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_sketching, sgd_rand_sketching, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
                         hash_string=synthetic_dataset.string_for_hash())
 
-    plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_sketching, sgd_rand_sketching)
+    plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse,
+                      hash_string=synthetic_dataset.string_for_hash())
+
+    # setup_plot_with_SGD(sgd_rdk, sgd_rand_sketching_rdk,
+    #                     sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+    #                     hash_string=synthetic_dataset.string_for_hash())
+    #
+    # plot_eigen_values(sgd_nocompr, sgd_rdk, sgd_rand_sketching_rdk)
 
 
     # plt.imshow(matrix_grad)

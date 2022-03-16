@@ -77,7 +77,7 @@ class SGD(ABC):
     
     def __init__(self, synthetic_dataset, reg: int = REGULARIZATION) -> None:
         super().__init__()
-        np.random.seed(25)
+        np.random.seed(15)
         self.do_logistic_regression = synthetic_dataset.do_logistic_regression
         self.synthetic_dataset = synthetic_dataset
         self.w_star = self.synthetic_dataset.w_star
@@ -213,7 +213,7 @@ class SGDCompressed(SGD):
         #     self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
 
     def gradient_processing(self, grad):
-        return self.compressor.decompress(self.compressor.compress(grad))
+        return self.compressor.compress(grad)
 
 
 class SGDSportisse(SGD):
