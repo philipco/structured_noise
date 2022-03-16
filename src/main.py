@@ -3,8 +3,6 @@ Created by Constantin Philippenko, 20th December 2021.
 """
 import copy
 import hashlib
-import math
-import random
 
 import numpy as np
 
@@ -20,13 +18,12 @@ matplotlib.rcParams.update({
 from matplotlib import pyplot as plt
 
 from src.CompressionModel import Sketching
-from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDSportisse, \
-    SGDNaiveSparsification
+from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**5
+SIZE_DATASET = 10**4
 DIM = 100
-POWER_COV = 3
+POWER_COV = 4
 R_SIGMA=0
 
 USE_ORTHO_MATRIX = True
@@ -48,13 +45,11 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     plot_SGD_and_AVG(losses1, avg_losses1, optimal_loss, label1)
     plot_SGD_and_AVG(losses2, avg_losses2, optimal_loss, label2)
 
-    # ax.set_yscale('log')
     ax.label(loc='best', fontsize=15)
     ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
     ax[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     ax[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
     ax.grid(True)
-    # ax.set_ylim(top=10)
     plt.show()
 
 
@@ -121,7 +116,7 @@ if __name__ == '__main__':
 
     w_ERM = (np.linalg.pinv(synthetic_dataset.X_complete.T.dot(synthetic_dataset.X_complete))
              .dot(synthetic_dataset.X_complete.T)).dot(synthetic_dataset.Y)
-    optimal_loss = vanilla_sgd.compute_true_risk(w_ERM, synthetic_dataset.X_complete,
+    optimal_loss = vanilla_sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
                                                       synthetic_dataset.Y)
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
@@ -148,30 +143,10 @@ if __name__ == '__main__':
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse,
+                        sgd_nocompr=sgd_nocompr,
+                        optimal_loss=optimal_loss,
                         hash_string=synthetic_dataset.string_for_hash())
 
     plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse,
                       hash_string=synthetic_dataset.string_for_hash())
-
-    # setup_plot_with_SGD(sgd_rdk, sgd_rand_sketching_rdk,
-    #                     sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-    #                     hash_string=synthetic_dataset.string_for_hash())
-    #
-    # plot_eigen_values(sgd_nocompr, sgd_rdk, sgd_rand_sketching_rdk)
-
-
-    # plt.imshow(matrix_grad)
-    # plt.colorbar()
-    # plt.title("No compression", fontsize=15)
-    # plt.show()
-    #
-    # plt.imshow(matrix_qtz)
-    # plt.colorbar()
-    # plt.title("Quantization", fontsize=15)
-    # plt.show()
-    #
-    # plt.imshow(matrix_sparse)
-    # plt.colorbar()
-    # plt.title("Sparsification", fontsize=15)
-    # plt.show()
