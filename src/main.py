@@ -21,7 +21,7 @@ from src.CompressionModel import Sketching
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**4
+SIZE_DATASET = 10**5
 DIM = 100
 POWER_COV = 4
 R_SIGMA=0
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     w_ERM = (np.linalg.pinv(synthetic_dataset.X_complete.T.dot(synthetic_dataset.X_complete))
              .dot(synthetic_dataset.X_complete.T)).dot(synthetic_dataset.Y)
-    optimal_loss = vanilla_sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
+    optimal_loss = vanilla_sgd.compute_empirical_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
                                                       synthetic_dataset.Y)
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
@@ -125,16 +125,16 @@ if __name__ == '__main__':
     # sgd_naive_rdk = SGDNaiveSparsification(copy.deepcopy(synthetic_dataset),
     #                             synthetic_dataset.sparsificator).gradient_descent(label="naive sparsif.")
 
-    sgd_gauss = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sketcher).gradient_descent(
+    sgd_gauss = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
         label="gauss")
-    sgd_rand_gauss = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.rand_sketcher).gradient_descent(
+    sgd_rand_gauss = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
         label="rand-gauss")
 
     sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=False, type_proj="sparse")
-    sgd_sparse = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_sketcher).gradient_descent(
+    sgd_sparse = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
         label="sparse")
     sparse_rand_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="sparse")
-    sgd_rand_sparse = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_rand_sketcher).gradient_descent(
+    sgd_rand_sparse = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
         label="rand-sparse")
 
     sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(

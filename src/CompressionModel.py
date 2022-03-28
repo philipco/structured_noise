@@ -205,7 +205,7 @@ class Sketching(CompressionModel):
         if self.type_proj == "rdk":
             return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
         else:
-            return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
+            return self.PHI_INV @ self.PHI @ vector * (self.dim - 2) / self.sub_dim
 
     def decompress(self, vector: np.ndarray) -> np.ndarray:
         return self.PHI_INV @ vector
@@ -218,6 +218,20 @@ class Sketching(CompressionModel):
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim
+
+
+def find_level_of_quantization(dim, level_of_sparsification):
+    """Given a level of sparsfication and a dimensionality, return the level of quantization to communicate a constant
+    number of bits."""
+
+    from scipy.optimize import fsolve
+
+    def equation_to_solve(x):
+        """x[0] = dim, x[1] = p"""
+        frac = 2 * (x ** 2 + dim) / (x * (x + np.sqrt(dim)))
+        return (3 + 3 / 2) * np.log(frac) * x * (x + np.sqrt(dim)) + 32 - 32 * level_of_sparsification * dim
+
+    return np.round(fsolve(equation_to_solve, [2]))
 
 
 
