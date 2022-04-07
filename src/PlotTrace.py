@@ -3,77 +3,154 @@ Created by Constantin Philippenko, 17th January 2022.
 """
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 
-from src.CompressionModel import SQuantization, RandomSparsification
+from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
+from src.Utilities import create_folder_if_not_existing
 
-SIZE_DATASET = 10**3
+matplotlib.rcParams.update({
+    "pgf.texsystem": "pdflatex",
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+    'text.latex.preamble': r'\usepackage{amsfonts}'
+})
+
+SIZE_DATASET = 2*10**3
 DIM = 100
-POWER_COV = 2
+POWER_COV = 4
 R_SIGMA=0
 
-USE_ORTHO_MATRIX = False
+START_DIM = 40
+END_DIM = 100
+
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
+
+USE_ORTHO_MATRIX = True
 
 
-def compute_trace(dim: int) -> int:
-    dataset = SyntheticDataset()
-    dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                               use_ortho_matrix=USE_ORTHO_MATRIX)
-    dataset.generate_X()
-    X_quantized = dataset.X.copy()
-    X_sparsed = dataset.X.copy()
+def compute_diag(dataset, compressor):
 
-    quantizator = SQuantization(1, dim=dim)
+    X = dataset.X_complete
 
-    p = 1 / (quantizator.omega_c + 1)
-    print("Sparsification proba: ", p)
-    sparsificator = RandomSparsification(p, dim, biased=True)
-
+    X_compressed = X.copy()
     for i in range(SIZE_DATASET):
-        X_quantized[i] = quantizator.compress(dataset.X[i])
-        X_sparsed[i] = sparsificator.compress(dataset.X[i])
+        X_compressed[i] = compressor.compress(X[i])
 
-    cov_matrix = dataset.X.T.dot(dataset.X) / SIZE_DATASET
-    cov_matrix_qtz = X_quantized.T.dot(X_quantized) / SIZE_DATASET
-    cov_matrix_sparse = X_sparsed.T.dot(X_sparsed) / SIZE_DATASET
+    cov_matrix = X_compressed.T.dot(X_compressed) / SIZE_DATASET
+
+    return cov_matrix
+
+
+def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
+
+    dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
+                       use_ortho_matrix=USE_ORTHO_MATRIX)
+    dataset.define_compressors()
+    dataset.generate_X()
+
+    no_compressor = SQuantization(0, dim=dim)
+
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher]
+
+    all_trace = []
+    for compressor in my_compressors:
+        cov_matrix = compute_diag(dataset, compressor)
+        all_trace.append(np.trace(cov_matrix.dot(np.linalg.inv(dataset.upper_sigma))))
+
+    return all_trace
+
+
+def compute_theoretical_diag(dataset: SyntheticDataset):
+    labels = ["no comprs.", "quantiz.", "rdk"]
+    
+    sigma_inv = np.linalg.inv(dataset.upper_sigma)
+    sigma = dataset.upper_sigma
+    diag_sigma = np.diag(np.diag(sigma))
+
+    ### No compression
+    theoretical_trace = [dataset.dim]
+
+    ### Quantization
+    residual1 = np.diag(np.diag(sigma)) @ sigma_inv
+    residual2 = np.diag(np.sqrt(np.diag(sigma))) @ sigma_inv
+    quantization_trace = dataset.dim + np.sqrt(np.trace(sigma)) * np.trace(residual2) - np.trace(residual1)
+    theoretical_trace.append(quantization_trace)
+
+    ### Sparsification
+    # ones = np.ones((dataset.dim, dataset.dim))
+    p = dataset.sparsificator.sub_dim / dataset.dim
+    # P = p ** 2 * ones + (p - p ** 2) * np.eye(dataset.dim)
+    # cov_rdk = P * sigma / p ** 2
+    residual = np.sum(dataset.eigenvalues) / min(dataset.eigenvalues)
+    # residual = np.sqrt(np.sum(sub_sum))
+    # residual = np.diag(np.diag(sigma)) @ sigma_inv
+    sparsification_trace = dataset.dim + (p - p**2) / p**2 * residual
+    theoretical_trace.append(sparsification_trace)
+
+    ### Sketching
+    # cov_sketching = sigma * (1 + 1 / dataset.sketcher.sub_dim) + np.trace(sigma) * np.identity(
+    #     dataset.dim) / dataset.sketcher.sub_dim
+    # trace_sketching = np.trace(cov_sketching @ sigma_inv)
+    trace_sketching = dataset.dim * (1 + 1 / dataset.sketcher.sub_dim)
+    sub_sum = [np.sum([eig1/eig2 for eig2 in dataset.eigenvalues]) for eig1 in dataset.eigenvalues]
+    trace_sketching += np.sum(sub_sum) / dataset.sketcher.sub_dim
+    theoretical_trace.append(trace_sketching)
 
     # if USE_ORTHO_MATRIX:
-    #     cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
-    #     cov_matrix_qtz = dataset.ortho_matrix.T.dot(cov_matrix_qtz).dot(dataset.ortho_matrix)
-    #     cov_matrix_sparse = dataset.ortho_matrix.T.dot(cov_matrix_sparse).dot(dataset.ortho_matrix)
+    #     for i in range(len(all_covariance)):
+    #         all_covariance[i] = dataset.ortho_matrix.T.dot(all_covariance[i]).dot(dataset.ortho_matrix)
 
-    trace = np.trace(cov_matrix.dot(np.linalg.inv(dataset.upper_sigma)))
-    trace_qtz = np.trace(cov_matrix_qtz.dot(np.linalg.inv(dataset.upper_sigma)))
-    trace_sparse = np.trace(cov_matrix_sparse.dot(np.linalg.inv(dataset.upper_sigma)))
-
-    return trace, trace_qtz, trace_sparse
+    return theoretical_trace
 
 
 if __name__ == '__main__':
 
     print("Starting the script.")
-    range_trace = np.arange(2, 100)
 
-    all_trace, all_trace_qtz, all_trace_sparse = [], [], []
+    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
+    theoretical_labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
+
+    range_trace = np.arange(START_DIM, END_DIM)
+
+    trace_by_operators = [[] for i in range(len(labels))]
+    theoretical_trace_by_operators = [[] for i in range(len(theoretical_labels))]
 
     for dim in range_trace:
-        print()
-        trace, trace_qtz, trace_sparse = compute_trace(dim)
-        all_trace.append(trace)
-        all_trace_qtz.append(trace_qtz)
-        all_trace_sparse.append(trace_sparse)
+        dataset = SyntheticDataset()
+        all_trace = compute_trace(dataset, dim)
+        for i in range(len(labels)):
+            trace_by_operators[i].append(all_trace[i])
+        all_theoretical_trace = compute_theoretical_diag(dataset)
+        for i in range(len(theoretical_labels)):
+            theoretical_trace_by_operators[i].append(all_theoretical_trace[i])
 
-    fig, ax = plt.subplots(figsize=(8, 7))
-    plt.plot(range_trace, all_trace, label="No compression")
-    plt.plot(range_trace, all_trace_qtz, label="Quantization")
-    plt.plot(range_trace, all_trace_sparse, label="Sparsification")
-    ax.tick_params(axis='both', labelsize=15)
-    ax.legend(loc='best', fontsize=15)
-    ax.set_xlabel(r"Dimension $d$", fontsize=15)
-    ax.set_ylabel(r"$Trace(\frac{X^T.X \Sigma}{n})$", fontsize=15)
+
+    fig, axes = plt.subplots(figsize=(7, 6))
+    assert len(labels) == len(theoretical_labels), "Lenghts of empirical and theoretical traces are not identical."
+    for i in range(len(labels)):
+        axes.plot(np.log10(range_trace), np.log10(trace_by_operators[i]), label=labels[i], lw=2, color=COLORS[i])
+        axes.plot(np.log10(range_trace), np.log10(theoretical_trace_by_operators[i]), label=theoretical_labels[i], lw=2,
+                  color=COLORS[i], linestyle="--")
+
+    # for ax in axes:
+    # axes.set_ylim(top=4)
+    axes.tick_params(axis='both', labelsize=15)
+    axes.legend(loc='best', fontsize=15)
+    axes.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
+    axes.title.set_text('Empirical (plain) vs theoretical trace (dashed)')
+    axes.set_ylabel(r"$\log(Trace(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
 
     print("Script completed.")
+    folder = "pictures/trace/"
+    create_folder_if_not_existing(folder)
+
+    hash = "N{0}-P{1}".format(SIZE_DATASET, POWER_COV)
+    if USE_ORTHO_MATRIX:
+        hash = "{0}-ortho".format(hash)
+    plt.savefig("{0}/{1}.eps".format(folder, hash), format='eps')
 
     plt.show()
 

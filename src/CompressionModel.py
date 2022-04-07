@@ -6,7 +6,6 @@ This python file provide facilities to quantize tensors.
 from abc import ABC, abstractmethod
 
 import numpy as np
-from scipy.stats import bernoulli
 from math import sqrt
 
 
@@ -110,23 +109,23 @@ class RandomSparsification(CompressionModel):
         :param biased: set to True to used to biased version of this operators
         """
         self.biased = biased
+        self.sub_dim = int(dim * level)
         super().__init__(level, dim, norm, constant)
         assert 0 <= level <= 1, "The level must be expressed in percent."
 
     def __compress__(self, vector: np.ndarray):
-        proba = self.level
-        indices = np.random.binomial(1, proba, len(vector))
+        empirical_proba = self.sub_dim / self.dim
+        indices = np.random.choice(self.dim, self.sub_dim)
         compression = np.zeros_like(vector)
-        for i in range(len(vector)):
-            if indices[i]:
-                compression[i] = vector[i] * [1 / proba, 1][self.biased]
+        for i in range(len(indices)):
+            compression[indices[i]] = vector[indices[i]] * [1 / empirical_proba, 1][self.biased]
         return compression
 
     def __omega_c_formula__(self, dim_to_use: int):
-        proba = self.level
-        # if self.biased:
-        #     return 1 - proba
-        return (1 - proba) / proba
+        empirical_proba = self.sub_dim / self.dim
+        if self.biased:
+            return 1 - empirical_proba
+        return (1 - empirical_proba) / empirical_proba
 
     def get_name(self) -> str:
         if self.biased:
@@ -174,19 +173,39 @@ class SQuantization(CompressionModel):
 
 class Sketching(CompressionModel):
 
-    def __init__(self, level: int, dim: int = None, randomized = False, norm: int = 2, constant: int = 1):
+    def __init__(self, level: int, dim: int = None, randomized = False, type_proj = "gaussian", norm: int = 2, constant: int = 1):
         super().__init__(level, dim, norm, constant)
         self.biased = False
         self.sub_dim = int(dim * level)
         self.randomized = randomized
-        self.PHI = np.random.normal(0, 1, size=(self.sub_dim, self.dim)) / np.sqrt(self.sub_dim)
+        self.type_proj = type_proj
+        self.PHI = self.random_projector()
         self.PHI_INV = np.linalg.pinv(self.PHI)
+
+    def random_projector(self):
+        if self.type_proj == "gaussian":
+            phi = np.random.normal(0, 1, size=(self.sub_dim, self.dim))
+        elif self.type_proj == "sparse":
+            phi = np.random.choice(np.array([-np.sqrt(3), 0, np.sqrt(3)]), p=[1/6, 2/3, 1/6], size=(self.sub_dim, self.dim))
+        elif self.type_proj == "rdk":
+            indices = np.random.choice(self.dim, self.sub_dim)
+            phi = np.zeros((self.sub_dim, self.dim))
+            for i in range(self.sub_dim):
+                phi[i, indices[i]] = 1
+            return phi
+        else:
+            raise ValueError("Type of projection is unknown.")
+        return phi / np.sqrt(self.sub_dim)
 
     def __compress__(self, vector: np.ndarray) -> np.ndarray:
         if self.randomized:
-            self.PHI = np.random.normal(0, 1, size=(self.sub_dim, self.dim)) / np.sqrt(self.sub_dim)
+            self.PHI = self.random_projector()
             self.PHI_INV = np.linalg.pinv(self.PHI)
-        return self.PHI @ vector
+        empirical_proba = self.sub_dim / self.dim
+        if self.type_proj == "rdk":
+            return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
+        else:
+            return self.PHI_INV @ self.PHI @ vector * (self.dim - 2) / self.sub_dim
 
     def decompress(self, vector: np.ndarray) -> np.ndarray:
         return self.PHI_INV @ vector
@@ -199,6 +218,20 @@ class Sketching(CompressionModel):
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim
+
+
+def find_level_of_quantization(dim, level_of_sparsification):
+    """Given a level of sparsfication and a dimensionality, return the level of quantization to communicate a constant
+    number of bits."""
+
+    from scipy.optimize import fsolve
+
+    def equation_to_solve(x):
+        """x[0] = dim, x[1] = p"""
+        frac = 2 * (x ** 2 + dim) / (x * (x + np.sqrt(dim)))
+        return (3 + 3 / 2) * np.log(frac) * x * (x + np.sqrt(dim)) + 32 - 32 * level_of_sparsification * dim
+
+    return np.round(fsolve(equation_to_solve, [2]))
 
 
 
