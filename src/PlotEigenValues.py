@@ -20,7 +20,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 10**6
+SIZE_DATASET = 10**5
 DIM = 100
 POWER_COV = 4
 R_SIGMA=0
@@ -73,7 +73,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
 
     my_compressors = [no_compressor, quantizator, sparsificator, rand_gaussian_sketcher]
 
-    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]#
+    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
 
     all_diagonals = []
     for compressor in my_compressors:
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     for (diagonal, label) in zip(all_diagonals, labels):
         axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = 2)
     for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
-        axes[1].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = 2)
+        axes[1].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = 2, linestyle="--")
 
     for ax in axes:
         ax.tick_params(axis='both', labelsize=15)
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     plt.legend(loc='best', fontsize=15)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
-    # plt.savefig("{0}/{1}.eps".format(folder, hash_dataset), format='eps')
+    plt.savefig("{0}/{1}.eps".format(folder, hash_dataset), format='eps')
 
     plt.show()
 
