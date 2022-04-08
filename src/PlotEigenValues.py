@@ -59,19 +59,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
 
     no_compressor = SQuantization(0, dim=dim)
 
-    quantizator = SQuantization(1, dim=dim)
-
-    p = 1 / (quantizator.omega_c + 1)
-    print("Sparsification proba: ", p)
-    sparsificator = RandomSparsification(p, dim, biased=False)
-
-    gaussian_sketcher = Sketching(p, dim, type_proj = "gaussian")
-    rand_gaussian_sketcher = Sketching(p, dim, randomized=True, type_proj = "gaussian")
-
-    sparse_sketcher = Sketching(p, dim, type_proj="gaussian")
-    rand_sparse_sketcher = Sketching(p, dim, randomized=True, type_proj="gaussian")
-
-    my_compressors = [no_compressor, quantizator, sparsificator, rand_gaussian_sketcher]
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher]
 
     labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
 

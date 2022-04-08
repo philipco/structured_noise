@@ -9,7 +9,8 @@ from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization
+from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
+    AllOrNothing
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -44,6 +45,8 @@ class AbstractDataset:
         self.sketcher = Sketching(self.LEVEL_RDK, self.dim)
         self.rand_sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
 
+        self.all_or_nothinger = AllOrNothing(self.LEVEL_RDK, self.dim)
+
         print("No compr: {0:1.2f} bits/iter.".format(32 * self.dim))
         print("Quantiz: {0:1.2f} bits/iter.".format(self.quantizator.nb_bits_by_iter()))
         print("Sparsif: {0:1.2f} bits/iter.".format(self.sparsificator.nb_bits_by_iter()))
@@ -54,10 +57,9 @@ class AbstractDataset:
         print("Rdk compression:", self.sparsificator.omega_c)
 
     def set_step_size(self):
-        EIGEN_VALUES, _ = np.linalg.eig(self.X_complete.T @ self.X_complete)
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.L = np.max(EIGEN_VALUES) / size_generator
+        self.L = np.max(self.eigenvalues) / size_generator
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -116,7 +118,8 @@ class SyntheticDataset(AbstractDataset):
         self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
-        self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
+        self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
         if self.r_sigma == 0:
             self.w_star = np.ones(self.dim)

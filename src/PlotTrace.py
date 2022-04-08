@@ -23,7 +23,7 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
-START_DIM = 40
+START_DIM = 2
 END_DIM = 100
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
@@ -80,15 +80,9 @@ def compute_theoretical_diag(dataset: SyntheticDataset):
     theoretical_trace.append(quantization_trace)
 
     ### Sparsification
-    # ones = np.ones((dataset.dim, dataset.dim))
+    residual1 = np.diag(np.diag(sigma)) @ sigma_inv
     p = dataset.sparsificator.sub_dim / dataset.dim
-    # P = p ** 2 * ones + (p - p ** 2) * np.eye(dataset.dim)
-    # cov_rdk = P * sigma / p ** 2
-    residual = np.sum(dataset.eigenvalues) / min(dataset.eigenvalues)
-    # residual = np.sqrt(np.sum(sub_sum))
-    # residual = np.diag(np.diag(sigma)) @ sigma_inv
-    sparsification_trace = dataset.dim + (p - p**2) / p**2 * residual
-    theoretical_trace.append(sparsification_trace)
+    theoretical_trace.append(dataset.dim + (p - p**2) * np.trace(residual1) / (p**2))
 
     ### Sketching
     # cov_sketching = sigma * (1 + 1 / dataset.sketcher.sub_dim) + np.trace(sigma) * np.identity(
