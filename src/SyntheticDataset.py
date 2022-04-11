@@ -112,7 +112,7 @@ class SyntheticDataset(AbstractDataset):
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool, eigenvalues: np.array = None):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -121,7 +121,10 @@ class SyntheticDataset(AbstractDataset):
         self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
-        self.eigenvalues = np.array([1, 10]) #1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        if eigenvalues is None:
+            self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        else:
+            self.eigenvalues = eigenvalues
         self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
         if self.r_sigma == 0:
