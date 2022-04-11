@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from math import sqrt
 
+from scipy.stats import bernoulli, ortho_group
+
 
 class CompressionModel(ABC):
     """
@@ -43,9 +45,6 @@ class CompressionModel(ABC):
 
         compressed_vector = self.__compress__(vector)
         return compressed_vector
-
-    def decompress(self, vector: np.ndarray) -> np.ndarray:
-        return vector
 
     @abstractmethod
     def __omega_c_formula__(self, dim_to_use: int):
@@ -114,23 +113,48 @@ class RandomSparsification(CompressionModel):
         assert 0 <= level <= 1, "The level must be expressed in percent."
 
     def __compress__(self, vector: np.ndarray):
-        empirical_proba = self.sub_dim / self.dim
-        indices = np.random.choice(self.dim, self.sub_dim)
+        proba = self.level
+        indices = bernoulli.rvs(self.level, size=len(vector))
         compression = np.zeros_like(vector)
         for i in range(len(indices)):
-            compression[indices[i]] = vector[indices[i]] * [1 / empirical_proba, 1][self.biased]
+            compression[indices[i]] = vector[indices[i]] * [1 / proba, 1][self.biased]
         return compression
 
     def __omega_c_formula__(self, dim_to_use: int):
-        empirical_proba = self.sub_dim / self.dim
+        proba = self.level
         if self.biased:
-            return 1 - empirical_proba
-        return (1 - empirical_proba) / empirical_proba
+            return 1 - proba
+        return (1 - proba) / proba
 
     def get_name(self) -> str:
         if self.biased:
-            return "RdkBsd"
-        return "Rdk"
+            return "SparsificationBsd"
+        return "Sparsification"
+
+    def nb_bits_by_iter(self):
+        return 32 * self.level * self.dim
+
+
+class RandK(RandomSparsification):
+
+    def __init__(self, sub_dim: int, dim: int = None, biased=False, norm: int = 2, constant: int = 1):
+        self.biased = biased
+        self.sub_dim = sub_dim
+        self.level = self.sub_dim / dim
+        self.dim = dim
+        assert 1 <= sub_dim <= dim, "The sub dimension is not correct."
+
+    def __compress__(self, vector: np.ndarray):
+        indices = np.random.choice(self.dim, self.sub_dim)
+        compression = np.zeros_like(vector)
+        for i in range(len(indices)):
+            compression[indices[i]] = vector[indices[i]] * [1 / self.level, 1][self.biased]
+        return compression
+
+    def get_name(self) -> str:
+        if self.biased:
+            return "Rand{0}-Bsd".format(self.sub_dim)
+        return "Rand" + str(self.sub_dim)
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim
@@ -171,6 +195,17 @@ class SQuantization(CompressionModel):
         frac = 2 * (self.level ** 2 + self.dim) / (self.level * (self.level+ np.sqrt(self.dim)))
         return (3 + 3 / 2) * np.log(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
 
+
+class StabilizedQuantization(SQuantization):
+
+    def __compress__(self, vector):
+        U = ortho_group.rvs(dim=self.dim)
+        return U.T @ super().__compress__(U @ vector)
+
+    def get_name(self) -> str:
+        return "StabilizedQtz"
+
+
 class Sketching(CompressionModel):
 
     def __init__(self, level: int, dim: int = None, randomized = False, type_proj = "gaussian", norm: int = 2, constant: int = 1):
@@ -202,19 +237,38 @@ class Sketching(CompressionModel):
             self.PHI = self.random_projector()
             self.PHI_INV = np.linalg.pinv(self.PHI)
         empirical_proba = self.sub_dim / self.dim
-        if self.type_proj == "rdk":
-            return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
-        else:
-            return self.PHI_INV @ self.PHI @ vector * (self.dim - 2) / self.sub_dim
-
-    def decompress(self, vector: np.ndarray) -> np.ndarray:
-        return self.PHI_INV @ vector
+        return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
 
     def __omega_c_formula__(self, dim_to_use: int):
         return 0
 
     def get_name(self) -> str:
         return "Sketching"
+
+    def nb_bits_by_iter(self):
+        return 32 * self.level * self.dim
+
+class AllOrNothing(CompressionModel):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        """
+
+        :param level: number of dimension to select at compression step
+        :param dim: number of dimension in the dataset
+        :param biased: set to True to used to biased version of this operators
+        """
+        super().__init__(level, dim, norm, constant)
+        assert 0 <= level <= 1, "The level must be expressed in percent."
+
+    def __compress__(self, vector: np.ndarray):
+        b = np.random.binomial(1, self.level)
+        return b * vector / self.level
+
+    def __omega_c_formula__(self, dim_to_use: int):
+        pass
+
+    def get_name(self) -> str:
+        return "AllOrNothing"
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim

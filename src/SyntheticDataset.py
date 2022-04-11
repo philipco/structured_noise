@@ -10,7 +10,7 @@ from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing
+    AllOrNothing, StabilizedQuantization, RandK
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -38,8 +38,11 @@ class AbstractDataset:
         self.LEVEL_QTZ = 1 #find_level_of_quantization(self.dim, p)[0]  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
+        self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
+
         self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
+        self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
         self.sketcher = Sketching(self.LEVEL_RDK, self.dim)
@@ -118,7 +121,7 @@ class SyntheticDataset(AbstractDataset):
         self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
-        self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        self.eigenvalues = np.array([1, 10]) #1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
         self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
         if self.r_sigma == 0:
