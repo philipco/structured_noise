@@ -9,7 +9,8 @@ from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization
+from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
+    AllOrNothing, StabilizedQuantization, RandK
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -37,12 +38,17 @@ class AbstractDataset:
         self.LEVEL_QTZ = 1 #find_level_of_quantization(self.dim, p)[0]  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
+        self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
+
         self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
+        self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
         self.sketcher = Sketching(self.LEVEL_RDK, self.dim)
         self.rand_sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
+
+        self.all_or_nothinger = AllOrNothing(self.LEVEL_RDK, self.dim)
 
         print("No compr: {0:1.2f} bits/iter.".format(32 * self.dim))
         print("Quantiz: {0:1.2f} bits/iter.".format(self.quantizator.nb_bits_by_iter()))
@@ -54,10 +60,9 @@ class AbstractDataset:
         print("Rdk compression:", self.sparsificator.omega_c)
 
     def set_step_size(self):
-        EIGEN_VALUES, _ = np.linalg.eig(self.X_complete.T @ self.X_complete)
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.L = np.max(EIGEN_VALUES) / size_generator
+        self.L = np.max(self.eigenvalues) / size_generator
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -107,7 +112,7 @@ class SyntheticDataset(AbstractDataset):
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool, eigenvalues: np.array = None):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -116,7 +121,11 @@ class SyntheticDataset(AbstractDataset):
         self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
-        self.upper_sigma = np.diag(np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)]), k=0)
+        if eigenvalues is None:
+            self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        else:
+            self.eigenvalues = eigenvalues
+        self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
         if self.r_sigma == 0:
             self.w_star = np.ones(self.dim)
