@@ -93,8 +93,6 @@ class SGD(ABC):
         self.compressor = None
 
     def compute_empirical_risk(self, w, data, labels):
-        # if self.do_logistic_regression:
-        #     return -np.sum(np.log(expit(labels * (data @ w)))) / len(labels)
         if CORRECTION_SQUARE_COV:
             data = data @ self.inv_root_square_upper_sigma.T
         if CORRECTION_DIAG:
@@ -104,10 +102,6 @@ class SGD(ABC):
     def compute_true_risk(self, w, data, labels):
         if data is None:
             return 0
-        # data = data @ self.transition_matrix.T
-        # if self.do_logistic_regression:
-        #     return -np.sum(log_logistic(labels * (data @ w))) / len(labels)
-        # w = self.inv_transition_matrix @ w
         if CORRECTION_SQUARE_COV:
             w_star = self.inv_root_square_upper_sigma @ self.w_star
             return constant_product(0.5, vectorial_norm(minus(w, w_star)))
@@ -142,7 +136,7 @@ class SGD(ABC):
         current_w = self.synthetic_dataset.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        losses = [self.compute_empirical_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y)]
+        losses = [self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y)]
         avg_losses = [losses[-1]]
         for epoch in range(self.NB_EPOCH):
             indices = np.arange(self.SIZE_DATASET)
@@ -172,8 +166,8 @@ class SGD(ABC):
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 if idx in log_xaxis[1:]:
-                    losses.append(self.compute_empirical_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
-                    avg_losses.append(self.compute_empirical_risk(avg_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
+                    losses.append(self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
+                    avg_losses.append(self.compute_true_risk(avg_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
 
         print_mem_usage("End of sgd descent ...")
 
@@ -208,9 +202,6 @@ class SGDCompressed(SGD):
     def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
         super().__init__(synthetic_dataset)
         self.compressor = compressor
-        # if isinstance(compressor, RandomSparsification):
-        #     p = compressor.level
-        #     self.inv_proba_matrix = np.eye(self.DIM) - (1 - p) * np.identity(self.DIM)
 
     def gradient_processing(self, grad):
         return self.compressor.compress(grad)

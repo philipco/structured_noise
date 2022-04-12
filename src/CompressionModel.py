@@ -116,8 +116,9 @@ class RandomSparsification(CompressionModel):
         proba = self.level
         indices = bernoulli.rvs(self.level, size=len(vector))
         compression = np.zeros_like(vector)
-        for i in range(len(indices)):
-            compression[indices[i]] = vector[indices[i]] * [1 / proba, 1][self.biased]
+        for i in range(len(vector)):
+            if indices[i]:
+                compression[i] = vector[i] * [1 / proba, 1][self.biased]
         return compression
 
     def __omega_c_formula__(self, dim_to_use: int):

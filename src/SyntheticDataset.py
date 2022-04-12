@@ -33,8 +33,6 @@ class AbstractDataset:
 
     def define_compressors(self):
 
-        p = 0.1
-
         self.LEVEL_QTZ = 1 #find_level_of_quantization(self.dim, p)[0]  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
@@ -62,7 +60,7 @@ class AbstractDataset:
     def set_step_size(self):
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.L = np.max(self.eigenvalues) / size_generator
+        self.L = np.max(self.eigenvalues)
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -74,7 +72,7 @@ class AbstractDataset:
         print("L SPORTISSE=", L_SPORTISSE)
         GAMMA_SPORTISSE = 1 / (2 * L_SPORTISSE)
 
-        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (SQuantization(self.LEVEL_QTZ, dim=self.dim).omega_c + 1)))
+        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (self.quantizator.omega_c + 1)))
         print("Optimal gamma for compression:", OPTIMAL_GAMMA_COMPR)
         print("Gamma from Bach & Moulines, 13:", GAMMA_BACH_MOULINES)
 
@@ -102,7 +100,7 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool):
+                         do_logistic_regression: bool, eigenvalues: np.array = None):
         np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
@@ -112,7 +110,8 @@ class SyntheticDataset(AbstractDataset):
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool, eigenvalues: np.array = None):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
+                           eigenvalues: np.array = None):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma

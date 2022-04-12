@@ -22,7 +22,6 @@ matplotlib.rcParams.update({
 })
 
 SIZE_DATASET = 100
-DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
@@ -32,6 +31,10 @@ USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
 NB_RANDOM_COMPRESSION = 25
+
+EIGEN_VALUES = np.array([1, 10])
+FOLDER = "pictures/ellipse/muL=" + str(EIGEN_VALUES[0]/EIGEN_VALUES[1]) + "/"
+create_folder_if_not_existing(FOLDER)
 
 COLORS = ["tab:blue", "tab:orange", "tab:brown", "tab:green", "tab:red", "tab:purple", "tab:cyan"]
 
@@ -101,7 +104,7 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     X = dataset.X_complete
     ax_max = max([X[i,j] for i in range(X.shape[0]) for j in range(2)]) / dataset.LEVEL_RDK + 1 # (to see the entire ellipse).
 
-    folder = "pictures/ellipse/" + compressor.get_name()
+    folder = FOLDER + compressor.get_name()
     create_folder_if_not_existing(folder)
 
     all_compressed_point = []
@@ -138,7 +141,7 @@ def get_all_covariances(dataset: SyntheticDataset, my_compressors):
         all_covariances.append(cov_matrix)
         all_compressed_points.append(compressed_points)
 
-    return all_covariances, all_compressed_points, labels
+    return all_covariances, all_compressed_points
 
 
 def plot_compression_process(dataset, my_compressors, covariances, labels):
@@ -158,7 +161,7 @@ def plot_compression_process(dataset, my_compressors, covariances, labels):
     # axes_MSE[1].legend(loc='upper left')
     # axes_MSE[1].set_title("Y axis")
 
-    filename = "pictures/ellipse/scatter_plot"
+    filename = FOLDER + "scatter_plot"
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     fig_distrib.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
@@ -178,8 +181,8 @@ def plot_ellipse(dataset, covariances, labels):
     ax.legend(fancybox=True, framealpha=0.5)
     ax.axis('equal')
 
-    fig.subplots_adjust(hspace=0.25)
-    filename = "pictures/ellipse/ellipse"
+    # fig.subplots_adjust(hspace=0.25)
+    filename = FOLDER + "ellipse"
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight',dpi=600)
@@ -188,7 +191,7 @@ def plot_ellipse(dataset, covariances, labels):
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, USE_ORTHO_MATRIX, eigenvalues=np.array([0.001, 10]))
+    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, USE_ORTHO_MATRIX, eigenvalues=EIGEN_VALUES)
     synthetic_dataset.define_compressors()
     synthetic_dataset.generate_X()
 
@@ -199,7 +202,11 @@ if __name__ == '__main__':
                       synthetic_dataset.sparsificator, synthetic_dataset.rand1,
                       synthetic_dataset.all_or_nothinger]
 
-    all_covariances, all_compressed_points, labels = get_all_covariances(synthetic_dataset, my_compressors)
+    all_covariances, all_compressed_points = get_all_covariances(synthetic_dataset, my_compressors)
+    print("Printing all covariance matrices.")
+    for i in range(len(labels)):
+        print(labels[i])
+        print(all_covariances[i])
 
     plot_compression_process(dataset=synthetic_dataset, my_compressors=my_compressors, covariances=all_covariances,
                              labels=labels)

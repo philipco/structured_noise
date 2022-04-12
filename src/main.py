@@ -21,12 +21,12 @@ from src.CompressionModel import Sketching
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
 from src.SyntheticDataset import SyntheticDataset
 
-SIZE_DATASET = 10**5
-DIM = 100
-POWER_COV = 4
+SIZE_DATASET = 10**4
+DIM = 2
+POWER_COV = 2
 R_SIGMA=0
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
 DO_LOGISTIC_REGRESSION = False
 
 SEED = 25
@@ -105,18 +105,15 @@ if __name__ == '__main__':
 
     # sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="rdk")
 
-    sgd_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.sparsificator).gradient_descent(
-        label="sparsification")
-
     # sgd_rand_sketching_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_sketcher).gradient_descent(
     #     label="rand sketch rdk")
 
-    vanilla_sgd = SGDVanilla(copy.deepcopy(synthetic_dataset))
+    vanilla_sgd = SGDVanilla(synthetic_dataset)
     sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression")
 
     w_ERM = (np.linalg.pinv(synthetic_dataset.X_complete.T.dot(synthetic_dataset.X_complete))
              .dot(synthetic_dataset.X_complete.T)).dot(synthetic_dataset.Y)
-    optimal_loss = vanilla_sgd.compute_empirical_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
+    optimal_loss = vanilla_sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
                                                       synthetic_dataset.Y)
 
     # losses_noised, avg_losses_noised, w = sgd.gradient_descent_noised()
@@ -125,28 +122,30 @@ if __name__ == '__main__':
     # sgd_naive_rdk = SGDNaiveSparsification(copy.deepcopy(synthetic_dataset),
     #                             synthetic_dataset.sparsificator).gradient_descent(label="naive sparsif.")
 
-    sgd_gauss = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
-        label="gauss")
-    sgd_rand_gauss = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
+    # sgd_gauss = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
+    #     label="gauss")
+    sgd_rand_gauss = SGDCompressed(synthetic_dataset, synthetic_dataset.rand_sketcher).gradient_descent(
         label="rand-gauss")
 
-    sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=False, type_proj="sparse")
-    sgd_sparse = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
-        label="sparse")
-    sparse_rand_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="sparse")
-    sgd_rand_sparse = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
-        label="rand-sparse")
+    # sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=False, type_proj="sparse")
+    # sgd_sparse = SGDVanilla(copy.deepcopy(synthetic_dataset)).gradient_descent(
+    #     label="sparse")
+    # sparse_rand_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="sparse")
+    # sgd_rand_sparse = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_rand_sketcher).gradient_descent(
+    #     label="rand-sparse")
 
-    sgd_qtz = SGDCompressed(copy.deepcopy(synthetic_dataset), synthetic_dataset.quantizator).gradient_descent(
+    sgd_qtz = SGDCompressed(synthetic_dataset, synthetic_dataset.quantizator).gradient_descent(
         label="quantization")
+    sgd_rdk = SGDCompressed(synthetic_dataset, synthetic_dataset.sparsificator).gradient_descent(
+        label="sparsification")
 
     sgd_series = SeriesOfSGD(sgd_nocompr, sgd_rdk)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse,
+    setup_plot_with_SGD(sgd_qtz, sgd_rdk, sgd_rand_gauss,
                         sgd_nocompr=sgd_nocompr,
                         optimal_loss=optimal_loss,
                         hash_string=synthetic_dataset.string_for_hash())
 
-    plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_gauss, sgd_rand_gauss, sgd_sparse, sgd_rand_sparse,
+    plot_eigen_values(sgd_nocompr, sgd_qtz, sgd_rdk, sgd_rand_gauss,
                       hash_string=synthetic_dataset.string_for_hash())
