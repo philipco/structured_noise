@@ -10,7 +10,7 @@ from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK
+    AllOrNothing, StabilizedQuantization, RandK, PoissonSparsification
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -39,7 +39,7 @@ class AbstractDataset:
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
-        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
+        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False) #PoissonSparsification(- np.log(1 - self.LEVEL_RDK), dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
@@ -103,7 +103,7 @@ class SyntheticDataset(AbstractDataset):
                          do_logistic_regression: bool, eigenvalues: np.array = None):
         np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
-        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
+        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()

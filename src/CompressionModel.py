@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from math import sqrt
 
-from scipy.stats import bernoulli, ortho_group
+from scipy.stats import bernoulli, ortho_group, poisson
 
 
 class CompressionModel(ABC):
@@ -136,6 +136,43 @@ class RandomSparsification(CompressionModel):
         return 32 * self.level * self.dim
 
 
+class PoissonSparsification(CompressionModel):
+    def __init__(self, level: int, dim: int = None, biased=False, norm: int = 2, constant: int = 1):
+        """
+
+        :param level: lambda param
+        :param dim: number of dimension in the dataset
+        :param biased: set to True to used to biased version of this operators
+        """
+        self.biased = biased
+        print("Poisson level:", level)
+        self.sub_dim = int(dim * level)
+        super().__init__(level, dim, norm, constant)
+
+    def __compress__(self, vector: np.ndarray):
+        proba = self.level
+        random_variable = poisson.rvs(self.level, size=len(vector))
+        compression = np.zeros_like(vector)
+        for i in range(len(vector)):
+            # if indices[i]:
+            compression[i] = random_variable[i] * vector[i] * [1 / proba, 1][self.biased]
+        return compression
+
+    def __omega_c_formula__(self, dim_to_use: int):
+        proba = self.level
+        if self.biased:
+            return 1 - proba
+        return (1 - proba) / proba
+
+    def get_name(self) -> str:
+        if self.biased:
+            return "PoissonSparsif"
+        return "PoissonSparsif"
+
+    def nb_bits_by_iter(self):
+        return 32 * (1 - np.e**-self.level) * self.dim
+
+
 class RandK(RandomSparsification):
 
     def __init__(self, sub_dim: int, dim: int = None, biased=False, norm: int = 2, constant: int = 1):
@@ -168,6 +205,9 @@ class SQuantization(CompressionModel):
         self.div_omega = div_omega
         super().__init__(level, dim, norm, constant)
 
+    def sample(self, p, n):
+        return np.random.binomial(1, p, n)
+
     def __compress__(self, vector):
 
         norm_x = np.linalg.norm(vector, ord=self.norm)
@@ -176,7 +216,7 @@ class SQuantization(CompressionModel):
         ratio = np.abs(vector) / norm_x
         p = ratio * self.level - np.floor(ratio * self.level)
 
-        alea = np.random.binomial(1, p, len(vector))
+        alea = self.sample(p, len(vector))
         all_levels = (np.floor(self.level * ratio) + alea)/ self.level
 
         signed_level = np.sign(vector) * all_levels
@@ -194,7 +234,13 @@ class SQuantization(CompressionModel):
         if self.level == 0:
             return self.dim * 32
         frac = 2 * (self.level ** 2 + self.dim) / (self.level * (self.level+ np.sqrt(self.dim)))
-        return (3 + 3 / 2) * np.log(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
+        return (3 + 3 / 2) * np.log2(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
+
+
+class PoissonQuantization(SQuantization):
+
+    def sample(self, p, n):
+        return np.random.binomial(1, p, n)
 
 
 class StabilizedQuantization(SQuantization):

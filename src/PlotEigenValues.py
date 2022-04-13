@@ -50,7 +50,7 @@ def compute_diag(dataset, compressor):
     diag = np.diag(cov_matrix)
     return diag, cov_matrix
 
-def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
+def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
                        use_ortho_matrix=USE_ORTHO_MATRIX)
@@ -59,9 +59,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
 
     no_compressor = SQuantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher]
-
-    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher, dataset.all_or_nothinger]
 
     all_diagonals = []
     for compressor in my_compressors:
@@ -71,8 +69,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
     return all_diagonals, labels, dataset.string_for_hash()
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset):
-    labels = ["no comprs.", "quantiz.", "rdk", "gauss. proj."]
+def compute_theoretical_diag(dataset: SyntheticDataset, labels):
 
     ### No compression
     sigma = dataset.upper_sigma
@@ -103,9 +100,11 @@ def compute_theoretical_diag(dataset: SyntheticDataset):
 
 if __name__ == '__main__':
 
+    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj.", "all or noth."]
+
     dataset = SyntheticDataset()
-    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM)
-    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset)
+    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM, labels=labels)
+    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for (diagonal, label) in zip(all_diagonals, labels):

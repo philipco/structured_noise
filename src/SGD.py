@@ -43,15 +43,15 @@ def log_sampling_xaxix(size_dataset):
 
 class SeriesOfSGD:
 
-    def __init__(self, *args) -> None:
+    def __init__(self, list_of_sgd) -> None:
         super().__init__()
         self.series = []
-        for serie in args:
+        for serie in list_of_sgd:
             assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
             self.series.append(serie)
 
-    def append(self, *args):
-        for serie in args:
+    def append(self, list_of_sgd):
+        for serie in list_of_sgd:
             assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
             self.series.append(serie)
 
@@ -61,13 +61,15 @@ class SeriesOfSGD:
 
 class SGDRun:
 
-    def __init__(self, size_dataset, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
+    def __init__(self, size_dataset, all_avg_w, last_w, losses, avg_losses, diag_cov_gradients, cov_grad_error, label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
+        self.all_avg_w = all_avg_w
         self.last_w = last_w
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
         self.log_xaxis = log_sampling_xaxix(size_dataset)
+        self.cov_grad_error = cov_grad_error
         self.diag_cov_gradients = diag_cov_gradients
         self.label = label
 
@@ -118,6 +120,9 @@ class SGD(ABC):
             x = matrix_vector_product(self.Q.T, x)
         return (x @ w - y) * x
 
+    def compute_full_gradient(self, w, data, labels):
+        return (data @ w - labels) @ data / len(labels)
+
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
         if self.additive_stochastic_gradient and self.do_logistic_regression:
@@ -131,9 +136,15 @@ class SGD(ABC):
     def sgd_update(self, w, gradient, gamma):
         return w - gamma * gradient - self.reg * (w - self.synthetic_dataset.w0)
 
-    def gradient_descent(self, label: str = None) -> SGDRun:
+    def get_step_size(self, it: int, gamma: int, deacreasing_step_size: bool = False):
+        if deacreasing_step_size:
+            return 1 / (np.sqrt(it) * max(self.synthetic_dataset.eigenvalues))
+        return gamma
+
+    def gradient_descent(self, label: str = None, deacreasing_step_size: bool = False) -> SGDRun:
         log_xaxis = log_sampling_xaxix(self.synthetic_dataset.size_dataset)
         current_w = self.synthetic_dataset.w0
+        all_avg_w = [current_w]
         avg_w = copy.deepcopy(current_w)
         it = 1
         losses = [self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y)]
@@ -144,7 +155,7 @@ class SGD(ABC):
                 if idx % MAX_SIZE_DATASET == 0 and idx != 0:
                     print("Regenerating ...")
                     self.synthetic_dataset.regenerate_dataset()
-                gamma = self.synthetic_dataset.gamma
+                gamma = self.get_step_size(it, self.synthetic_dataset.gamma, deacreasing_step_size)
                 it += 1
 
                 if CORRECTION_DIAG:
@@ -157,14 +168,19 @@ class SGD(ABC):
                     grad = self.compute_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
                                                             self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
                 grad = self.gradient_processing(grad)
+                full_grad = self.compute_full_gradient(current_w, self.synthetic_dataset.X, self.synthetic_dataset.Y)
+                epsilon_noise = full_grad - grad
 
                 if idx == 0:
                     self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM))
+                    cov_grad_error = np.kron(epsilon_noise, epsilon_noise).reshape((self.DIM, self.DIM))
                 else:
                     self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
+                    cov_grad_error = np.kron(epsilon_noise, epsilon_noise).reshape((self.DIM, self.DIM)) / it + cov_grad_error * (it - 1) / it
 
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
+                all_avg_w.append(avg_w)
                 if idx in log_xaxis[1:]:
                     losses.append(self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
                     avg_losses.append(self.compute_true_risk(avg_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
@@ -176,8 +192,9 @@ class SGD(ABC):
         else:
             cov_matrix = self.approx_hessian
 
-        return SGDRun(self.synthetic_dataset.size_dataset, current_w, losses, avg_losses, np.diag(cov_matrix), 
-                      label=label)
+        # cov_grad_error = 0
+        return SGDRun(self.synthetic_dataset.size_dataset, all_avg_w, current_w, losses, avg_losses, np.diag(cov_matrix), 
+                      cov_grad_error, label=label)
         # return SGDRun(current_w, losses, avg_losses, np.diag(self.synthetic_dataset.Q.T @ self.approx_hessian @ self.synthetic_dataset.Q), label=label)
 
     @abstractmethod
