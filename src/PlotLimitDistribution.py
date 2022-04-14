@@ -20,18 +20,21 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 10**5
+SIZE_DATASET = 10**4
 POWER_COV = 2
 R_SIGMA = 0
 
 DIM = 2
-EIGENVALUES = np.array([1,5])
+EIGENVALUES = np.array([1,10])
 
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
 LAST_POINTS = 0
-NB_TRY = 10
+NB_TRY = 50
+
+FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
+create_folder_if_not_existing(FOLDER)
 
 COLORS = ["tab:blue", "tab:orange", "tab:brown", "tab:green", "tab:red", "tab:purple", "tab:cyan"]
 
@@ -112,11 +115,11 @@ def plot_TCL_without_compression(ax, sigma, empirical_cov, avg_dist_to_opt, titl
 
     avg_dist_to_opt *= np.sqrt(SIZE_DATASET)
 
+    confidence_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
+                       edgecolor=COLORS[1], zorder=0, lw=2)
     confidence_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
                        r"$\Sigma^{-1} \mathrm{Cov}(\mathcal C (x)) \Sigma^{-1}$", ax, edgecolor=COLORS[1],
                        linestyle="--", zorder=0, lw=2)
-    confidence_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
-                       edgecolor=COLORS[1], zorder=0, lw=2)
     confidence_ellipse(inv_sigma,  r"$\Sigma^{-1}$", ax,
                        edgecolor=COLORS[0], zorder=0, lw=2, linestyle=":")
 
@@ -132,7 +135,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     fig, ax = plt.subplots(figsize=(6, 5))
     plot_TCL_without_compression(ax, sigma, all_covariances[0], all_avg_sgd[0], title=labels[0])
     ax.legend(loc='upper right', fancybox=True, framealpha=0.5)
-    filename = "pictures/limit_distribution/TCL_without_compression"
+    filename = "{0}/N{1}-TCL_without_compression".format(FOLDER, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
@@ -143,7 +146,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
         plot_TCL_without_compression(axes_TCL[idx_compressor-1], sigma, all_covariances[idx_compressor],
                                      all_avg_sgd[idx_compressor], title=labels[idx_compressor])
     axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
-    filename = "pictures/limit_distribution/TCL_with_compression"
+    filename = "{0}/N{1}-TCL_with_compression".format(FOLDER, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
@@ -166,10 +169,6 @@ def get_all_covariances_of_compressors(dataset: SyntheticDataset, my_compressors
     return all_covariances
 
 if __name__ == '__main__':
-
-    folder = "pictures/limit_distribution"
-    create_folder_if_not_existing(folder)
-    create_folder_if_not_existing(folder + "/TCL")
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
@@ -195,7 +194,7 @@ if __name__ == '__main__':
         for idx_compressor in range(len(my_compressors)):
             compressor = my_compressors[idx_compressor]
             sgd = SGDCompressed(synthetic_dataset, compressor).gradient_descent(label=compressor.get_name(),
-                                                                                deacreasing_step_size=False)
+                                                                                deacreasing_step_size=True)
             # We save only the excess loss of the first try.
             if idx == 0:
                 all_sgd_descent.append(sgd)
@@ -204,7 +203,7 @@ if __name__ == '__main__':
         # We plot the excess loss of the first try.
         if idx == 0:
             plot_only_avg(all_sgd_descent[1:], sgd_nocompr=all_sgd_descent[0], optimal_loss=0,
-                                       hash_string="limit_distribution/avg_sgd")
+                          hash_string="TCL/muL={0}/N{1}-avg_sgd".format(min(EIGENVALUES)/max(EIGENVALUES), SIZE_DATASET))
 
     all_avg_sgd = [np.concatenate(avg_sgd) for avg_sgd in all_avg_sgd]
     plot_TCL(synthetic_dataset.upper_sigma, all_covariances, all_avg_sgd, labels)

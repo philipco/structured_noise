@@ -6,14 +6,9 @@ import copy
 import math
 from abc import abstractmethod, ABC
 
-from matplotlib import pyplot as plt
-from numba import jit
-import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import sqrtm
 from tqdm import tqdm
-
-from scipy.special import expit
 
 from src.CompressionModel import CompressionModel
 from src.JITProduct import *
