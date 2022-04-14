@@ -5,7 +5,6 @@ import copy
 
 import numpy as np
 from numpy.random import multivariate_normal
-from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
@@ -101,7 +100,6 @@ class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
                          do_logistic_regression: bool, eigenvalues: np.array = None):
-        np.random.seed(25)
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues)
         self.define_compressors()
@@ -117,7 +115,6 @@ class SyntheticDataset(AbstractDataset):
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
-        self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
         if eigenvalues is None:
@@ -130,6 +127,7 @@ class SyntheticDataset(AbstractDataset):
             self.w_star = np.ones(self.dim)
         else:
             self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
+        self.w0 = np.random.normal(0, 1, size=self.dim)
 
         if self.use_ortho_matrix:
             # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)

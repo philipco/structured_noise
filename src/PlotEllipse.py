@@ -1,14 +1,11 @@
 """Created by Constantin Philippenko, 7th April 2022."""
-import math
 import random
 
-from PIL import Image
 import matplotlib
 from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
 from tqdm import tqdm
 
-from PlotUtils import confidence_ellipse
+from src.PlotUtils import confidence_ellipse, create_gif
 from src.CompressionModel import *
 from src.SyntheticDataset import SyntheticDataset
 from src.Utilities import create_folder_if_not_existing
@@ -27,7 +24,7 @@ R_SIGMA=0
 
 DIM = 2
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
 DO_LOGISTIC_REGRESSION = False
 
 NB_RANDOM_COMPRESSION = 25
@@ -37,6 +34,7 @@ FOLDER = "pictures/ellipse/muL=" + str(EIGEN_VALUES[0]/EIGEN_VALUES[1]) + "/"
 create_folder_if_not_existing(FOLDER)
 
 COLORS = ["tab:blue", "tab:orange", "tab:brown", "tab:green", "tab:red", "tab:purple", "tab:cyan"]
+
 
 def plot_compressed_points(compressor, X, i, folder, ax_max):
     compressed_point_i = np.array([compressor.compress(X[i]) for j in range(NB_RANDOM_COMPRESSION)])
@@ -75,12 +73,6 @@ def plot_some_random_compressed_points(X, all_compressed_point, filename, ax_max
         filename += "-ortho"
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)  # default is 100, to reduce how many pixels the figures has.
     plt.close()
-
-
-def create_gif(file_names, gif_name):
-    images = [Image.open(fn) for fn in file_names]
-    images[0].save(gif_name, format="GIF", append_images=images,
-                   save_all=True, duration=400, loop=0)
 
 
 def compute_quadratic_error(x, all_compression):

@@ -61,7 +61,7 @@ class SeriesOfSGD:
 
 class SGDRun:
 
-    def __init__(self, size_dataset, all_avg_w, last_w, losses, avg_losses, diag_cov_gradients, cov_grad_error, label=None) -> None:
+    def __init__(self, size_dataset, all_avg_w, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
         self.all_avg_w = all_avg_w
@@ -69,7 +69,6 @@ class SGDRun:
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
         self.log_xaxis = log_sampling_xaxix(size_dataset)
-        self.cov_grad_error = cov_grad_error
         self.diag_cov_gradients = diag_cov_gradients
         self.label = label
 
@@ -79,7 +78,6 @@ class SGD(ABC):
     
     def __init__(self, synthetic_dataset, reg: int = REGULARIZATION) -> None:
         super().__init__()
-        np.random.seed(15)
         self.do_logistic_regression = synthetic_dataset.do_logistic_regression
         self.synthetic_dataset = synthetic_dataset
         self.w_star = self.synthetic_dataset.w_star
@@ -168,15 +166,11 @@ class SGD(ABC):
                     grad = self.compute_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
                                                             self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
                 grad = self.gradient_processing(grad)
-                full_grad = self.compute_full_gradient(current_w, self.synthetic_dataset.X, self.synthetic_dataset.Y)
-                epsilon_noise = full_grad - grad
 
                 if idx == 0:
                     self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM))
-                    cov_grad_error = np.kron(epsilon_noise, epsilon_noise).reshape((self.DIM, self.DIM))
                 else:
                     self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
-                    cov_grad_error = np.kron(epsilon_noise, epsilon_noise).reshape((self.DIM, self.DIM)) / it + cov_grad_error * (it - 1) / it
 
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
@@ -192,9 +186,8 @@ class SGD(ABC):
         else:
             cov_matrix = self.approx_hessian
 
-        # cov_grad_error = 0
         return SGDRun(self.synthetic_dataset.size_dataset, all_avg_w, current_w, losses, avg_losses, np.diag(cov_matrix), 
-                      cov_grad_error, label=label)
+                      label=label)
         # return SGDRun(current_w, losses, avg_losses, np.diag(self.synthetic_dataset.Q.T @ self.approx_hessian @ self.synthetic_dataset.Q), label=label)
 
     @abstractmethod
