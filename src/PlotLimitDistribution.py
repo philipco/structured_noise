@@ -1,5 +1,7 @@
 """Created by Constantin Philippenko, 11th April 2022."""
 
+# axmax = max ellipse ! Sinon, outliners !
+
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
@@ -115,7 +117,7 @@ def plot_TCL_without_compression(ax, sigma, empirical_cov, avg_dist_to_opt, titl
 
     avg_dist_to_opt *= np.sqrt(SIZE_DATASET)
 
-    confidence_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
+    _, ax_max = confidence_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
                        edgecolor=COLORS[1], zorder=0, lw=2)
     confidence_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
                        r"$\Sigma^{-1} \mathrm{Cov}(\mathcal C (x)) \Sigma^{-1}$", ax, edgecolor=COLORS[1],
@@ -128,6 +130,9 @@ def plot_TCL_without_compression(ax, sigma, empirical_cov, avg_dist_to_opt, titl
     ax.scatter(0, 0, c='red', s=3)
     ax.axvline(c='grey', lw=1)
     ax.axhline(c='grey', lw=1)
+    ax_max *= 1.1
+    ax.set_xlim(-ax_max, ax_max)
+    ax.set_ylim(-ax_max, ax_max)
     ax.set_title(title)
 
 

@@ -116,4 +116,4 @@ def confidence_ellipse(cov, label, ax, n_std=3.0, facecolor='none', **kwargs):
 
     ellipse.set(clip_box=ax.bbox, label=label)
     patch = ax.add_patch(ellipse)
-    return patch
+    return patch, max(scale_x, scale_y)
