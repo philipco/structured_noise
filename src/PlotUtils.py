@@ -67,9 +67,32 @@ def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str =
         plt.show()
 
 
-def confidence_ellipse(cov, label, ax, n_std=3.0, facecolor='none', **kwargs):
+def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
+    """ Plot an ellipse centered on zero given a 2D-covariance matrix."""
+    eigenvalues, eigenvectors = np.linalg.eig(cov)
+    length_axis = np.sqrt(eigenvalues)
+
+    size = 1000
+    theta = np.linspace(0, 2 * np.pi, size)
+
+    ellipse = np.array([n_std * length_axis[0] * np.cos(theta), n_std * length_axis[1] * np.sin(theta)])
+    rotated_ellipse = np.zeros((2, size))
+    for i in range(size):
+        rotated_ellipse[:, i] = eigenvectors @ ellipse[:, i]
+
+    ax.plot(rotated_ellipse[0, :], rotated_ellipse[1, :], label = label, **kwargs)
+
+    if plot_eig:
+        origin = np.array([[0, 0], [0, 0]])
+        ax.quiver(*origin, length_axis * eigenvectors[0, :], length_axis * eigenvectors[1, :],
+                  angles='xy', scale_units='xy', scale=1, **kwargs)
+
+    return np.max(rotated_ellipse)
+
+
+def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
     """
-    Create a plot of the covariance confidence ellipse of *x* and *y*.
+    Plot an ellipse centered on zero given a 2D-covariance matrix.
 
     Parameters
     ----------
@@ -101,16 +124,13 @@ def confidence_ellipse(cov, label, ax, n_std=3.0, facecolor='none', **kwargs):
     # the squareroot of the variance and multiplying
     # with the given number of standard deviations.
     scale_x = np.sqrt(cov[0, 0]) * n_std
-    mean_x = 0
 
     # calculating the stdandard deviation of y ...
     scale_y = np.sqrt(cov[1, 1]) * n_std
-    mean_y = 0
 
     transf = transforms.Affine2D() \
         .rotate_deg(45) \
-        .scale(scale_x, scale_y) \
-        .translate(mean_x, mean_y)
+        .scale(scale_x, scale_y)
 
     ellipse.set_transform(transf + ax.transData)
 
