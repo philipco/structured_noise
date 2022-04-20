@@ -2,6 +2,9 @@
 
 # axmax = max ellipse ! Sinon, outliners !
 
+import sympy as sy
+sy.init_printing(use_unicode=True)
+
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
@@ -67,49 +70,6 @@ def get_legend_limit_distrib():
                           markersize=4, label=r"last $\bar w - w_*$")
                    ]
     return legend_line, legend_color
-
-
-def plot_limit_distribution(sigma, covariances, avg_dist_to_opt, compressors):
-
-    inv_sigma = compute_inversion(sigma)
-
-    cut_avg_dist_to_opt = [dist_to_opt * np.sqrt(SIZE_DATASET) for dist_to_opt in avg_dist_to_opt]
-    cut_covariances = covariances
-
-    fig_distrib, axes_distrib = plt.subplots(2, 3, figsize=(10, 8))
-    axes_distrib = axes_distrib.flat
-    for i in range(len(covariances) - 1):
-        axes_distrib[i].axvline(c='grey', lw=1)
-        axes_distrib[i].axhline(c='grey', lw=1)
-
-        axes_distrib[i].plot(cut_avg_dist_to_opt[i + 1][-1, 0], cut_avg_dist_to_opt[i + 1][-1, 1], marker ="*", color=COLORS[1], markersize=10)
-        confidence_ellipse(compute_limit_distrib(inv_sigma, cut_covariances[i+1]), "",
-                           axes_distrib[i], edgecolor=COLORS[1], zorder=0, lw=2)
-        confidence_ellipse(compute_empirical_covariance(cut_avg_dist_to_opt[i + 1]), "", axes_distrib[i], edgecolor=COLORS[1],
-                           zorder=0, linestyle="--", lw=2)
-
-        axes_distrib[i].plot(cut_avg_dist_to_opt[0][-1, 0], cut_avg_dist_to_opt[0][-1, 1], marker="*", color=COLORS[0], markersize=10)
-        confidence_ellipse(compute_limit_distrib(inv_sigma, cut_covariances[0]), "",
-                           axes_distrib[i], edgecolor=COLORS[0], zorder=0, lw=2)
-        confidence_ellipse(compute_empirical_covariance(cut_avg_dist_to_opt[0]), "", axes_distrib[i],
-                           edgecolor=COLORS[0], zorder=0, linestyle="--", lw=2)
-
-        axes_distrib[i].scatter(0, 0, c='red', s=3)
-        axes_distrib[i].set_title(compressors[i+1].get_name())
-
-    legend_line, legend_color = get_legend_limit_distrib()
-
-    first_legend = axes_distrib[0].legend(handles=legend_color, loc='lower right', fancybox=True, framealpha=0.5)
-
-    axes_distrib[0].add_artist(first_legend)
-    axes_distrib[0].legend(handles=legend_line, loc='upper right', fancybox=True, framealpha=0.5)
-    axes_distrib[0].axis('equal')
-
-    # fig.subplots_adjust(hspace=0.25)
-    filename = "pictures/limit_distribution/TCL/5"
-    if USE_ORTHO_MATRIX:
-        filename = "{0}-ortho".format(filename)
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
 
 
 def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
@@ -206,6 +166,56 @@ def get_all_covariances_of_compressors(dataset: SyntheticDataset, my_compressors
 
     return all_covariances
 
+
+def compute_theory_TCL():
+    A = EIGENVALUES[0]
+    B = EIGENVALUES[1]
+    a, b, theta = sy.symbols('a b theta')
+    D = sy.Matrix([[a, 0], [0, b]])
+    Q = sy.Matrix([[sy.cos(theta), -sy.sin(theta)], [sy.sin(theta), sy.cos(theta)]])
+    Sigma = Q @ D @ Q.T
+    inv_Sigma = Sigma ** -1
+
+    # Create covariance matrix for sparsification
+    p = sy.symbols('p')
+    P = sy.Matrix([[1 / p, 1], [1, 1 / p]])
+    C_s = Sigma.multiply_elementwise(P)
+
+    # Create covariance matrix for quantization
+    diagonalizer = sy.Matrix([[1, 0], [0, 1]])
+    C_q = Sigma + sy.sqrt(sy.Trace(Sigma)) * sy.sqrt(
+        Sigma.multiply_elementwise(diagonalizer)) - Sigma.multiply_elementwise(diagonalizer)
+
+    TCL_q = inv_Sigma @ C_q @ inv_Sigma
+    TCL_s = inv_Sigma @ C_s @ inv_Sigma
+
+    print("TCL covariances:")
+    print("Inverse of sigma")
+    print(inv_Sigma.subs([(theta, sy.pi / 4)]))
+    print(inv_Sigma.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
+    print(inv_Sigma.subs([(a, A), (b, B)])) # Theta is still formal.
+    print("Quantization")
+    print(TCL_q.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
+    print(TCL_q.subs([(a, A), (b, B)])) # Theta is still formal.
+    print("Sparsification")
+    print(TCL_s.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
+    print(TCL_s.subs([(a, A), (b, B), (theta, sy.pi / 4), (p, 0.72)]))
+
+    print("Eigenvalues:")
+    inv_Sigma_eigenvalues = inv_Sigma.eigenvects()
+    print("Inverse of sigma")
+    for eig in inv_Sigma_eigenvalues:
+        print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4)]))
+    # TCL_eigenvalues_q = TCL_q.eigenvects()
+    # print("Quantization")
+    # for eig in TCL_eigenvalues_q:
+    #     print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4)]))
+    # TCL_eigenvalues_s = TCL_s.eigenvects()
+    # print("Sparsification")
+    # for eig in TCL_eigenvalues_s:
+    #     print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4), (p, 0.72)]))
+
+
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
@@ -214,7 +224,7 @@ if __name__ == '__main__':
                                        eigenvalues=EIGENVALUES)
 
     no_compressor = SQuantization(0, dim=DIM)
-    my_compressors = [no_compressor, synthetic_dataset.stabilized_quantizator, synthetic_dataset.quantizator,
+    my_compressors = [no_compressor, synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator,
                       synthetic_dataset.rand_sketcher,
                       synthetic_dataset.sparsificator, synthetic_dataset.rand1,
                       synthetic_dataset.all_or_nothinger]
@@ -223,6 +233,7 @@ if __name__ == '__main__':
     all_covariances = get_all_covariances_of_compressors(synthetic_dataset, my_compressors)
 
     plot_theory_TCL(synthetic_dataset.upper_sigma, all_covariances, labels)
+    compute_theory_TCL()
 
     all_avg_sgd = [[] for idx_compressor in range(len(my_compressors))]
     all_sgd_descent = []

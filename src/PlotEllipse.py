@@ -111,12 +111,13 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     create_gif(file_names=filenames, gif_name=folder + ".gif")
 
 
-def compute_covariance(dataset, compressor):
+def compute_covariance(dataset, compressor, non_gaussian = True):
     X = dataset.X_complete
 
     X_compressed = X.copy()
 
     for i in range(SIZE_DATASET):
+        # TODO : with gaussian multiplication to check that the distribution is still ...
         X_compressed[i] = compressor.compress(X[i])
 
     cov_matrix = X_compressed.T.dot(X_compressed) / SIZE_DATASET

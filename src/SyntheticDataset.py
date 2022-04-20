@@ -130,7 +130,8 @@ class SyntheticDataset(AbstractDataset):
         self.w0 = np.random.normal(0, 1, size=self.dim)
 
         if self.use_ortho_matrix:
-            # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
+            # theta = np.pi / 4
+            # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
