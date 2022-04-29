@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
+from src.TheoreticalCov import get_theoretical_cov
 from src.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -25,7 +26,7 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
-USE_ORTHO_MATRIX = False
+USE_ORTHO_MATRIX = True
 
 
 def prepare_sparsification(x, p):
@@ -50,7 +51,8 @@ def compute_diag(dataset, compressor):
     diag = np.diag(cov_matrix)
     return diag, cov_matrix
 
-def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
+
+def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
                        use_ortho_matrix=USE_ORTHO_MATRIX)
@@ -59,9 +61,8 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
 
     no_compressor = SQuantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher]
-
-    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher,
+                      dataset.rand1, dataset.all_or_nothinger]
 
     all_diagonals = []
     for compressor in my_compressors:
@@ -71,27 +72,15 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int):
     return all_diagonals, labels, dataset.string_for_hash()
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset):
-    labels = ["no comprs.", "quantiz.", "rdk", "gauss. proj."]
+def compute_theoretical_diag(dataset: SyntheticDataset, labels):
 
     ### No compression
-    sigma = dataset.upper_sigma
-    diag_sigma = np.diag(np.diag(sigma))
-    all_covariance = [sigma]
-
-    ### Quantization
-    cov_qtz = sigma - diag_sigma + np.sqrt(np.trace(sigma)) * np.sqrt(diag_sigma)
-    all_covariance.append(cov_qtz)
-
-    ### Sparsification
-    ones = np.ones((dataset.dim, dataset.dim))
-    P = dataset.LEVEL_RDK **2 * ones + (dataset.LEVEL_RDK - dataset.LEVEL_RDK ** 2) * np.eye(dataset.dim)
-    cov_rdk = P * sigma / dataset.LEVEL_RDK**2
-    all_covariance.append(cov_rdk)
-
-    ### Sketching
-    cov_sketching = sigma * (1 + 1/dataset.sketcher.sub_dim) + np.trace(sigma) * np.identity(dataset.dim) / dataset.sketcher.sub_dim
-    all_covariance.append(cov_sketching)
+    all_covariance = [get_theoretical_cov(dataset, "No compression"),
+                      get_theoretical_cov(dataset, "Qtzd"),
+                      get_theoretical_cov(dataset, "Sparsification"),
+                      get_theoretical_cov(dataset, "Sketching"),
+                      get_theoretical_cov(dataset, "Rand1"),
+                      get_theoretical_cov(dataset, "AllOrNothing")]
 
     if USE_ORTHO_MATRIX:
         for i in range(len(all_covariance)):
@@ -103,9 +92,11 @@ def compute_theoretical_diag(dataset: SyntheticDataset):
 
 if __name__ == '__main__':
 
+    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj.", "rand1", "all or noth."]
+
     dataset = SyntheticDataset()
-    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM)
-    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset)
+    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM, labels=labels)
+    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for (diagonal, label) in zip(all_diagonals, labels):

@@ -5,12 +5,11 @@ import copy
 
 import numpy as np
 from numpy.random import multivariate_normal
-from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK
+    AllOrNothing, StabilizedQuantization, RandK, PoissonSparsification
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -33,15 +32,13 @@ class AbstractDataset:
 
     def define_compressors(self):
 
-        p = 0.1
-
         self.LEVEL_QTZ = 1 #find_level_of_quantization(self.dim, p)[0]  # 1 # np.floor(np.sqrt(self.dim) / TARGET_OMEGA)  # Lead to omega_c = 3.
         self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
-        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
+        self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False) #PoissonSparsification(- np.log(1 - self.LEVEL_RDK), dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
@@ -62,7 +59,7 @@ class AbstractDataset:
     def set_step_size(self):
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.L = np.max(self.eigenvalues) / size_generator
+        self.L = np.max(self.eigenvalues)
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -74,7 +71,7 @@ class AbstractDataset:
         print("L SPORTISSE=", L_SPORTISSE)
         GAMMA_SPORTISSE = 1 / (2 * L_SPORTISSE)
 
-        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (SQuantization(self.LEVEL_QTZ, dim=self.dim).omega_c + 1)))
+        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (self.quantizator.omega_c + 1)))
         print("Optimal gamma for compression:", OPTIMAL_GAMMA_COMPR)
         print("Gamma from Bach & Moulines, 13:", GAMMA_BACH_MOULINES)
 
@@ -102,23 +99,22 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool):
-        np.random.seed(25)
+                         do_logistic_regression: bool, eigenvalues: np.array = None):
         self.do_logistic_regression = do_logistic_regression
-        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix)
+        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool, eigenvalues: np.array = None):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
+                           eigenvalues: np.array = None):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
-        self.w0 = np.random.normal(0, 1, size=self.dim)
 
         # Used to generate self.X
         if eigenvalues is None:
@@ -131,9 +127,11 @@ class SyntheticDataset(AbstractDataset):
             self.w_star = np.ones(self.dim)
         else:
             self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
+        self.w0 = np.random.normal(0, 1, size=self.dim)
 
         if self.use_ortho_matrix:
-            # self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim)) #ortho_group.rvs(dim=self.dim)
+            # theta = np.pi / 4
+            # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)

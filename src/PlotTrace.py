@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
+from src.TheoreticalCov import compute_theoretical_trace
 from src.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -18,15 +19,16 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 2*10**3
+SIZE_DATASET = 10**3
 DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
 START_DIM = 2
-END_DIM = 100
+END_DIM = 50
 
-COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
+
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
 
 USE_ORTHO_MATRIX = True
 
@@ -53,7 +55,8 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
 
     no_compressor = SQuantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher]
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher,
+                      dataset.rand1, dataset.all_or_nothinger]
 
     all_trace = []
     for compressor in my_compressors:
@@ -63,74 +66,38 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
     return all_trace
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset):
-    labels = ["no comprs.", "quantiz.", "rdk"]
-    
-    sigma_inv = np.linalg.inv(dataset.upper_sigma)
-    sigma = dataset.upper_sigma
-    diag_sigma = np.diag(np.diag(sigma))
-
-    ### No compression
-    theoretical_trace = [dataset.dim]
-
-    ### Quantization
-    residual1 = np.diag(np.diag(sigma)) @ sigma_inv
-    residual2 = np.diag(np.sqrt(np.diag(sigma))) @ sigma_inv
-    quantization_trace = dataset.dim + np.sqrt(np.trace(sigma)) * np.trace(residual2) - np.trace(residual1)
-    theoretical_trace.append(quantization_trace)
-
-    ### Sparsification
-    residual1 = np.diag(np.diag(sigma)) @ sigma_inv
-    p = dataset.sparsificator.sub_dim / dataset.dim
-    theoretical_trace.append(dataset.dim + (p - p**2) * np.trace(residual1) / (p**2))
-
-    ### Sketching
-    # cov_sketching = sigma * (1 + 1 / dataset.sketcher.sub_dim) + np.trace(sigma) * np.identity(
-    #     dataset.dim) / dataset.sketcher.sub_dim
-    # trace_sketching = np.trace(cov_sketching @ sigma_inv)
-    trace_sketching = dataset.dim * (1 + 1 / dataset.sketcher.sub_dim)
-    sub_sum = [np.sum([eig1/eig2 for eig2 in dataset.eigenvalues]) for eig1 in dataset.eigenvalues]
-    trace_sketching += np.sum(sub_sum) / dataset.sketcher.sub_dim
-    theoretical_trace.append(trace_sketching)
-
-    # if USE_ORTHO_MATRIX:
-    #     for i in range(len(all_covariance)):
-    #         all_covariance[i] = dataset.ortho_matrix.T.dot(all_covariance[i]).dot(dataset.ortho_matrix)
-
-    return theoretical_trace
-
-
 if __name__ == '__main__':
 
     print("Starting the script.")
 
-    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
-    theoretical_labels = ["no compr.", "quantiz.", "rdk", "gauss. proj."]
+    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj.", "rand1", "all or noth."]
 
     range_trace = np.arange(START_DIM, END_DIM)
 
     trace_by_operators = [[] for i in range(len(labels))]
-    theoretical_trace_by_operators = [[] for i in range(len(theoretical_labels))]
+    theoretical_trace_by_operators = [[] for i in range(len(labels))]
 
     for dim in range_trace:
         dataset = SyntheticDataset()
         all_trace = compute_trace(dataset, dim)
         for i in range(len(labels)):
             trace_by_operators[i].append(all_trace[i])
-        all_theoretical_trace = compute_theoretical_diag(dataset)
-        for i in range(len(theoretical_labels)):
+        all_theoretical_trace = [compute_theoretical_trace(dataset, "No compression"),
+                                 compute_theoretical_trace(dataset, "Qtzd"),
+                                 compute_theoretical_trace(dataset, "Sparsification"),
+                                 compute_theoretical_trace(dataset, "Sketching"),
+                                 compute_theoretical_trace(dataset, "Rand1"),
+                                 compute_theoretical_trace(dataset, "AllOrNothing")]
+        for i in range(len(labels)):
             theoretical_trace_by_operators[i].append(all_theoretical_trace[i])
 
 
     fig, axes = plt.subplots(figsize=(7, 6))
-    assert len(labels) == len(theoretical_labels), "Lenghts of empirical and theoretical traces are not identical."
     for i in range(len(labels)):
         axes.plot(np.log10(range_trace), np.log10(trace_by_operators[i]), label=labels[i], lw=2, color=COLORS[i])
-        axes.plot(np.log10(range_trace), np.log10(theoretical_trace_by_operators[i]), label=theoretical_labels[i], lw=2,
+        axes.plot(np.log10(range_trace), np.log10(theoretical_trace_by_operators[i]), label=labels[i], lw=2,
                   color=COLORS[i], linestyle="--")
 
-    # for ax in axes:
-    # axes.set_ylim(top=4)
     axes.tick_params(axis='both', labelsize=15)
     axes.legend(loc='best', fontsize=15)
     axes.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
