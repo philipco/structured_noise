@@ -27,6 +27,8 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
+# TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
+
 SIZE_DATASET = 10**4
 POWER_COV = 2
 R_SIGMA = 0

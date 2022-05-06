@@ -37,7 +37,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) # 1 / (self.quantizator.omega_c + 1)
+        self.LEVEL_RDK = 1 / (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False) #PoissonSparsification(- np.log(1 - self.LEVEL_RDK), dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
@@ -135,6 +135,8 @@ class SyntheticDataset(AbstractDataset):
             self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
+        else:
+            self.ortho_matrix = np.identity(self.dim)
 
     def regenerate_dataset(self):
         self.generate_X()

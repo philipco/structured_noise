@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib
 
 from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD
+from src.federated_learning.Client import Client
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -20,18 +21,18 @@ matplotlib.rcParams.update({
 
 from matplotlib import pyplot as plt
 
-from src.CompressionModel import Sketching
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
-from src.SyntheticDataset import SyntheticDataset
 
 SIZE_DATASET = 10**5
 DIM = 100
-POWER_COV = 2
+POWER_COV = 4
 R_SIGMA=0
+NB_CLIENTS = 1
 
-EIGENVALUES = None #np.array([1,2])
+DECR_STEP_SIZE = False
+EIGENVALUES = None
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
 DO_LOGISTIC_REGRESSION = False
 
 
@@ -66,45 +67,31 @@ def plot_eigen_values(list_of_sgd, hash_string: str = None):
 
 if __name__ == '__main__':
 
-    synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=USE_ORTHO_MATRIX, do_logistic_regression=DO_LOGISTIC_REGRESSION,
-                                       eigenvalues=EIGENVALUES)
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, USE_ORTHO_MATRIX) for i in range(NB_CLIENTS)]
+    synthetic_dataset = clients[0].dataset
 
-    hash_string = hashlib.shake_256(synthetic_dataset.string_for_hash().encode()).hexdigest(4)
+    hash_string = hashlib.shake_256(clients[0].dataset.string_for_hash().encode()).hexdigest(4)
 
-    # sgd_sportisse = SGDSportisse(copy.deepcopy(synthetic_dataset),
-    #                              synthetic_dataset.sparsificator).gradient_descent(label="sportisse")
+    vanilla_sgd = SGDVanilla(clients)
+    sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression", deacreasing_step_size=DECR_STEP_SIZE)
 
-    # sparse_sketcher = Sketching(synthetic_dataset.LEVEL_RDK, synthetic_dataset.dim, randomized=True, type_proj="rdk")
+    optimal_loss = vanilla_sgd.compute_optimal_federated_loss()
 
-    # sgd_rand_sketching_rdk = SGDCompressed(copy.deepcopy(synthetic_dataset), sparse_sketcher).gradient_descent(
-    #     label="rand sketch rdk")
-
-    vanilla_sgd = SGDVanilla(synthetic_dataset)
-    sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression", deacreasing_step_size=True)
-
-    w_ERM = (np.linalg.pinv(synthetic_dataset.X_complete.T.dot(synthetic_dataset.X_complete))
-             .dot(synthetic_dataset.X_complete.T)).dot(synthetic_dataset.Y)
-    optimal_loss = vanilla_sgd.compute_true_risk(synthetic_dataset.w_star, synthetic_dataset.X_complete,
-                                                      synthetic_dataset.Y)
-
-    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator, 
-                      synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator, synthetic_dataset.rand1,
+    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator,
                       synthetic_dataset.all_or_nothinger]
     
     all_sgd = []
     for compressor in my_compressors:
-        all_sgd.append(SGDCompressed(synthetic_dataset, compressor).gradient_descent(label=compressor.get_name(),
-                                                                                     deacreasing_step_size=True))
+        all_sgd.append(SGDCompressed(clients, compressor).gradient_descent(label=compressor.get_name(),
+                                                                           deacreasing_step_size=DECR_STEP_SIZE))
 
     sgd_series = SeriesOfSGD(all_sgd)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
     setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                        hash_string=synthetic_dataset.string_for_hash())
+                        hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
 
     plot_only_avg(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                        hash_string=synthetic_dataset.string_for_hash())
+                  hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
 
-    plot_eigen_values(all_sgd + [sgd_nocompr], hash_string=synthetic_dataset.string_for_hash())
+    plot_eigen_values(all_sgd + [sgd_nocompr], hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))

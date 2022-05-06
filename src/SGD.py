@@ -5,6 +5,7 @@ Created by Constantin Philippenko, 10th January 2022.
 import copy
 import math
 from abc import abstractmethod, ABC
+from typing import List
 
 from numpy.linalg import inv
 from scipy.linalg import sqrtm
@@ -15,6 +16,7 @@ from src.JITProduct import *
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET
 from src.Utilities import print_mem_usage
+from src.federated_learning.Client import Client
 
 ONLY_ADDITIVE_NOISE = False
 USE_MOMENTUM = False
@@ -71,21 +73,34 @@ class SGDRun:
 class SGD(ABC):
     NB_EPOCH = 1
     
-    def __init__(self, synthetic_dataset, reg: int = REGULARIZATION) -> None:
+    def __init__(self, clients: List[Client], reg: int = REGULARIZATION) -> None:
         super().__init__()
-        self.do_logistic_regression = synthetic_dataset.do_logistic_regression
-        self.synthetic_dataset = synthetic_dataset
-        self.w_star = self.synthetic_dataset.w_star
-        self.SIZE_DATASET, self.DIM = self.synthetic_dataset.size_dataset, self.synthetic_dataset.dim
+        self.clients = clients
+        self. L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
+        self.size_dataset, self.w_star, self.w0 = clients[0].local_size, clients[0].dataset.w_star, clients[0].dataset.w0
+        self.sigma = clients[0].dataset.upper_sigma
+
         self.additive_stochastic_gradient = ONLY_ADDITIVE_NOISE
-        self.root_square_upper_sigma = sqrtm(self.synthetic_dataset.upper_sigma)
+
+        self.use_ortho_matrix = clients[0].dataset.use_ortho_matrix
+        self.ortho_matrix = clients[0].dataset.ortho_matrix
+        self.root_square_upper_sigma = sqrtm(self.sigma)
         self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
 
-        self.Q, self.D = np.identity(self.DIM), np.identity(self.DIM)
-        self.approx_hessian = np.identity(self.DIM)
-        self.debiased_hessian = np.identity(self.DIM)
+        self.Q, self.D = np.identity(self.dim), np.identity(self.dim)
+        self.approx_hessian = np.identity(self.dim)
+        self.debiased_hessian = np.identity(self.dim)
         self.reg = reg
         self.compressor = None
+
+    def compute_federated_loss(self) -> [float, float]:
+        loss = np.mean([self.compute_true_risk(c.w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients ])
+        avg_loss = np.mean([self.compute_true_risk(c.avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma)for c in self.clients])
+        return loss, avg_loss
+
+    def compute_optimal_federated_loss(self) -> [float, float]:
+        loss = np.mean([self.compute_true_risk(c.dataset.w_star, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
+        return loss
 
     def compute_empirical_risk(self, w, data, labels):
         if CORRECTION_SQUARE_COV:
@@ -94,7 +109,7 @@ class SGD(ABC):
             data = data @ self.Q
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
-    def compute_true_risk(self, w, data, labels):
+    def compute_true_risk(self, w, data, labels, sigma):
         if data is None:
             return 0
         if CORRECTION_SQUARE_COV:
@@ -103,9 +118,11 @@ class SGD(ABC):
         elif CORRECTION_DIAG:
             w_star = matrix_vector_product(self.Q.T, self.w_star)
             return wAw_product(0.5, minus(w, w_star), self.D)
-        return wAw_product(0.5, minus(w, self.w_star), self.synthetic_dataset.upper_sigma)
+        return wAw_product(0.5, minus(w, self.w_star), sigma)
 
-    def compute_stochastic_gradient(self, w, data, labels, index):
+    def compute_stochastic_gradient(self, w, data, labels, index, additive_stochastic_gradient):
+        if additive_stochastic_gradient:
+            return self.compute_additive_stochastic_gradient(w, data, labels, index)
         x, y = data[index], labels[index]
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
@@ -118,8 +135,6 @@ class SGD(ABC):
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
-        if self.additive_stochastic_gradient and self.do_logistic_regression:
-            raise ValueError("Compute only additive stochastic gradient is not possible in the logistic setting")
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
         elif CORRECTION_DIAG:
@@ -127,63 +142,70 @@ class SGD(ABC):
         return self.D.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
-        return w - gamma * gradient - self.reg * (w - self.synthetic_dataset.w0)
+        return w - gamma * gradient #TODO : - self.reg * (w - self.synthetic_dataset.w0)
 
     def get_step_size(self, it: int, gamma: int, deacreasing_step_size: bool = False):
         if deacreasing_step_size:
-            return 1 / (np.sqrt(it) * max(self.synthetic_dataset.eigenvalues))
-        return gamma
+            return 1 / (np.sqrt(it) * self. L)
+        return 1 / (self.L * (1 + 2 * (self.clients[0].dataset.quantizator.omega_c + 1)))
+
+    def update_approximative_hessian(self, grad, it):
+        if it == 0:
+            self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim))
+        else:
+            self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim)) / it + self.approx_hessian * (
+                        it - 1) / it
 
     def gradient_descent(self, label: str = None, deacreasing_step_size: bool = False) -> SGDRun:
-        log_xaxis = log_sampling_xaxix(self.synthetic_dataset.size_dataset)
-        current_w = self.synthetic_dataset.w0
-        all_avg_w = [current_w]
+        log_xaxis = log_sampling_xaxix(self.size_dataset)
+
+        all_avg_w = []
+        current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        losses = [self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y)]
-        avg_losses = [losses[-1]]
+        current_loss = self.compute_federated_loss()
+        losses, avg_losses = [current_loss[0]], [current_loss[1]]
+
         for epoch in range(self.NB_EPOCH):
-            indices = np.arange(self.SIZE_DATASET)
+            indices = np.arange(self.size_dataset)
             for idx in tqdm(indices, disable=DISABLE):
-                if idx % MAX_SIZE_DATASET == 0 and idx != 0:
-                    print("Regenerating ...")
-                    self.synthetic_dataset.regenerate_dataset()
-                gamma = self.get_step_size(it, self.synthetic_dataset.gamma, deacreasing_step_size)
-                it += 1
 
-                if CORRECTION_DIAG:
-                    self.Q, self.D = self.synthetic_dataset.Q, self.synthetic_dataset.D #diagonalization(self.debiased_hessian) #
+                gamma = self.get_step_size(it, self.gamma, deacreasing_step_size)
+                grad = np.zeros(self.dim)
 
-                if self.additive_stochastic_gradient:
-                    grad = self.compute_additive_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
-                                                                     self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
-                else:
-                    grad = self.compute_stochastic_gradient(current_w, self.synthetic_dataset.X_complete,
-                                                            self.synthetic_dataset.Y, idx % MAX_SIZE_DATASET)
+                for client in self.clients:
+                    if idx % MAX_SIZE_DATASET == 0 and idx != 0:
+                        print("Regenerating ...")
+                        client.dataset.regenerate_dataset()
+
+                    grad += self.compute_stochastic_gradient(client.w, client.dataset.X_complete, client.dataset.Y,
+                                                             idx % MAX_SIZE_DATASET, self.additive_stochastic_gradient)
                 grad = self.gradient_processing(grad)
 
-                if idx == 0:
-                    self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM))
-                else:
-                    self.approx_hessian = np.kron(grad, grad).reshape((self.DIM, self.DIM)) / it + self.approx_hessian * (it - 1)/ it
+                self.update_approximative_hessian(grad, it)
+                it += 1
 
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
                 all_avg_w.append(avg_w)
+
+                for client in self.clients:
+                    client.update_model(current_w, avg_w)
+
+                current_loss = self.compute_federated_loss()
                 if idx in log_xaxis[1:]:
-                    losses.append(self.compute_true_risk(current_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
-                    avg_losses.append(self.compute_true_risk(avg_w, self.synthetic_dataset.X_complete, self.synthetic_dataset.Y))
+                    losses.append(current_loss[0])
+                    avg_losses.append(current_loss[1])
 
         print_mem_usage("End of sgd descent ...")
 
-        if self.synthetic_dataset.use_ortho_matrix:
-            cov_matrix = self.synthetic_dataset.ortho_matrix.T.dot(self.approx_hessian).dot(self.synthetic_dataset.ortho_matrix)
+        if self.use_ortho_matrix:
+            cov_matrix = self.ortho_matrix.T.dot(self.approx_hessian).dot(self.ortho_matrix)
         else:
             cov_matrix = self.approx_hessian
 
-        return SGDRun(self.synthetic_dataset.size_dataset, all_avg_w, current_w, losses, avg_losses, np.diag(cov_matrix), 
+        return SGDRun(self.size_dataset, all_avg_w, current_w, losses, avg_losses, np.diag(cov_matrix),
                       label=label)
-        # return SGDRun(current_w, losses, avg_losses, np.diag(self.synthetic_dataset.Q.T @ self.approx_hessian @ self.synthetic_dataset.Q), label=label)
 
     @abstractmethod
     def gradient_processing(self, grad):
@@ -199,13 +221,13 @@ class SGDVanilla(SGD):
 class SGDNoised(SGD):
 
     def gradient_processing(self, grad):
-        return grad + np.random.normal(0, 1, size=self.DIM)
+        return grad + np.random.normal(0, 1, size=self.dim)
 
 
 class SGDCompressed(SGD):
 
-    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
-        super().__init__(synthetic_dataset)
+    def __init__(self, clients: List[Client], compressor: CompressionModel) -> None:
+        super().__init__(clients)
         self.compressor = compressor
 
     def gradient_processing(self, grad):
