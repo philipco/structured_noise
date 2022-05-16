@@ -14,9 +14,10 @@ class Client:
         self.dataset = SyntheticDataset()
         self.dataset.generate_dataset(dim, size_dataset=local_size, power_cov=2, r_sigma=0,
                                       use_ortho_matrix=use_ortho_matrix, do_logistic_regression=False)
-        self.w =self.dataset.w0
+        self.w = self.dataset.w0
         self.avg_w = self.w
-        self.local_memory = np.zeros((1, dim))
+        self.local_memory = np.zeros(dim)
+        self.alpha = 1 / (2*(self.dataset.quantizator.omega_c + 1))
 
     def add_to_local_memory(self, update: np.ndarray) -> None:
         self.local_memory += update

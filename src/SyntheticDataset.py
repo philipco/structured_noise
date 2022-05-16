@@ -5,6 +5,7 @@ import copy
 
 import numpy as np
 from numpy.random import multivariate_normal
+from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
@@ -123,11 +124,14 @@ class SyntheticDataset(AbstractDataset):
             self.eigenvalues = eigenvalues
         self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
-        if self.r_sigma == 0:
-            self.w_star = np.ones(self.dim)
-        else:
-            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
-        self.w0 = np.random.normal(0, 1, size=self.dim)
+        # np.random.seed(25)
+        # if self.r_sigma == 0:
+        #     self.w_star = np.random.normal(0, 1, size=self.dim) #np.ones(self.dim)
+        # else:
+        #     self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
+
+        self.w_star = np.array([(-1) ** (idx + 1) * np.exp(-idx / 10.) for idx in range(self.dim)]) #np.random.normal(0, 1, size=self.dim) #
+        self.w0 = np.ones(self.dim) / self.dim #np.random.normal(0, 1, size=self.dim)
 
         if self.use_ortho_matrix:
             # theta = np.pi / 4

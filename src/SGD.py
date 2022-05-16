@@ -71,11 +71,11 @@ class SGDRun:
 
 
 class SGD(ABC):
-    NB_EPOCH = 1
     
-    def __init__(self, clients: List[Client], reg: int = REGULARIZATION) -> None:
+    def __init__(self, clients: List[Client], nb_epoch: int = 1, reg: int = REGULARIZATION) -> None:
         super().__init__()
         self.clients = clients
+        self.nb_epoch = nb_epoch
         self. L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
         self.size_dataset, self.w_star, self.w0 = clients[0].local_size, clients[0].dataset.w_star, clients[0].dataset.w0
         self.sigma = clients[0].dataset.upper_sigma
@@ -93,16 +93,17 @@ class SGD(ABC):
         self.reg = reg
         self.compressor = None
 
-    def compute_federated_loss(self) -> [float, float]:
-        loss = np.mean([self.compute_true_risk(c.w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients ])
-        avg_loss = np.mean([self.compute_true_risk(c.avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma)for c in self.clients])
+    def compute_federated_loss(self, w, avg_w) -> [float, float]:
+        # Bien réfléchir au calcul de la loss dans le cas fédéré !!!
+        loss = np.mean([self.compute_empirical_risk(w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients ])
+        avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma)for c in self.clients])
         return loss, avg_loss
 
     def compute_optimal_federated_loss(self) -> [float, float]:
         loss = np.mean([self.compute_true_risk(c.dataset.w_star, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
         return loss
 
-    def compute_empirical_risk(self, w, data, labels):
+    def compute_empirical_risk(self, w, data, labels, sigma):
         if CORRECTION_SQUARE_COV:
             data = data @ self.inv_root_square_upper_sigma.T
         if CORRECTION_DIAG:
@@ -163,10 +164,10 @@ class SGD(ABC):
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        current_loss = self.compute_federated_loss()
+        current_loss = self.compute_federated_loss(current_w, avg_w)
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
-        for epoch in range(self.NB_EPOCH):
+        for epoch in range(self.nb_epoch):
             indices = np.arange(self.size_dataset)
             for idx in tqdm(indices, disable=DISABLE):
 
@@ -178,9 +179,14 @@ class SGD(ABC):
                         print("Regenerating ...")
                         client.dataset.regenerate_dataset()
 
-                    grad += self.compute_stochastic_gradient(client.w, client.dataset.X_complete, client.dataset.Y,
-                                                             idx % MAX_SIZE_DATASET, self.additive_stochastic_gradient)
-                grad = self.gradient_processing(grad)
+                    local_grad = self.compute_gradient(
+                        client.w, client.dataset.X_complete, client.dataset.Y, idx % MAX_SIZE_DATASET,
+                        self.additive_stochastic_gradient)
+                    if it == 1:
+                        client.local_memory = local_grad
+                    grad += self.gradient_processing(local_grad, client)
+
+                grad /= len(self.clients)
 
                 self.update_approximative_hessian(grad, it)
                 it += 1
@@ -192,7 +198,7 @@ class SGD(ABC):
                 for client in self.clients:
                     client.update_model(current_w, avg_w)
 
-                current_loss = self.compute_federated_loss()
+                current_loss = self.compute_federated_loss(current_w, avg_w)
                 if idx in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])
@@ -208,30 +214,68 @@ class SGD(ABC):
                       label=label)
 
     @abstractmethod
-    def gradient_processing(self, grad):
+    def gradient_processing(self, grad, client: Client):
         pass
+
+    @abstractmethod
+    def compute_gradient(client, w, X, Y, idx, additive_stochastic_gradient):
+        pass
+
+
+class FullGD(SGD):
+
+    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
+        return self.compute_full_gradient(w, X, Y)
+
+    def gradient_processing(self, grad, client: Client):
+        return grad
 
 
 class SGDVanilla(SGD):
 
-    def gradient_processing(self, grad):
+    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+
+    def gradient_processing(self, grad, client: Client):
         return grad
 
 
 class SGDNoised(SGD):
 
-    def gradient_processing(self, grad):
+    def compute_gradient(self, w, X, Y, idx):
+        return self.compute_stochastic_gradient(w, X, Y, idx, self.additive_stochastic_gradient)
+
+    def gradient_processing(self, grad, client: Client):
         return grad + np.random.normal(0, 1, size=self.dim)
 
 
 class SGDCompressed(SGD):
 
-    def __init__(self, clients: List[Client], compressor: CompressionModel) -> None:
-        super().__init__(clients)
+    def __init__(self, clients: List[Client], compressor: CompressionModel, nb_epoch: int = 1) -> None:
+        super().__init__(clients, nb_epoch)
         self.compressor = compressor
 
-    def gradient_processing(self, grad):
+    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+
+    def gradient_processing(self, grad, client: Client):
         return self.compressor.compress(grad)
+
+
+class SGDArtemis(SGD):
+
+    def __init__(self, clients: List[Client], compressor: CompressionModel, nb_epoch: int = 1) -> None:
+        super().__init__(clients, nb_epoch)
+        self.compressor = compressor
+
+    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+
+    def gradient_processing(self, grad, client: Client):
+        compressed = self.compressor.compress(grad - client.local_memory)
+        compressed_grad = compressed + client.local_memory
+        client.local_memory += client.alpha * compressed
+        return compressed_grad
 
 
 class SGDSportisse(SGD):
@@ -240,7 +284,7 @@ class SGDSportisse(SGD):
         super().__init__(synthetic_dataset)
         self.compressor = compressor
 
-    def gradient_processing(self, grad):
+    def gradient_processing(self, grad, client: Client):
         return grad
 
     def compute_stochastic_gradient(self, w, data, labels, index):
@@ -256,7 +300,7 @@ class SGDNaiveSparsification(SGDCompressed):
     def gradient_processing(self, grad):
         return self.compressor.compress(grad)
 
-    def gradient_processing(self, grad):
+    def gradient_processing(self, grad, client: Client):
         return grad
 
     def compute_stochastic_gradient(self, w, data, labels, index):

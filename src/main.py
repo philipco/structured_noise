@@ -21,15 +21,15 @@ matplotlib.rcParams.update({
 
 from matplotlib import pyplot as plt
 
-from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
+from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDArtemis, FullGD
 
-SIZE_DATASET = 10**5
-DIM = 100
+SIZE_DATASET = 10**4
+DIM = 20
 POWER_COV = 4
 R_SIGMA=0
-NB_CLIENTS = 1
+NB_CLIENTS = 20
 
-DECR_STEP_SIZE = False
+DECR_STEP_SIZE = True
 EIGENVALUES = None
 
 USE_ORTHO_MATRIX = False
@@ -72,18 +72,22 @@ if __name__ == '__main__':
 
     hash_string = hashlib.shake_256(clients[0].dataset.string_for_hash().encode()).hexdigest(4)
 
+    full_gd = FullGD(clients, nb_epoch=20)
+    full_gd_run = full_gd.gradient_descent(label="no compression", deacreasing_step_size=False)
+
+    optimal_loss = full_gd_run.losses[-1]
     vanilla_sgd = SGDVanilla(clients)
     sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression", deacreasing_step_size=DECR_STEP_SIZE)
 
-    optimal_loss = vanilla_sgd.compute_optimal_federated_loss()
+    # optimal_loss = vanilla_sgd.compute_optimal_federated_loss()
 
     my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator,
                       synthetic_dataset.all_or_nothinger]
     
     all_sgd = []
     for compressor in my_compressors:
-        all_sgd.append(SGDCompressed(clients, compressor).gradient_descent(label=compressor.get_name(),
-                                                                           deacreasing_step_size=DECR_STEP_SIZE))
+        all_sgd.append(SGDArtemis(clients, compressor).gradient_descent(label=compressor.get_name(),
+                                                                        deacreasing_step_size=DECR_STEP_SIZE))
 
     sgd_series = SeriesOfSGD(all_sgd)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
