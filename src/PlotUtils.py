@@ -15,9 +15,14 @@ def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
 
-    axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
+    # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
+    #              label="SGD {0}".format(sgd_run.label))
+    # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
+    #              label="AvgSGD {0}".format(sgd_run.label))
+
+    axes[0].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.losses - optimal_loss),
                  label="SGD {0}".format(sgd_run.label))
-    axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
+    axes[1].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.avg_losses - optimal_loss),
                  label="AvgSGD {0}".format(sgd_run.label))
 
 

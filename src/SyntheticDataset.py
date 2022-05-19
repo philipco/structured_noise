@@ -97,8 +97,6 @@ class RealLifeDataset(AbstractDataset):
         self.size_dataset, self.dim = X.shape[0], X.shape[1]
         self.set_step_size()
 
-BIAS = 2
-
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
@@ -119,30 +117,28 @@ class SyntheticDataset(AbstractDataset):
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
 
-        # Construction of a covariance matrix
-        self.upper_sigma = toeplitz(0.6 ** np.arange(0, self.dim))
-        self.ortho_matrix = np.identity(self.dim)
-
         self.w0 = np.zeros(self.dim)
         self.w_star = generate_param(self.dim).numpy()
 
         # Used to generate self.X
-        # if eigenvalues is None:
-        #     self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
-        # else:
-        #     self.eigenvalues = eigenvalues
-        # self.upper_sigma = np.diag(self.eigenvalues, k=0)
+        if eigenvalues is None:
+            self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+        else:
+            self.eigenvalues = eigenvalues
+        self.upper_sigma = np.diag(self.eigenvalues, k=0)
 
+
+        # exp_w_star = np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)])
         # np.random.seed(25)
-        # if self.r_sigma == 0:
-        #     self.w_star = np.random.normal(0, 1, size=self.dim) #np.ones(self.dim)
-        # else:
-        #     self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
+        if self.r_sigma == 0:
+            self.w_star = np.random.normal(0, 1, size=self.dim)
+        else:
+            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
 
         if self.use_ortho_matrix:
             # theta = np.pi / 4
             # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
-            self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+            self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
         else:
@@ -159,7 +155,7 @@ class SyntheticDataset(AbstractDataset):
 
 
     def generate_Y(self):
-        lower_sigma = 0.4  # Used only to introduce noise in the true labels.
+        lower_sigma = 1  # Used only to introduce noise in the true labels.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
