@@ -122,6 +122,7 @@ class SGD(ABC):
         return wAw_product(0.5, minus(w, self.w_star), sigma)
 
     def compute_stochastic_gradient(self, w, data, labels, index, additive_stochastic_gradient):
+        # index = np.random.randint(len(labels))
         if additive_stochastic_gradient:
             return self.compute_additive_stochastic_gradient(w, data, labels, index)
         x, y = data[index], labels[index]
@@ -148,7 +149,7 @@ class SGD(ABC):
     def get_step_size(self, it: int, gamma: int, deacreasing_step_size: bool = False):
         if deacreasing_step_size:
             return 1 / (np.sqrt(it) * self. L)
-        return 1 / (self.L * (1 + 2 * (self.clients[0].dataset.quantizator.omega_c + 1)))
+        return 1 / (2 * self.L ) #* (1 + 2 * (self.clients[0].dataset.quantizator.omega_c + 1)))
 
     def update_approximative_hessian(self, grad, it):
         if it == 0:
@@ -199,9 +200,9 @@ class SGD(ABC):
                     client.update_model(current_w, avg_w)
 
                 current_loss = self.compute_federated_loss(current_w, avg_w)
-                if idx in log_xaxis[1:]:
-                    losses.append(current_loss[0])
-                    avg_losses.append(current_loss[1])
+                # if idx in log_xaxis[1:]:
+            losses.append(current_loss[0])
+            avg_losses.append(current_loss[1])
 
         print_mem_usage("End of sgd descent ...")
 

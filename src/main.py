@@ -9,7 +9,9 @@ import numpy as np
 import matplotlib
 
 from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD
-from src.federated_learning.Client import Client
+from src.federated_learning.Client import Client, check_clients
+
+from src.DataPreparationFromArtemis import *
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -23,9 +25,9 @@ from matplotlib import pyplot as plt
 
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDArtemis, FullGD
 
-SIZE_DATASET = 10**4
+SIZE_DATASET = 200 * 20
 DIM = 20
-POWER_COV = 4
+POWER_COV = 1
 R_SIGMA=0
 NB_CLIENTS = 20
 
@@ -54,7 +56,7 @@ def plot_eigen_values(list_of_sgd, hash_string: str = None):
     for sgd_try in list_of_sgd:
         plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_try.diag_cov_gradients), label=sgd_try.label, lw=2)
     ax.tick_params(axis='both', labelsize=15)
-    ax.legend(loc='best', fontsize=15)
+    ax.legend(loc='lower left', fontsize=15)
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
     ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
     plt.legend(loc='best', fontsize=15)
@@ -67,26 +69,29 @@ def plot_eigen_values(list_of_sgd, hash_string: str = None):
 
 if __name__ == '__main__':
 
-    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, USE_ORTHO_MATRIX) for i in range(NB_CLIENTS)]
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, USE_ORTHO_MATRIX) for i in range(NB_CLIENTS)]
+    check_clients(clients)
     synthetic_dataset = clients[0].dataset
 
     hash_string = hashlib.shake_256(clients[0].dataset.string_for_hash().encode()).hexdigest(4)
 
-    full_gd = FullGD(clients, nb_epoch=20)
+    full_gd = FullGD(clients, nb_epoch=60)
     full_gd_run = full_gd.gradient_descent(label="no compression", deacreasing_step_size=False)
 
     optimal_loss = full_gd_run.losses[-1]
-    vanilla_sgd = SGDVanilla(clients)
+    vanilla_sgd = SGDVanilla(clients, nb_epoch=30)
     sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression", deacreasing_step_size=DECR_STEP_SIZE)
 
     # optimal_loss = vanilla_sgd.compute_optimal_federated_loss()
 
-    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator,
-                      synthetic_dataset.all_or_nothinger]
+    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator]
+                      # synthetic_dataset.all_or_nothinger, synthetic_dataset.rand_sketcher]
     
     all_sgd = []
     for compressor in my_compressors:
-        all_sgd.append(SGDArtemis(clients, compressor).gradient_descent(label=compressor.get_name(),
+        all_sgd.append(SGDArtemis(clients, compressor, nb_epoch=30).gradient_descent(label=compressor.get_name(),
+                                                                        deacreasing_step_size=DECR_STEP_SIZE))
+        all_sgd.append(SGDCompressed(clients, compressor, nb_epoch=30).gradient_descent(label=compressor.get_name() + "-art",
                                                                         deacreasing_step_size=DECR_STEP_SIZE))
 
     sgd_series = SeriesOfSGD(all_sgd)
