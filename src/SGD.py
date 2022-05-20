@@ -94,7 +94,7 @@ class SGD(ABC):
         self.reg = reg
         self.compressor = None
 
-    def compute_federated_empirical_risk(self, w, avg_w) -> [float, float]:
+    def compute_federated_empirical_risk(self, w, avg_w, sigma) -> [float, float]:
         # Bien réfléchir au calcul de la loss dans le cas fédéré !!!
         loss = np.mean([self.compute_empirical_risk(w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
         avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
@@ -159,7 +159,7 @@ class SGD(ABC):
     def get_step_size(self, it: int, gamma: int, deacreasing_step_size: bool = False):
         if deacreasing_step_size:
             return 1 / (np.sqrt(it) * self. L)
-        return 1 / (2 * self.L ) #* (1 + 2 * (self.clients[0].dataset.quantizator.omega_c + 1)))
+        return 1 / (self.L * (1 + 2 * (self.clients[0].dataset.quantizator.omega_c + 1)))
 
     def update_approximative_hessian(self, grad, it):
         if it == 0:
@@ -175,7 +175,7 @@ class SGD(ABC):
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        current_loss = self.compute_federated_empirical_risk(current_w, avg_w)
+        current_loss = self.compute_federated_empirical_risk(current_w, avg_w, self.sigma)
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
         for epoch in range(self.nb_epoch):
@@ -209,7 +209,7 @@ class SGD(ABC):
                 for client in self.clients:
                     client.update_model(current_w, avg_w)
 
-                current_loss = self.compute_federated_true_risk(current_w, avg_w, self.sigma)
+                current_loss = self.compute_federated_empirical_risk(current_w, avg_w, self.sigma)
                 if idx in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])

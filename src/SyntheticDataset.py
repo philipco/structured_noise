@@ -11,8 +11,7 @@ from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK, PoissonSparsification
-from src.DataPreparationFromArtemis import generate_param
+    AllOrNothing, StabilizedQuantization, RandK
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -25,7 +24,7 @@ class AbstractDataset:
         self.name = name
 
     def string_for_hash(self):
-        hash = "N{0}-D{1}-P{2}-R{3}".format(self.size_dataset, self.dim, self.power_cov, self.r_sigma)
+        hash = "N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
         if self.use_ortho_matrix:
@@ -100,9 +99,10 @@ class RealLifeDataset(AbstractDataset):
 class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool, eigenvalues: np.array = None):
+                         do_logistic_regression: bool, heterogeneity: str, eigenvalues: np.array = None):
         self.do_logistic_regression = do_logistic_regression
-        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues)
+        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues,
+                                heterogeneity=heterogeneity)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()
@@ -110,35 +110,36 @@ class SyntheticDataset(AbstractDataset):
         print_mem_usage("Just created the dataset ...")
 
     def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                           eigenvalues: np.array = None):
+                           heterogeneity: str, eigenvalues: np.array = None):
         self.dim = dim
         self.power_cov = power_cov
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
+        self.heterogeneity = heterogeneity
 
         self.w0 = np.zeros(self.dim)
-        self.w_star = generate_param(self.dim).numpy()
+
+        if self.heterogeneity == "wstar":
+            sign = np.sign(np.random.normal(0, 1, size=self.dim))
+            self.w_star = np.array([sign[i] * np.exp(-i / 10.) for i in range(self.dim)])
+        else:
+            self.w_star = np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)]) #np.ones(self.dim) #
 
         # Used to generate self.X
         if eigenvalues is None:
             self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
         else:
             self.eigenvalues = eigenvalues
-        self.upper_sigma = np.diag(self.eigenvalues, k=0)
-
-
-        # exp_w_star = np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)])
-        # np.random.seed(25)
-        if self.r_sigma == 0:
-            self.w_star = np.random.normal(0, 1, size=self.dim)
-        else:
-            self.w_star = np.power(self.upper_sigma, self.r_sigma) @ np.ones(self.dim)
+        self.upper_sigma = np.diag(self.eigenvalues, k=0) #toeplitz(0.6 ** np.arange(0, self.dim)) #
 
         if self.use_ortho_matrix:
             # theta = np.pi / 4
             # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
-            self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
+            if self.heterogeneity == "sigma":
+                self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+            else:
+                self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
         else:
@@ -155,7 +156,7 @@ class SyntheticDataset(AbstractDataset):
 
 
     def generate_Y(self):
-        lower_sigma = 1  # Used only to introduce noise in the true labels.
+        lower_sigma = 0.4  # Used only to introduce noise in the true labels.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
