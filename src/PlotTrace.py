@@ -30,7 +30,8 @@ END_DIM = 50
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
+HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
 
 
 def compute_diag(dataset, compressor):
@@ -49,7 +50,7 @@ def compute_diag(dataset, compressor):
 def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                       use_ortho_matrix=USE_ORTHO_MATRIX)
+                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY)
     dataset.define_compressors()
     dataset.generate_X()
 

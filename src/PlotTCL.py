@@ -1,8 +1,12 @@
 """Created by Constantin Philippenko, 11th April 2022."""
 
 # axmax = max ellipse ! Sinon, outliners !
+from typing import List
 
 import sympy as sy
+
+from src.federated_learning.Client import Client, check_clients
+
 sy.init_printing(use_unicode=True)
 
 import matplotlib
@@ -29,18 +33,21 @@ matplotlib.rcParams.update({
 
 # TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
 
-SIZE_DATASET = 10**4
+SIZE_DATASET = 2*10**4
 POWER_COV = 2
 R_SIGMA = 0
 
 DIM = 2
 EIGENVALUES = np.array([1,10])
 
+NB_CLIENTS = 1
+HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
+
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
 LAST_POINTS = 0
-NB_TRY = 10
+NB_TRY = 20
 
 FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
@@ -83,7 +90,7 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
     ax_max = plot_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
                        color=COLORS[1], zorder=0, lw=2)
     plot_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
-                       r"$\Sigma^{-1} \mathrm{Cov}(\mathcal C (x)) \Sigma^{-1}$", ax, color=COLORS[1],
+                       r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{emp.}}(\mathcal C (x)) \Sigma^{-1}$", ax, color=COLORS[1],
                        linestyle="--", zorder=0, lw=2)
     plot_ellipse(inv_sigma,  r"$\Sigma^{-1}$", ax,
                        color=COLORS[0], zorder=0, lw=2, linestyle=":")
@@ -103,7 +110,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     fig, ax = plt.subplots(figsize=(6, 5))
     plot_TCL_of_a_compressor(ax, sigma, all_covariances[0], all_avg_sgd[0], title=labels[0])
     ax.legend(loc='upper right', fancybox=True, framealpha=0.5)
-    filename = "{0}/N{1}-TCL_without_compression".format(FOLDER, SIZE_DATASET)
+    filename = "{0}/C{1}-N{2}-TCL_without_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
@@ -114,7 +121,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
         plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, all_covariances[idx_compressor],
                                  all_avg_sgd[idx_compressor], title=labels[idx_compressor])
     axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
-    filename = "{0}/N{1}-TCL_with_compression".format(FOLDER, SIZE_DATASET)
+    filename = "{0}/C{1}-N{2}-TCL_with_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
@@ -146,24 +153,27 @@ def plot_theory_TCL(sigma, all_covariances, labels):
         ax.axis('equal')
 
     axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
-    filename = "{0}/N{1}-TCL_theoretical".format(FOLDER, SIZE_DATASET)
+    filename = "{0}/C{1}-N{2}-TCL_theoretical".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
 
 
 def compute_covariance_of_compressors(dataset, compressor):
-    X = dataset.X_complete
-    X_compressed = X.copy()
-    for i in range(X.shape[0]):
-        X_compressed[i] = compressor.compress(X[i])
-    return compute_empirical_covariance(X_compressed)
+    empirical_cov = []
+    for client in clients:
+        X = client.dataset.X_complete
+        X_compressed = X.copy()
+        for i in range(X.shape[0]):
+            X_compressed[i] = compressor.compress(X[i])
+    empirical_cov.append(compute_empirical_covariance(X_compressed))
+    return np.mean(empirical_cov, axis = 0)
 
 
-def get_all_covariances_of_compressors(dataset: SyntheticDataset, my_compressors):
+def get_all_covariances_of_compressors(clients: List[Client], my_compressors):
     all_covariances = []
     for compressor in tqdm(my_compressors):
-        cov_matrix = compute_covariance_of_compressors(dataset, compressor)
+        cov_matrix = compute_covariance_of_compressors(clients, compressor)
         all_covariances.append(cov_matrix)
 
     return all_covariances
@@ -220,10 +230,10 @@ def compute_theory_TCL():
 
 if __name__ == '__main__':
 
-    synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_dataset(DIM, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                                       use_ortho_matrix=USE_ORTHO_MATRIX, do_logistic_regression=DO_LOGISTIC_REGRESSION,
-                                       eigenvalues=EIGENVALUES)
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
+               range(NB_CLIENTS)]
+    check_clients(clients, HETEROGENEITY)
+    synthetic_dataset = clients[0].dataset
 
     no_compressor = SQuantization(0, dim=DIM)
     my_compressors = [no_compressor, synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator,
@@ -232,10 +242,10 @@ if __name__ == '__main__':
                       synthetic_dataset.all_or_nothinger]
     labels = ["No compression"] + [compressor.get_name() for compressor in my_compressors[1:]]
 
-    all_covariances = get_all_covariances_of_compressors(synthetic_dataset, my_compressors)
+    all_covariances = get_all_covariances_of_compressors(clients, my_compressors)
 
     plot_theory_TCL(synthetic_dataset.upper_sigma, all_covariances, labels)
-    compute_theory_TCL()
+    # compute_theory_TCL()
 
     all_avg_sgd = [[] for idx_compressor in range(len(my_compressors))]
     all_sgd_descent = []
@@ -243,11 +253,12 @@ if __name__ == '__main__':
     for idx in range(NB_TRY):
 
         ### Very important to regenerate dataset in order to compute the variance of the last avg iterate. ###
-        synthetic_dataset.regenerate_dataset()
+        for client in clients:
+            client.dataset.regenerate_dataset()
 
         for idx_compressor in range(len(my_compressors)):
             compressor = my_compressors[idx_compressor]
-            sgd = SGDCompressed(synthetic_dataset, compressor).gradient_descent(label=compressor.get_name(),
+            sgd = SGDCompressed(clients, compressor).gradient_descent(label=compressor.get_name(),
                                                                                 deacreasing_step_size=True)
             # We save only the excess loss of the first try.
             if idx == 0:
@@ -257,7 +268,8 @@ if __name__ == '__main__':
         # We plot the excess loss of the first try.
         if idx == 0:
             plot_only_avg(all_sgd_descent[1:], sgd_nocompr=all_sgd_descent[0], optimal_loss=0,
-                          hash_string="TCL/muL={0}/N{1}-avg_sgd".format(min(EIGENVALUES)/max(EIGENVALUES), SIZE_DATASET))
+                          hash_string="TCL/muL={0}/C{1}-N{2}-avg_sgd".format(min(EIGENVALUES)/max(EIGENVALUES),
+                                                                             NB_CLIENTS, SIZE_DATASET))
 
     all_avg_sgd = [np.concatenate(avg_sgd) for avg_sgd in all_avg_sgd]
     plot_TCL(synthetic_dataset.upper_sigma, all_covariances, all_avg_sgd, labels)

@@ -24,8 +24,8 @@ R_SIGMA=0
 
 DIM = 2
 
-USE_ORTHO_MATRIX = False
-DO_LOGISTIC_REGRESSION = False
+USE_ORTHO_MATRIX = True
+HETEROGENEITY = "homog"
 
 NB_RANDOM_COMPRESSION = 25
 
@@ -108,7 +108,8 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max)
 
     filenames = ["{0}/{1}.png".format(folder, i) for i in range(SIZE_DATASET)]
-    create_gif(file_names=filenames, gif_name=folder + ".gif")
+    gif_name = "{0}-ortho".format(folder) if USE_ORTHO_MATRIX else folder
+    create_gif(file_names=filenames, gif_name=gif_name + ".gif")
 
 
 def compute_covariance(dataset, compressor, non_gaussian = True):
@@ -184,7 +185,8 @@ def plot_ellipse(dataset, covariances, labels):
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, USE_ORTHO_MATRIX, eigenvalues=EIGEN_VALUES)
+    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, USE_ORTHO_MATRIX,
+                                         eigenvalues=EIGEN_VALUES, heterogeneity=HETEROGENEITY)
     synthetic_dataset.define_compressors()
     synthetic_dataset.generate_X()
 

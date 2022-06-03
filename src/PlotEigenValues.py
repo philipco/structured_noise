@@ -26,7 +26,8 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
+HETEROGENEITY = "homog"
 
 
 def prepare_sparsification(x, p):
@@ -45,8 +46,7 @@ def compute_diag(dataset, compressor):
 
     cov_matrix = X_compressed.T.dot(X_compressed) / SIZE_DATASET
 
-    if USE_ORTHO_MATRIX:
-        cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
+    cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
 
     diag = np.diag(cov_matrix)
     return diag, cov_matrix
@@ -55,7 +55,7 @@ def compute_diag(dataset, compressor):
 def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                       use_ortho_matrix=USE_ORTHO_MATRIX)
+                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY)
     dataset.define_compressors()
     dataset.generate_X()
 
