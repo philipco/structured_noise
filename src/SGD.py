@@ -94,21 +94,21 @@ class SGD(ABC):
         self.reg = reg
         self.compressor = None
 
-    def compute_federated_empirical_risk(self, w, avg_w, sigma) -> [float, float]:
+    def compute_federated_empirical_risk(self, w, avg_w) -> [float, float]:
         # Bien réfléchir au calcul de la loss dans le cas fédéré !!!
         loss = np.mean([self.compute_empirical_risk(w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
         avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
         return loss, avg_loss
 
-    def compute_federated_true_risk(self, w, avg_w, sigma) -> [float, float]:
+    def compute_federated_true_risk(self, w, avg_w) -> [float, float]:
         true_federated_risk = [
-            wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), sigma)
-            - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), sigma)
+            wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+            - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                for i in range(len(self.clients))
         ]
         true_federated_avg_risk = [
-                    wAw_product(0.5, minus(avg_w, self.clients[i].dataset.w_star), sigma)
-                    - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), sigma)
+                    wAw_product(0.5, minus(avg_w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+                    - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                        for i in range(len(self.clients))
                 ]
         return np.mean(true_federated_risk, axis=0), np.mean(true_federated_avg_risk, axis=0)
@@ -172,10 +172,11 @@ class SGD(ABC):
         log_xaxis = log_sampling_xaxix(self.size_dataset)
 
         all_avg_w = []
+        w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
         it = 1
-        current_loss = self.compute_federated_empirical_risk(current_w, avg_w, self.sigma)
+        current_loss = self.compute_federated_true_risk(current_w, avg_w)
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
         for epoch in range(self.nb_epoch):
@@ -209,7 +210,7 @@ class SGD(ABC):
                 for client in self.clients:
                     client.update_model(current_w, avg_w)
 
-                current_loss = self.compute_federated_empirical_risk(current_w, avg_w, self.sigma)
+                current_loss = self.compute_federated_true_risk(current_w, avg_w)
                 if idx in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])

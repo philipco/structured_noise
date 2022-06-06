@@ -2,6 +2,7 @@
 Created by Constantin Philippenko, 17th January 2022.
 """
 import cmath
+from typing import List
 
 import matplotlib
 import numpy as np
@@ -12,6 +13,7 @@ from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
 from src.Utilities import create_folder_if_not_existing
+from src.federated_learning.Client import Client
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -21,13 +23,15 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 10**5
-DIM = 100
+SIZE_DATASET = 10**4
+DIM = 200
 POWER_COV = 4
 R_SIGMA=0
 
+NB_CLIENTS = 10
+
 USE_ORTHO_MATRIX = False
-HETEROGENEITY = "homog"
+HETEROGENEITY = "sigma"
 
 
 def prepare_sparsification(x, p):
@@ -52,11 +56,15 @@ def compute_diag(dataset, compressor):
     return diag, cov_matrix
 
 
-def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
+def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim: int, labels):
+
+    upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
                                use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY)
     dataset.define_compressors()
+    dataset.power_cov = POWER_COV
+    dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
     no_compressor = SQuantization(0, dim=dim)
@@ -69,7 +77,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
         diag, cov_matrix = compute_diag(dataset, compressor)
         all_diagonals.append(diag)
 
-    return all_diagonals, labels, dataset.string_for_hash()
+    return all_diagonals, labels, dataset
 
 
 def compute_theoretical_diag(dataset: SyntheticDataset, labels):
@@ -94,8 +102,9 @@ if __name__ == '__main__':
 
     labels = ["no compr.", "quantiz.", "rdk", "gauss. proj.", "rand1", "all or noth."]
 
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, USE_ORTHO_MATRIX, HETEROGENEITY) for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
-    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM, labels=labels)
+    all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
     all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
@@ -114,7 +123,9 @@ if __name__ == '__main__':
     plt.legend(loc='best', fontsize=15)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
-    plt.savefig("{0}/{1}.eps".format(folder, hash_dataset), format='eps')
+
+    hash = dataset.string_for_hash()
+    plt.savefig("{0}/C{1}-{2}.eps".format(folder, NB_CLIENTS, hash), format='eps')
 
     plt.show()
 

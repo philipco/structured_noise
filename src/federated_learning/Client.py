@@ -9,14 +9,15 @@ from src.SyntheticDataset import SyntheticDataset
 
 class Client:
 
-    def __init__(self, dim: int, local_size: int, power_cov: int, use_ortho_matrix: bool, heterogeneity: str) -> None:
+    def __init__(self, dim: int, local_size: int, power_cov: int, nb_clients: int, use_ortho_matrix: bool,
+                 heterogeneity: str) -> None:
         super().__init__()
         self.dim = dim
         self.local_size = local_size
         self.dataset = SyntheticDataset()
         self.dataset.generate_dataset(dim, size_dataset=local_size, power_cov=power_cov, r_sigma=0,
-                                      use_ortho_matrix=use_ortho_matrix, do_logistic_regression=False,
-                                      heterogeneity=heterogeneity)
+                                      nb_clients=nb_clients, use_ortho_matrix=use_ortho_matrix,
+                                      do_logistic_regression=False, heterogeneity=heterogeneity)
         self.w = self.dataset.w0
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)
@@ -38,7 +39,6 @@ def check_clients(clients: List[Client], heterogeneity: str):
             assert (clients[0].dataset.upper_sigma == c.dataset.upper_sigma).any()
         elif heterogeneity == "sigma":
             assert (clients[0].dataset.w_star == c.dataset.w_star).any()
-            assert (clients[0].dataset.ortho_matrix != c.dataset.ortho_matrix).any()
             assert (clients[0].dataset.upper_sigma != c.dataset.upper_sigma).any()
         elif heterogeneity == "homog":
             assert (clients[0].dataset.w_star == c.dataset.w_star).any()

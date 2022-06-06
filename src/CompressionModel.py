@@ -72,6 +72,21 @@ class CompressionModel(ABC):
         pass
 
 
+class NoCompression(CompressionModel):
+
+    def __compress__(self, vector: np.ndarray):
+        return vector
+
+    def __omega_c_formula__(self, dim_to_use: int):
+        return 1
+
+    def get_name(self) -> str:
+        return "NoComp"
+
+    def nb_bits_by_iter(self):
+        return 32 * self.dim
+
+
 class TopKSparsification(CompressionModel):
 
     def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):

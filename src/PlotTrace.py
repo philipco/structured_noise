@@ -1,6 +1,7 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
 """
+from typing import List
 
 import numpy as np
 import matplotlib
@@ -10,6 +11,7 @@ from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
 from src.Utilities import create_folder_if_not_existing
+from src.federated_learning.Client import Client
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -19,10 +21,12 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 10**3
-DIM = 100
+SIZE_DATASET = 10**4
+DIM = 200
 POWER_COV = 4
 R_SIGMA=0
+
+NB_CLIENTS = 10
 
 START_DIM = 2
 END_DIM = 50
@@ -31,7 +35,7 @@ END_DIM = 50
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
 
 USE_ORTHO_MATRIX = False
-HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
+HETEROGENEITY = "sigma" # "wstar" "sigma" "homog"
 
 
 def compute_diag(dataset, compressor):
@@ -47,11 +51,15 @@ def compute_diag(dataset, compressor):
     return cov_matrix
 
 
-def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
+def compute_trace(dataset: SyntheticDataset, dim: int) -> [List[float], SyntheticDataset]:
+
+    upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
                                use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY)
     dataset.define_compressors()
+    dataset.power_cov = POWER_COV
+    dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
     no_compressor = SQuantization(0, dim=dim)
@@ -64,7 +72,7 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> int:
         cov_matrix = compute_diag(dataset, compressor)
         all_trace.append(np.trace(cov_matrix.dot(np.linalg.inv(dataset.upper_sigma))))
 
-    return all_trace
+    return all_trace, dataset
 
 
 if __name__ == '__main__':
@@ -79,8 +87,10 @@ if __name__ == '__main__':
     theoretical_trace_by_operators = [[] for i in range(len(labels))]
 
     for dim in range_trace:
+        clients = [Client(dim, SIZE_DATASET // NB_CLIENTS, POWER_COV, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
+                   range(NB_CLIENTS)]
         dataset = SyntheticDataset()
-        all_trace = compute_trace(dataset, dim)
+        all_trace, dataset = compute_trace(dataset, dim)
         for i in range(len(labels)):
             trace_by_operators[i].append(all_trace[i])
         all_theoretical_trace = [compute_theoretical_trace(dataset, "No compression"),
@@ -109,10 +119,8 @@ if __name__ == '__main__':
     folder = "pictures/trace/"
     create_folder_if_not_existing(folder)
 
-    hash = "N{0}-P{1}".format(SIZE_DATASET, POWER_COV)
-    if USE_ORTHO_MATRIX:
-        hash = "{0}-ortho".format(hash)
-    plt.savefig("{0}/{1}.eps".format(folder, hash), format='eps')
+    hash = dataset.string_for_hash()
+    plt.savefig("{0}/C{1}-{2}.eps".format(folder, NB_CLIENTS, hash), format='eps')
 
     plt.show()
 

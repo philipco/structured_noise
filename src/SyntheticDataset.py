@@ -23,7 +23,7 @@ class AbstractDataset:
         super().__init__()
         self.name = name
 
-    def string_for_hash(self):
+    def     string_for_hash(self):
         hash = "N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -38,7 +38,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim)
+        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
@@ -98,21 +98,29 @@ class RealLifeDataset(AbstractDataset):
 
 class SyntheticDataset(AbstractDataset):
 
-    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                         do_logistic_regression: bool, heterogeneity: str, eigenvalues: np.array = None):
+    def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
+                         use_ortho_matrix: bool, do_logistic_regression: bool, heterogeneity: str,
+                         eigenvalues: np.array = None):
         self.do_logistic_regression = do_logistic_regression
-        self.generate_constants(dim, size_dataset, power_cov, r_sigma, use_ortho_matrix, eigenvalues=eigenvalues,
-                                heterogeneity=heterogeneity)
+        self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
+                                eigenvalues=eigenvalues, heterogeneity=heterogeneity)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
-    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, use_ortho_matrix: bool,
-                           heterogeneity: str, eigenvalues: np.array = None):
+    def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
+                           use_ortho_matrix: bool, heterogeneity: str, eigenvalues: np.array = None):
         self.dim = dim
-        self.power_cov = power_cov
+        self.nb_clients = nb_clients
+        if heterogeneity == "sigma":
+            self.power_cov = None
+            while self.power_cov is None:
+                sample = np.random.normal(power_cov, 1)
+                self.power_cov = sample if sample >= 0 else None
+        else:
+            self.power_cov = power_cov
         self.r_sigma = r_sigma
         self.use_ortho_matrix = use_ortho_matrix
         self.size_dataset = size_dataset
@@ -124,7 +132,7 @@ class SyntheticDataset(AbstractDataset):
             sign = np.sign(np.random.normal(0, 1, size=self.dim))
             self.w_star = np.array([sign[i] * np.exp(-i / 10.) for i in range(self.dim)])
         else:
-            self.w_star = np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)]) #np.ones(self.dim) #
+            self.w_star = np.ones(self.dim) #np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)]) #np.ones(self.dim) #
 
         # Used to generate self.X
         if eigenvalues is None:
@@ -136,10 +144,10 @@ class SyntheticDataset(AbstractDataset):
         if self.use_ortho_matrix:
             # theta = np.pi / 4
             # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
-            if self.heterogeneity == "sigma":
-                self.ortho_matrix = ortho_group.rvs(dim=self.dim)
-            else:
-                self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
+            # if self.heterogeneity == "sigma":
+            #     self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+            # else:
+            self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
         else:
@@ -156,7 +164,7 @@ class SyntheticDataset(AbstractDataset):
 
 
     def generate_Y(self):
-        lower_sigma = 0.4  # Used only to introduce noise in the true labels.
+        lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
