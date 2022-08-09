@@ -23,11 +23,15 @@ POWER_COV = 4
 R_SIGMA=0
 
 DIM = 2
+NB_CLIENTS = 1
+
+FONTSIZE = 15
+LINESIZE = 3
 
 USE_ORTHO_MATRIX = True
 HETEROGENEITY = "homog"
 
-NB_RANDOM_COMPRESSION = 25
+NB_RANDOM_COMPRESSION = 5
 
 EIGEN_VALUES = np.array([1, 10])
 FOLDER = "pictures/ellipse/muL=" + str(EIGEN_VALUES[0]/EIGEN_VALUES[1]) + "/"
@@ -47,7 +51,7 @@ def plot_compressed_points(compressor, X, i, folder, ax_max):
     ax.set_ylim(-ax_max, ax_max)
     plt.axvline(x=0, color="black")
     plt.axhline(y=0, color="black")
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper right', fontsize=FONTSIZE)
     plt.savefig("{0}/{1}.png".format(folder, i), dpi=70) # default is 100, to reduce how many pixels the figures has.
     plt.close()
 
@@ -81,14 +85,15 @@ def compute_quadratic_error(x, all_compression):
 
 def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max):
     ax.scatter(X[:, 0], X[:, 1], color=COLORS[0], alpha=0.5, label="No compression", zorder=3)
-    ax.scatter(all_compressed_point[:, 0], all_compressed_point[:, 1], color=COLORS[1],  alpha=0.5, s=25, label="Compression", zorder=1)
-    confidence_ellipse(covariance, "", ax, edgecolor=COLORS[1], zorder=2, lw = 2)
-    confidence_ellipse(data_covariance, "", ax, edgecolor=COLORS[0], zorder=2, lw=2)
+    ax.scatter(all_compressed_point[:, 0], all_compressed_point[:, 1], color=COLORS[1],  alpha=0.5, s=25,
+               label="Compression", zorder=1)
+    #(covariance, "", ax, edgecolor=COLORS[1], zorder=2, lw = LINESIZE)
+    # confidence_ellipse(data_covariance, "", ax, edgecolor=COLORS[0], zorder=2, lw=LINESIZE)
     ax.set_xlim(-ax_max, ax_max)
     ax.set_ylim(-ax_max, ax_max)
     ax.axvline(x=0, color="black")
     ax.axhline(y=0, color="black")
-    ax.set_title(compressor.get_name())
+    ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
 
 def plot_compression_process_by_compressor(dataset, compressor, data_covariance, covariance, ax, ax_mse0, ax_mse1):
@@ -140,7 +145,7 @@ def get_all_covariances(dataset: SyntheticDataset, my_compressors):
 
 def plot_compression_process(dataset, my_compressors, covariances, labels):
 
-    fig_distrib, axes_distrib = plt.subplots(2, 3, figsize=(10, 8))
+    fig_distrib, axes_distrib = plt.subplots(2, 3, figsize=(10, 6))
     axes_distrib = [axes_distrib[0,0], axes_distrib[0,1], axes_distrib[0,2], axes_distrib[1,0], axes_distrib[1,1], axes_distrib[1,2]]
 
     fig_MSE, axes_MSE = plt.subplots(1, 2, figsize=(12, 9))
@@ -149,11 +154,7 @@ def plot_compression_process(dataset, my_compressors, covariances, labels):
         compressor = my_compressors[i]
         plot_compression_process_by_compressor(dataset, compressor, covariances[0], covariances[i], axes_distrib[i - 1], axes_MSE[0],
                                                 axes_MSE[1])
-    axes_distrib[0].legend(loc='upper right')
-    # axes_MSE[0].legend(loc='upper left')
-    # axes_MSE[0].set_title("X axis")
-    # axes_MSE[1].legend(loc='upper left')
-    # axes_MSE[1].set_title("Y axis")
+    axes_distrib[0].legend(loc='lower right', fontsize=FONTSIZE)
 
     filename = FOLDER + "scatter_plot"
     if USE_ORTHO_MATRIX:
@@ -172,7 +173,7 @@ def plot_ellipse(dataset, covariances, labels):
     ax.scatter(dataset.X_complete[:,0], dataset.X_complete[:,1], s=0.5)
     ax.scatter(0, 0, c='red', s=3)
     ax.set_title("Ellipse")
-    ax.legend(fancybox=True, framealpha=0.5)
+    ax.legend(fancybox=True, framealpha=0.5, fontsize=FONTSIZE)
     ax.axis('equal')
 
     # fig.subplots_adjust(hspace=0.25)
@@ -185,7 +186,7 @@ def plot_ellipse(dataset, covariances, labels):
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, USE_ORTHO_MATRIX,
+    synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, NB_CLIENTS, USE_ORTHO_MATRIX,
                                          eigenvalues=EIGEN_VALUES, heterogeneity=HETEROGENEITY)
     synthetic_dataset.define_compressors()
     synthetic_dataset.generate_X()

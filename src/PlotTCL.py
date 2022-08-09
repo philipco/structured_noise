@@ -33,12 +33,16 @@ matplotlib.rcParams.update({
 
 # TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
 
-SIZE_DATASET = 2*10**4
-POWER_COV = 2
+SIZE_DATASET = 5*10**4
+POWER_COV = 4
 R_SIGMA = 0
 
 DIM = 2
 EIGENVALUES = np.array([1,10])
+
+
+FONTSIZE = 17
+LINESIZE = 3
 
 NB_CLIENTS = 1
 HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
@@ -88,12 +92,12 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
     avg_dist_to_opt *= np.sqrt(SIZE_DATASET)
 
     ax_max = plot_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
-                       color=COLORS[1], zorder=0, lw=2)
+                       color=COLORS[1], zorder=0, lw=LINESIZE)
     plot_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
                        r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{emp.}}(\mathcal C (x)) \Sigma^{-1}$", ax, color=COLORS[1],
-                       linestyle="--", zorder=0, lw=2)
+                       linestyle="--", zorder=0, lw=LINESIZE)
     plot_ellipse(inv_sigma,  r"$\Sigma^{-1}$", ax,
-                       color=COLORS[0], zorder=0, lw=2, linestyle=":")
+                       color=COLORS[0], zorder=0, lw=LINESIZE, linestyle=":")
 
     ax.scatter(avg_dist_to_opt[:, 0], avg_dist_to_opt[:, 1], color=COLORS[1], alpha=0.5)
 
@@ -103,7 +107,7 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
     ax_max *= 1.1
     ax.set_xlim(-ax_max, ax_max)
     ax.set_ylim(-ax_max, ax_max)
-    ax.set_title(title)
+    ax.set_title(title, fontsize=FONTSIZE)
 
 
 def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
@@ -115,7 +119,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
 
-    fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 8))
+    fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 6))
     axes_TCL = axes_TCL.flat
     for idx_compressor in range(1, len(all_covariances)):
         plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, all_covariances[idx_compressor],
@@ -128,28 +132,28 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
 
 
 def plot_theory_TCL(sigma, all_covariances, labels):
-    fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 8))
+    fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 6))
     axes_TCL = axes_TCL.flat
     for idx_compressor in range(1, len(all_covariances)):
         ax = axes_TCL[idx_compressor-1]
         inv_sigma = compute_inversion(sigma)
         plot_ellipse(compute_limit_distrib(inv_sigma, all_covariances[idx_compressor]),
                      r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{emp.}}(\mathcal C (x)) \Sigma^{-1}$", ax, plot_eig=True,
-                     color=COLORS[1], zorder=0, lw=2)
+                     color=COLORS[1], zorder=0, lw=LINESIZE)
 
         theoretical_cov = get_theoretical_cov(synthetic_dataset, labels[idx_compressor])
         if theoretical_cov is not None:
             plot_ellipse(compute_limit_distrib(inv_sigma, theoretical_cov),
                          r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{th.}}(\mathcal C (x)) \Sigma^{-1}$", ax, plot_eig=False,
-                         color=COLORS[1], zorder=0, lw=2, linestyle="--", marker="x",markevery=100)
+                         color=COLORS[1], zorder=0, lw=LINESIZE, linestyle="--", marker="x",markevery=100)
 
         plot_ellipse(inv_sigma, r"$\Sigma^{-1}$", ax, plot_eig=True,
-                           color=COLORS[0], zorder=0, lw=2)
+                           color=COLORS[0], zorder=0, lw=LINESIZE)
 
         ax.scatter(0, 0, c='red', s=3)
         ax.axvline(c='grey', lw=1)
         ax.axhline(c='grey', lw=1)
-        ax.set_title(labels[idx_compressor])
+        ax.set_title(labels[idx_compressor], fontsize=FONTSIZE)
         ax.axis('equal')
 
     axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
@@ -230,7 +234,7 @@ def compute_theory_TCL():
 
 if __name__ == '__main__':
 
-    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
                range(NB_CLIENTS)]
     check_clients(clients, HETEROGENEITY)
     synthetic_dataset = clients[0].dataset

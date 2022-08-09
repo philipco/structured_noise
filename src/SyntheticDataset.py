@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import multivariate_normal
 from scipy.linalg import toeplitz
 from scipy.special import expit
-from scipy.stats import ortho_group
+from scipy.stats import ortho_group, multivariate_t
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
     AllOrNothing, StabilizedQuantization, RandK
@@ -38,7 +38,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
+        self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) #1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
@@ -81,7 +81,7 @@ class AbstractDataset:
 
         print("Gamma sportisse:", GAMMA_SPORTISSE)
 
-        self.gamma = OPTIMAL_GAMMA_COMPR
+        self.gamma = 1 / ((self.quantizator.omega_c + 1) * R_SQUARE)
 
         print("Taken step size:", self.gamma)
 
@@ -115,10 +115,7 @@ class SyntheticDataset(AbstractDataset):
         self.dim = dim
         self.nb_clients = nb_clients
         if heterogeneity == "sigma":
-            self.power_cov = None
-            while self.power_cov is None:
-                sample = np.random.normal(power_cov, 1)
-                self.power_cov = sample if sample >= 0 else None
+            self.power_cov = np.random.choice([1,2,3,4])
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma

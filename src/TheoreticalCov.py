@@ -13,7 +13,7 @@ def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
     if compression_name == "No compression":
         return sigma
 
-    elif compression_name == "Qtzd":
+    elif compression_name in ["Qtzd", "StabilizedQtz"]:
         return sigma - diag_sigma + np.sqrt(np.trace(sigma)) * np.sqrt(diag_sigma)
 
     elif compression_name == "Sparsification":
@@ -27,7 +27,7 @@ def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
     elif compression_name == "Rand1":
         return diag_sigma * dataset.dim
 
-    elif compression_name == "AllOrNothing":
+    elif compression_name == "PartialParticipation":
         return sigma / dataset.LEVEL_RDK
 
     return None
@@ -59,7 +59,7 @@ def compute_theoretical_trace(dataset: SyntheticDataset, compression_name: str):
     elif compression_name == "Rand1":
         return np.trace(dataset.dim * np.diag(np.diag(sigma)) @ sigma_inv)
 
-    elif compression_name == "AllOrNothing":
+    elif compression_name == "PartialParticipation":
         return dataset.dim / dataset.LEVEL_RDK
 
     return None

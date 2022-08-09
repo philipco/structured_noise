@@ -330,7 +330,7 @@ class AllOrNothing(CompressionModel):
         pass
 
     def get_name(self) -> str:
-        return "AllOrNothing"
+        return "PartialParticipation"
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim
