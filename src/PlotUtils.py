@@ -15,6 +15,11 @@ def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
 
 def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
 
+    # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
+    #              label="SGD {0}".format(sgd_run.label))
+    # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
+    #              label="AvgSGD {0}".format(sgd_run.label))
+
     axes[0].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.losses - optimal_loss),
                  label="SGD {0}".format(sgd_run.label))
     axes[1].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.avg_losses - optimal_loss),
@@ -30,8 +35,8 @@ def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string:
         plot_SGD_and_AVG(axes, sgd_try, optimal_loss)
 
     for ax in axes:
-        ax.legend(loc='best', fontsize=15)
-        ax.set_ylim(top=0.5)
+        ax.legend(loc='lower left', fontsize=10)
+        # ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)

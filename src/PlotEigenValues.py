@@ -2,6 +2,7 @@
 Created by Constantin Philippenko, 17th January 2022.
 """
 import cmath
+from typing import List
 
 import matplotlib
 import numpy as np
@@ -12,6 +13,7 @@ from src.CompressionModel import SQuantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
 from src.Utilities import create_folder_if_not_existing
+from src.federated_learning.Client import Client
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -21,12 +23,18 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 10**5
+SIZE_DATASET = 10**4
 DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
+NB_CLIENTS = 20
+
 USE_ORTHO_MATRIX = True
+HETEROGENEITY = "sigma"
+
+FONTSIZE = 17
+LINESIZE = 3
 
 
 def prepare_sparsification(x, p):
@@ -45,18 +53,21 @@ def compute_diag(dataset, compressor):
 
     cov_matrix = X_compressed.T.dot(X_compressed) / SIZE_DATASET
 
-    if USE_ORTHO_MATRIX:
-        cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
+    cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
 
     diag = np.diag(cov_matrix)
     return diag, cov_matrix
 
 
-def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
+def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim: int, labels):
+
+    upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                       use_ortho_matrix=USE_ORTHO_MATRIX)
+                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY, nb_clients=NB_CLIENTS)
     dataset.define_compressors()
+    dataset.power_cov = POWER_COV
+    dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
     no_compressor = SQuantization(0, dim=dim)
@@ -69,7 +80,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, dim: int, labels):
         diag, cov_matrix = compute_diag(dataset, compressor)
         all_diagonals.append(diag)
 
-    return all_diagonals, labels, dataset.string_for_hash()
+    return all_diagonals, labels, dataset
 
 
 def compute_theoretical_diag(dataset: SyntheticDataset, labels):
@@ -80,7 +91,7 @@ def compute_theoretical_diag(dataset: SyntheticDataset, labels):
                       get_theoretical_cov(dataset, "Sparsification"),
                       get_theoretical_cov(dataset, "Sketching"),
                       get_theoretical_cov(dataset, "Rand1"),
-                      get_theoretical_cov(dataset, "AllOrNothing")]
+                      get_theoretical_cov(dataset, "PartialParticipation")]
 
     if USE_ORTHO_MATRIX:
         for i in range(len(all_covariance)):
@@ -92,29 +103,32 @@ def compute_theoretical_diag(dataset: SyntheticDataset, labels):
 
 if __name__ == '__main__':
 
-    labels = ["no compr.", "quantiz.", "rdk", "gauss. proj.", "rand1", "all or noth."]
+    labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
-    all_diagonals, labels, hash_dataset = compute_diag_matrices(dataset, dim=DIM, labels=labels)
+    all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
     all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
-        axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = 2)
+        axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE)
     for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
-        axes[1].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = 2, linestyle="--")
+        axes[1].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE, linestyle="--")
 
     for ax in axes:
-        ax.tick_params(axis='both', labelsize=15)
-        ax.legend(loc='best', fontsize=15)
-        ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
-    axes[0].title.set_text('Empirical eigenvalues')
-    axes[1].title.set_text('Theoretical eigenvalues')
-    axes[0].set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
-    plt.legend(loc='best', fontsize=15)
+        ax.tick_params(axis='both', labelsize=FONTSIZE)
+        ax.legend(loc='lower left', fontsize=FONTSIZE)
+        ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
+    axes[0].set_title('Empirical eigenvalues', fontsize=FONTSIZE)
+    axes[1].set_title('Theoretical eigenvalues', fontsize=FONTSIZE)
+    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\frac{1}{K} \mathcal C (x)^{\otimes 2})_i)$", fontsize=FONTSIZE)
+    plt.legend(loc='lower left', fontsize=FONTSIZE)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
-    plt.savefig("{0}/{1}.eps".format(folder, hash_dataset), format='eps')
+
+    hash = dataset.string_for_hash()
+    plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
 
     plt.show()
 
