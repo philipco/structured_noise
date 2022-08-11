@@ -8,7 +8,7 @@ import numpy as np
 from numpy.random import multivariate_normal
 from scipy.linalg import toeplitz
 from scipy.special import expit
-from scipy.stats import ortho_group, multivariate_t, norm
+from scipy.stats import ortho_group
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
     AllOrNothing, StabilizedQuantization, RandK
@@ -118,7 +118,7 @@ class SyntheticDataset(AbstractDataset):
         self.heterogeneity = heterogeneity
 
         if w0_seed is not None:
-            self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim, seed = w0_seed)
+            self.w0 = np.zeros(self.dim)
         else:
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
@@ -142,9 +142,15 @@ class SyntheticDataset(AbstractDataset):
             #     self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             # else:
             # self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=40)
-            # For sake of clarity of TCL's plots, I fix the rotation matrix.
-            theta = -3*np.pi / 8
-            self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            # We fix the rotation matrix only when in dimension (for sake of TCL's plots clarity).
+            if self.dim == 2:
+                theta = -3*np.pi / 8
+                self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            else:
+                if self.heterogeneity == "sigma":
+                    self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+                else:
+                    self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
         else:
