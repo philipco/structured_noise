@@ -14,7 +14,7 @@ from tqdm import tqdm
 from src.CompressionModel import CompressionModel
 from src.JITProduct import *
 from src.PickleHandler import pickle_saver
-from src.SyntheticDataset import MAX_SIZE_DATASET
+from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
 from src.Utilities import print_mem_usage
 from src.federated_learning.Client import Client
 
@@ -131,11 +131,10 @@ class SGD(ABC):
             return wAw_product(0.5, minus(w, w_star), self.D)
         return wAw_product(0.5, minus(w, self.w_star), sigma)
 
-    def compute_stochastic_gradient(self, w, data, labels, index, additive_stochastic_gradient):
-        # index = np.random.randint(len(labels))
+    def compute_stochastic_gradient(self, w, dataset, index, additive_stochastic_gradient):
         if additive_stochastic_gradient:
-            return self.compute_additive_stochastic_gradient(w, data, labels, index)
-        x, y = data[index], labels[index]
+            return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
+        x, y = dataset.X_complete[index], dataset.Y[index]
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
         elif CORRECTION_DIAG:
@@ -192,7 +191,7 @@ class SGD(ABC):
                         client.dataset.regenerate_dataset()
 
                     local_grad = self.compute_gradient(
-                        client.w, client.dataset.X_complete, client.dataset.Y, idx % MAX_SIZE_DATASET,
+                        client.w, client.dataset, idx % MAX_SIZE_DATASET,
                         self.additive_stochastic_gradient)
                     if it == 1:
                         client.local_memory = local_grad
@@ -230,14 +229,14 @@ class SGD(ABC):
         pass
 
     @abstractmethod
-    def compute_gradient(client, w, X, Y, idx, additive_stochastic_gradient):
+    def compute_gradient(client, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
         pass
 
 
 class FullGD(SGD):
 
-    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
-        return self.compute_full_gradient(w, X, Y)
+    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+        return self.compute_full_gradient(w, dataset)
 
     def gradient_processing(self, grad, client: Client):
         return grad
@@ -245,8 +244,8 @@ class FullGD(SGD):
 
 class SGDVanilla(SGD):
 
-    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
-        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
 
     def gradient_processing(self, grad, client: Client):
         return grad
@@ -254,8 +253,8 @@ class SGDVanilla(SGD):
 
 class SGDNoised(SGD):
 
-    def compute_gradient(self, w, X, Y, idx):
-        return self.compute_stochastic_gradient(w, X, Y, idx, self.additive_stochastic_gradient)
+    def compute_gradient(self, w, dataset: SyntheticDataset, idx):
+        return self.compute_stochastic_gradient(w, dataset, idx, self.additive_stochastic_gradient)
 
     def gradient_processing(self, grad, client: Client):
         return grad + np.random.normal(0, 1, size=self.dim)
@@ -267,8 +266,8 @@ class SGDCompressed(SGD):
         super().__init__(clients, nb_epoch)
         self.compressor = compressor
 
-    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
-        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
 
     def gradient_processing(self, grad, client: Client):
         return self.compressor.compress(grad)
@@ -280,8 +279,8 @@ class SGDArtemis(SGD):
         super().__init__(clients, nb_epoch)
         self.compressor = compressor
 
-    def compute_gradient(self, w, X, Y, idx, additive_stochastic_gradient):
-        return self.compute_stochastic_gradient(w, X, Y, idx, additive_stochastic_gradient)
+    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+        return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
 
     def gradient_processing(self, grad, client: Client):
         compressed = self.compressor.compress(grad - client.local_memory)

@@ -8,14 +8,14 @@ import numpy as np
 from numpy.random import multivariate_normal
 from scipy.linalg import toeplitz
 from scipy.special import expit
-from scipy.stats import ortho_group, multivariate_t
+from scipy.stats import ortho_group, multivariate_t, norm
 
 from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
     AllOrNothing, StabilizedQuantization, RandK
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
-MAX_SIZE_DATASET = 10**7
+MAX_SIZE_DATASET = 10**6
 
 class AbstractDataset:
 
@@ -60,7 +60,7 @@ class AbstractDataset:
     def set_step_size(self):
         # We generate a dataset of a maximal size.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.L = np.linalg.norm(self.X_complete.T @self.X_complete, ord=2) / self.size_dataset #np.max(self.eigenvalues)
+        self.L = np.max(self.eigenvalues)
         print("L=", self.L)
 
         R_SQUARE = np.trace(self.upper_sigma)
@@ -68,18 +68,12 @@ class AbstractDataset:
 
         GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
 
-        L_SPORTISSE = max([np.linalg.norm(self.X[k]) ** 2 for k in range(size_generator)])
-        print("L SPORTISSE=", L_SPORTISSE)
-        GAMMA_SPORTISSE = 1 / (2 * L_SPORTISSE)
-
         OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (self.quantizator.omega_c + 1)))
         print("Optimal gamma for compression:", OPTIMAL_GAMMA_COMPR)
         print("Gamma from Bach & Moulines, 13:", GAMMA_BACH_MOULINES)
 
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
-
-        print("Gamma sportisse:", GAMMA_SPORTISSE)
 
         self.gamma = 1 / ((self.quantizator.omega_c + 1) * R_SQUARE)
 
@@ -100,10 +94,10 @@ class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
                          use_ortho_matrix: bool, do_logistic_regression: bool, heterogeneity: str,
-                         eigenvalues: np.array = None):
+                         eigenvalues: np.array = None, w0_seed: int = 42):
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
-                                eigenvalues=eigenvalues, heterogeneity=heterogeneity)
+                                eigenvalues=eigenvalues, heterogeneity=heterogeneity, w0_seed=w0_seed)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()
@@ -111,7 +105,7 @@ class SyntheticDataset(AbstractDataset):
         print_mem_usage("Just created the dataset ...")
 
     def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
-                           use_ortho_matrix: bool, heterogeneity: str, eigenvalues: np.array = None):
+                           use_ortho_matrix: bool, heterogeneity: str, eigenvalues: np.array = None, w0_seed: int = 42):
         self.dim = dim
         self.nb_clients = nb_clients
         if heterogeneity == "sigma":
@@ -123,7 +117,10 @@ class SyntheticDataset(AbstractDataset):
         self.size_dataset = size_dataset
         self.heterogeneity = heterogeneity
 
-        self.w0 = np.zeros(self.dim)
+        if w0_seed is not None:
+            self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim, seed = w0_seed)
+        else:
+            self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
         if self.heterogeneity == "wstar":
             sign = np.sign(np.random.normal(0, 1, size=self.dim))
@@ -144,7 +141,10 @@ class SyntheticDataset(AbstractDataset):
             # if self.heterogeneity == "sigma":
             #     self.ortho_matrix = ortho_group.rvs(dim=self.dim)
             # else:
-            self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
+            # self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=40)
+            # For sake of clarity of TCL's plots, I fix the rotation matrix.
+            theta = -3*np.pi / 8
+            self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)
         else:
@@ -165,4 +165,9 @@ class SyntheticDataset(AbstractDataset):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
 
+    def generate_couple_X_Y(self):
+        lower_sigma = self.nb_clients
+        x = multivariate_normal(np.zeros(self.dim), self.upper_sigma)
+        y = x @ self.w_star + np.random.normal(0, lower_sigma)
+        return x, y
 

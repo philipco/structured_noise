@@ -6,6 +6,9 @@ from matplotlib.patches import Ellipse
 
 from src.SGD import SGDRun
 
+FONTSIZE = 17
+LINESIZE = 3
+
 
 def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
     images = [Image.open(fn) for fn in file_names]
@@ -39,11 +42,11 @@ def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string:
         # ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
-    axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
-    axes[1].set_xlabel(r"$\log_{10}(n)$", fontsize=15)
+    axes[1].set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=15)
+    axes[1].set_xlabel(r"$\log_{10}(k)$", fontsize=15)
 
     if hash_string:
-        plt.savefig('{0}.eps'.format("./pictures/" + hash_string), format='eps')
+        plt.savefig('{0}.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
         plt.close()
     else:
         plt.show()
@@ -58,15 +61,15 @@ def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str =
         ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
                 label="{0}".format(sgd_try.label))
 
-    ax.legend(loc='best', fontsize=15)
-    ax.set_ylim(top=0.5)
+    ax.legend(loc='best', fontsize=FONTSIZE)
+    ax.set_ylim(top=0.1)
     ax.grid(True)
-    ax.set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
-    ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
-    ax.set_title("Avg SGD")
+    ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
+    ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
+    # ax.set_title("Avg SGD")
 
     if hash_string:
-        plt.savefig('{0}.png'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
+        plt.savefig('{0}.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
         plt.close()
     else:
         plt.show()

@@ -33,16 +33,16 @@ matplotlib.rcParams.update({
 
 # TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
 
-SIZE_DATASET = 5*10**4
+SIZE_DATASET = 10**5
 POWER_COV = 4
 R_SIGMA = 0
 
 DIM = 2
-EIGENVALUES = np.array([1,10])
+EIGENVALUES = np.array([1,0.2])
 
 
 FONTSIZE = 17
-LINESIZE = 3
+LINESIZE = 2
 
 NB_CLIENTS = 1
 HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
@@ -51,7 +51,7 @@ USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
 LAST_POINTS = 0
-NB_TRY = 20
+NB_TRY = 100
 
 FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
@@ -75,10 +75,10 @@ def get_legend_limit_distrib():
     legend_color = [Line2D([0], [0], color=COLORS[0], lw=2, label='no compr.'),
                     Line2D([0], [0], color=COLORS[1], lw=2, label='compr.')]
 
-    legend_line = [Line2D([0], [0], linestyle="--", color="black", lw=1, label=r"$\mathrm{Cov}( \sqrt{n} (\bar w - w_*))$"),
+    legend_line = [Line2D([0], [0], linestyle="--", color="black", lw=1, label=r"$\mathrm{Cov}( \sqrt{K} (\overline{w}_K - w_*))$"),
                    Line2D([0], [0], linestyle="-", color="black", lw=1,
-                          label=r"$\Sigma^{-1} \mathrm{Cov}(\mathcal C (x)) \Sigma^{-1}$"),
-                   Line2D([0], [0], linestyle=":", color="black", lw=1, label=r"$\Sigma^{-1} C \Sigma^{-1}$"),
+                          label=r"$H^{-1} \mathfrak{C} H^{-1}$"),
+                   Line2D([0], [0], linestyle=":", color="black", lw=1, label=r"$H^{-1} C H^{-1}$"),
                    Line2D([], [], color='black', marker="*", linestyle='None',
                           markersize=4, label=r"last $\bar w - w_*$")
                    ]
@@ -91,12 +91,12 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
 
     avg_dist_to_opt *= np.sqrt(SIZE_DATASET)
 
-    ax_max = plot_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{n} (\bar w_n - w_*))$", ax,
+    ax_max = plot_ellipse(compute_empirical_covariance(avg_dist_to_opt), r"$\mathrm{Cov}( \sqrt{K} (\overline{w}_K - w_*))$", ax,
                        color=COLORS[1], zorder=0, lw=LINESIZE)
     plot_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
-                       r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{emp.}}(\mathcal C (x)) \Sigma^{-1}$", ax, color=COLORS[1],
-                       linestyle="--", zorder=0, lw=LINESIZE)
-    plot_ellipse(inv_sigma,  r"$\Sigma^{-1}$", ax,
+                       r"$H^{-1} \mathfrak{C}_{\mathrm{emp.}} H^{-1}$", ax, color=COLORS[1],
+                       linestyle="--", marker="x", markevery=100, zorder=0, lw=LINESIZE)
+    plot_ellipse(inv_sigma,  r"$H^{-1}$", ax,
                        color=COLORS[0], zorder=0, lw=LINESIZE, linestyle=":")
 
     ax.scatter(avg_dist_to_opt[:, 0], avg_dist_to_opt[:, 1], color=COLORS[1], alpha=0.5)
@@ -113,22 +113,22 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
 def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     fig, ax = plt.subplots(figsize=(6, 5))
     plot_TCL_of_a_compressor(ax, sigma, all_covariances[0], all_avg_sgd[0], title=labels[0])
-    ax.legend(loc='upper right', fancybox=True, framealpha=0.5)
+    ax.legend(loc='upper left', fancybox=True, framealpha=0.5)
     filename = "{0}/C{1}-N{2}-TCL_without_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
+    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
     fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 6))
     axes_TCL = axes_TCL.flat
     for idx_compressor in range(1, len(all_covariances)):
         plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, all_covariances[idx_compressor],
                                  all_avg_sgd[idx_compressor], title=labels[idx_compressor])
-    axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
+    axes_TCL[0].legend(loc='upper left', fancybox=True, framealpha=0.5)
     filename = "{0}/C{1}-N{2}-TCL_with_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
+    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
 
 def plot_theory_TCL(sigma, all_covariances, labels):
@@ -138,16 +138,16 @@ def plot_theory_TCL(sigma, all_covariances, labels):
         ax = axes_TCL[idx_compressor-1]
         inv_sigma = compute_inversion(sigma)
         plot_ellipse(compute_limit_distrib(inv_sigma, all_covariances[idx_compressor]),
-                     r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{emp.}}(\mathcal C (x)) \Sigma^{-1}$", ax, plot_eig=True,
+                     r"$H^{-1} \mathfrak{C}_{\mathrm{emp.}} H^{-1}$", ax, plot_eig=True,
                      color=COLORS[1], zorder=0, lw=LINESIZE)
 
         theoretical_cov = get_theoretical_cov(synthetic_dataset, labels[idx_compressor])
         if theoretical_cov is not None:
             plot_ellipse(compute_limit_distrib(inv_sigma, theoretical_cov),
-                         r"$\Sigma^{-1} \mathrm{Cov}_{\mathrm{th.}}(\mathcal C (x)) \Sigma^{-1}$", ax, plot_eig=False,
-                         color=COLORS[1], zorder=0, lw=LINESIZE, linestyle="--", marker="x",markevery=100)
+                         r"$H^{-1} \mathfrak{C}_{\mathrm{th.}} H^{-1}$", ax, plot_eig=False,
+                         color=COLORS[1], zorder=0, lw=LINESIZE, linestyle="--", marker="x", markevery=100)
 
-        plot_ellipse(inv_sigma, r"$\Sigma^{-1}$", ax, plot_eig=True,
+        plot_ellipse(inv_sigma, r"$H^{-1}$", ax, plot_eig=True,
                            color=COLORS[0], zorder=0, lw=LINESIZE)
 
         ax.scatter(0, 0, c='red', s=3)
@@ -156,11 +156,11 @@ def plot_theory_TCL(sigma, all_covariances, labels):
         ax.set_title(labels[idx_compressor], fontsize=FONTSIZE)
         ax.axis('equal')
 
-    axes_TCL[0].legend(loc='upper right', fancybox=True, framealpha=0.5)
+    axes_TCL[0].legend(loc='upper left', fancybox=True, framealpha=0.5)
     filename = "{0}/C{1}-N{2}-TCL_theoretical".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
+    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
 
 def compute_covariance_of_compressors(dataset, compressor):
@@ -234,7 +234,8 @@ def compute_theory_TCL():
 
 if __name__ == '__main__':
 
-    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
+    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
+                      EIGENVALUES, w0_seed=None) for i in
                range(NB_CLIENTS)]
     check_clients(clients, HETEROGENEITY)
     synthetic_dataset = clients[0].dataset
@@ -256,6 +257,8 @@ if __name__ == '__main__':
 
     for idx in range(NB_TRY):
 
+        print("TRY {0}/{1}".format(idx, NB_TRY))
+
         ### Very important to regenerate dataset in order to compute the variance of the last avg iterate. ###
         for client in clients:
             client.dataset.regenerate_dataset()
@@ -263,7 +266,7 @@ if __name__ == '__main__':
         for idx_compressor in range(len(my_compressors)):
             compressor = my_compressors[idx_compressor]
             sgd = SGDCompressed(clients, compressor).gradient_descent(label=compressor.get_name(),
-                                                                                deacreasing_step_size=True)
+                                                                      deacreasing_step_size=True)
             # We save only the excess loss of the first try.
             if idx == 0:
                 all_sgd_descent.append(sgd)

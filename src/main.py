@@ -25,8 +25,8 @@ from matplotlib import pyplot as plt
 
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDArtemis, FullGD
 
-SIZE_DATASET = 10**6
-DIM = 200
+SIZE_DATASET = 10**5
+DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 NB_CLIENTS = 10
@@ -34,10 +34,10 @@ NB_CLIENTS = 10
 DECR_STEP_SIZE = False
 EIGENVALUES = None
 
-USE_ORTHO_MATRIX = False
+USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
-HETEROGENEITY = "sigma" # "wstar" "sigma" "homog"
+HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
 
 
 def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optimal_loss):
@@ -46,7 +46,7 @@ def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optim
     plot_SGD_and_AVG(losses2, avg_losses2, optimal_loss, label2)
 
     ax.label(loc='best', fontsize=15)
-    ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
+    ax.set_xlabel(r"$\log_{10}(k)$", fontsize=15)
     ax[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     ax[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
     ax.grid(True)
@@ -63,7 +63,7 @@ def plot_eigen_values(list_of_sgd, hash_string: str = None):
     ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
     plt.legend(loc='best', fontsize=15)
     if hash_string:
-        plt.savefig('{0}-eigenvalues.eps'.format("./pictures/" + hash_string), format='eps')
+        plt.savefig('{0}-eigenvalues.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
         plt.close()
     else:
         plt.show()
@@ -78,26 +78,20 @@ if __name__ == '__main__':
 
     hash_string = hashlib.shake_256(clients[0].dataset.string_for_hash().encode()).hexdigest(4)
 
-    # full_gd = FullGD(clients, nb_epoch=2)
-    # full_gd_run = full_gd.gradient_descent(label="no compression", deacreasing_step_size=False)
-    # optimal_loss = full_gd_run.losses[-1]
+    labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
     w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
     vanilla_sgd = SGDVanilla(clients, nb_epoch=1)
-    sgd_nocompr = vanilla_sgd.gradient_descent(label="no compression", deacreasing_step_size=DECR_STEP_SIZE)
+    sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0], deacreasing_step_size=DECR_STEP_SIZE)
 
-    # optimal_loss = vanilla_sgd.compute_optimal_federated_loss()
-    optimal_loss, _ = vanilla_sgd.compute_federated_true_risk(w_star, w_star)
-    # optimal_loss, _ = vanilla_sgd.compute_federated_true_risk(w_star, w_star,
-    #                                                        synthetic_dataset.upper_sigma)
-
-    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator]
-                      #synthetic_dataset.all_or_nothinger]#, synthetic_dataset.rand_sketcher]
+    my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator,
+                      synthetic_dataset.sketcher, synthetic_dataset.rand1, synthetic_dataset.all_or_nothinger]
     
     all_sgd = []
-    for compressor in my_compressors:
+    for i in range(len(my_compressors)):
+        compressor = my_compressors[i]
         print("Compressor: {0}".format(compressor.get_name()))
-        all_sgd.append(SGDCompressed(clients, compressor, nb_epoch=1).gradient_descent(label=compressor.get_name(),
+        all_sgd.append(SGDCompressed(clients, compressor, nb_epoch=1).gradient_descent(label=labels[i+1],
                                                                         deacreasing_step_size=DECR_STEP_SIZE))
         # all_sgd.append(
         #     SGDArtemis(clients, compressor, nb_epoch=1).gradient_descent(label=compressor.get_name() + "-art",
@@ -106,10 +100,10 @@ if __name__ == '__main__':
     sgd_series = SeriesOfSGD(all_sgd)
     sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
 
-    setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                        hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
+    setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=0,
+                        hash_string="C{0}-{1}_both".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
 
-    plot_only_avg(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+    plot_only_avg(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=0,
                   hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
 
     plot_eigen_values([sgd_nocompr] + all_sgd, hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
