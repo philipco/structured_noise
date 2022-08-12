@@ -43,8 +43,7 @@ class AbstractDataset:
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
 
-        self.sketcher = Sketching(self.LEVEL_RDK, self.dim)
-        self.rand_sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
+        self.sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
 
         self.all_or_nothinger = AllOrNothing(self.LEVEL_RDK, self.dim)
 
@@ -54,8 +53,10 @@ class AbstractDataset:
         print("Level qtz:", self.LEVEL_QTZ)
         print("Level rdk:", self.LEVEL_RDK)
         print("Subdimension cardinal:", self.sketcher.sub_dim)
-        print("Qtz compression:", self.quantizator.omega_c)
-        print("Rdk compression:", self.sparsificator.omega_c)
+        print("Omega quantization:", self.quantizator.omega_c)
+        print("Omega sparsification:", self.sparsificator.omega_c)
+        print("Omega sketching:", self.sketcher.omega_c)
+        print("Omega rand1:", self.rand1.omega_c)
 
     def set_step_size(self):
         # We generate a dataset of a maximal size.
@@ -63,19 +64,19 @@ class AbstractDataset:
         self.L = np.max(self.eigenvalues)
         print("L=", self.L)
 
-        R_SQUARE = np.trace(self.upper_sigma)
-        print("4 * R_SQUARE", 4 * R_SQUARE)
+        self.trace = np.trace(self.upper_sigma)
+        print("4 * r_square", 4 * self.trace)
 
-        GAMMA_BACH_MOULINES = 1 / (4 * R_SQUARE)
+        GAMMA_BACH_MOULINES = 1 / (4 * self.trace)
 
-        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (self.quantizator.omega_c + 1)))
+        OPTIMAL_GAMMA_COMPR = 1 / (self.L * (1 + 2 * (self.sparsificator.omega_c + 1)))
         print("Optimal gamma for compression:", OPTIMAL_GAMMA_COMPR)
         print("Gamma from Bach & Moulines, 13:", GAMMA_BACH_MOULINES)
 
         CONSTANT_GAMMA = .1 / (2 * self.L)
         print("Constant step size:", CONSTANT_GAMMA)
 
-        self.gamma = 1 / ((self.quantizator.omega_c + 1) * R_SQUARE)
+        self.gamma = 1 / ((self.sparsificator.omega_c + 1) * self.trace)
 
         print("Taken step size:", self.gamma)
 
@@ -109,7 +110,7 @@ class SyntheticDataset(AbstractDataset):
         self.dim = dim
         self.nb_clients = nb_clients
         if heterogeneity == "sigma":
-            self.power_cov = np.random.choice([1,2,3,4])
+            self.power_cov = np.random.choice([3,4,5,6])
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma

@@ -191,10 +191,8 @@ class PoissonSparsification(CompressionModel):
 class RandK(RandomSparsification):
 
     def __init__(self, sub_dim: int, dim: int = None, biased=False, norm: int = 2, constant: int = 1):
-        self.biased = biased
+        super().__init__(sub_dim / dim, dim, biased, norm, constant)
         self.sub_dim = sub_dim
-        self.level = self.sub_dim / dim
-        self.dim = dim
         assert 1 <= sub_dim <= dim, "The sub dimension is not correct."
 
     def __compress__(self, vector: np.ndarray):
@@ -302,7 +300,7 @@ class Sketching(CompressionModel):
         return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
 
     def __omega_c_formula__(self, dim_to_use: int):
-        return 0
+        return (1 - self.level) / self.level
 
     def get_name(self) -> str:
         return "Sketching"
@@ -327,7 +325,7 @@ class AllOrNothing(CompressionModel):
         return b * vector / self.level
 
     def __omega_c_formula__(self, dim_to_use: int):
-        pass
+        return (1 - self.level) / self.level
 
     def get_name(self) -> str:
         return "PartialParticipation"

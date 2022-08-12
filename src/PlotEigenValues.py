@@ -72,7 +72,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim:
 
     no_compressor = SQuantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher,
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher,
                       dataset.rand1, dataset.all_or_nothinger]
 
     all_diagonals = []
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
     all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
-    fig, axes = plt.subplots(1, 2, figsize=(10, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
         axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE)
     for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
     axes[0].set_title('Empirical eigenvalues', fontsize=FONTSIZE)
     axes[1].set_title('Theoretical eigenvalues', fontsize=FONTSIZE)
-    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\frac{1}{K} \mathcal C (x)^{\otimes 2})_i)$", fontsize=FONTSIZE)
+    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}_{\mathrm{emp.}})_i)$", fontsize=FONTSIZE)
     plt.legend(loc='lower left', fontsize=FONTSIZE)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)

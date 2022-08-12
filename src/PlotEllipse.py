@@ -33,8 +33,8 @@ HETEROGENEITY = "homog"
 
 NB_RANDOM_COMPRESSION = 5
 
-EIGEN_VALUES = np.array([1, 10])
-FOLDER = "pictures/ellipse/muL=" + str(EIGEN_VALUES[0]/EIGEN_VALUES[1]) + "/"
+EIGENVALUES = np.array([1,10])
+FOLDER = "pictures/ellipse/muL={0}/".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
 
 COLORS = ["tab:blue", "tab:orange", "tab:brown", "tab:green", "tab:red", "tab:purple", "tab:cyan"]
@@ -75,7 +75,7 @@ def plot_some_random_compressed_points(X, all_compressed_point, filename, ax_max
     axis_flat[0].legend(loc='best')
     if USE_ORTHO_MATRIX:
         filename += "-ortho"
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)  # default is 100, to reduce how many pixels the figures has.
+    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)  # default is 100, to reduce how many pixels the figures has.
     plt.close()
 
 
@@ -159,8 +159,7 @@ def plot_compression_process(dataset, my_compressors, covariances, labels):
     filename = FOLDER + "scatter_plot"
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
-    fig_distrib.savefig("{0}.png".format(filename), bbox_inches='tight', dpi=600)
-    # fig_MSE.savefig("pictures/ellipse/MSE.eps", format='eps', , dpi=100)
+    fig_distrib.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
 
 def plot_ellipse(dataset, covariances, labels):
@@ -180,14 +179,14 @@ def plot_ellipse(dataset, covariances, labels):
     filename = FOLDER + "ellipse"
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
-    plt.savefig("{0}.png".format(filename), bbox_inches='tight',dpi=600)
+    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight',dpi=600)
 
 
 if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, NB_CLIENTS, USE_ORTHO_MATRIX,
-                                         eigenvalues=EIGEN_VALUES, heterogeneity=HETEROGENEITY)
+                                         eigenvalues=EIGENVALUES, heterogeneity=HETEROGENEITY, w0_seed=None)
     synthetic_dataset.define_compressors()
     synthetic_dataset.generate_X()
 

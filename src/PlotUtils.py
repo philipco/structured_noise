@@ -24,9 +24,9 @@ def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
     #              label="AvgSGD {0}".format(sgd_run.label))
 
     axes[0].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.losses - optimal_loss),
-                 label="SGD {0}".format(sgd_run.label))
+                 label="SGD {0}".format(sgd_run.label), lw = LINESIZE)
     axes[1].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.avg_losses - optimal_loss),
-                 label="AvgSGD {0}".format(sgd_run.label))
+                 label="AvgSGD {0}".format(sgd_run.label), lw = LINESIZE)
 
 
 def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
@@ -55,11 +55,11 @@ def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str =
     fig, ax = plt.subplots(figsize=(8, 4))
 
     ax.plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
-                 label="{0}".format(sgd_nocompr.label))
+                 label="{0}".format(sgd_nocompr.label), lw = LINESIZE)
 
     for sgd_try in all_sgd:
         ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
-                label="{0}".format(sgd_try.label))
+                label="{0}".format(sgd_try.label), lw = LINESIZE)
 
     ax.legend(loc='best', fontsize=FONTSIZE)
     ax.set_ylim(top=0.1)
