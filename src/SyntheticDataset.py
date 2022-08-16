@@ -110,7 +110,7 @@ class SyntheticDataset(AbstractDataset):
         self.dim = dim
         self.nb_clients = nb_clients
         if heterogeneity == "sigma":
-            self.power_cov = np.random.choice([3,4,5,6])
+            self.power_cov = np.random.choice([1,2,3,4])#,5,6])
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -124,8 +124,8 @@ class SyntheticDataset(AbstractDataset):
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
         if self.heterogeneity == "wstar":
-            sign = np.sign(np.random.normal(0, 1, size=self.dim))
-            self.w_star = np.array([sign[i] * np.exp(-i / 10.) for i in range(self.dim)])
+            # sign = np.sign(np.random.normal(0, 1, size=self.dim))
+            self.w_star = np.random.normal(1, 1, size=self.dim) #np.array([sign[i] * np.exp(-i / 10.) for i in range(self.dim)])
         else:
             self.w_star = np.ones(self.dim) #np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)]) #np.ones(self.dim) #
 

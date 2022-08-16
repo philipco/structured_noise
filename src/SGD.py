@@ -193,8 +193,9 @@ class SGD(ABC):
                     local_grad = self.compute_gradient(
                         client.w, client.dataset, idx % MAX_SIZE_DATASET,
                         self.additive_stochastic_gradient)
-                    if it == 1:
-                        client.local_memory = local_grad
+                    # Smart initialization
+                    # if it == 1:
+                    #     client.local_memory = local_grad
                     grad += self.gradient_processing(local_grad, client)
 
                 grad /= len(self.clients)
@@ -285,7 +286,8 @@ class SGDArtemis(SGD):
     def gradient_processing(self, grad, client: Client):
         compressed = self.compressor.compress(grad - client.local_memory)
         compressed_grad = compressed + client.local_memory
-        client.local_memory += client.alpha * compressed
+        alpha = 1 / (2*(self.compressor.omega_c + 1))
+        client.local_memory += alpha * compressed
         return compressed_grad
 
 

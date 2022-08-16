@@ -25,11 +25,11 @@ from matplotlib import pyplot as plt
 
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDArtemis, FullGD
 
-SIZE_DATASET = 10**5
+SIZE_DATASET = 10**7
 DIM = 100
 POWER_COV = 4
 R_SIGMA=0
-NB_CLIENTS = 1
+NB_CLIENTS = 10
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
@@ -37,8 +37,7 @@ EIGENVALUES = None
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
-HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
-
+HETEROGENEITY = "wstar" # "wstar" "sigma" "homog"
 
 def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optimal_loss):
     fig, ax = plt.subplots(figsize=(8, 7))

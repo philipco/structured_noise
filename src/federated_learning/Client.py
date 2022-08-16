@@ -22,10 +22,6 @@ class Client:
         self.w = self.dataset.w0
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)
-        self.alpha = 1 / (2*(self.dataset.quantizator.omega_c + 1))
-
-    def add_to_local_memory(self, update: np.ndarray) -> None:
-        self.local_memory += update
 
     def update_model(self, w: np.ndarray, avg_w: np.ndarray) -> None:
         self.w = w
