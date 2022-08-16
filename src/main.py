@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib
 
 from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD
+from src.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client, check_clients
 
 from src.CompressionModel import NoCompression
@@ -97,7 +98,8 @@ if __name__ == '__main__':
         #                                                                  deacreasing_step_size=DECR_STEP_SIZE))
 
     sgd_series = SeriesOfSGD(all_sgd)
-    sgd_series.save("pickle/" + synthetic_dataset.string_for_hash())
+    create_folder_if_not_existing("pickle")
+    sgd_series.save("pickle/C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
 
     setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=0,
                         hash_string="C{0}-{1}_both".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))

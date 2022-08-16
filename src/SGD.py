@@ -31,8 +31,8 @@ CORRECTION_DIAG = False
 def log_sampling_xaxix(size_dataset):
     log_len = np.int(math.log10(size_dataset))
     residual_len = math.log10(size_dataset) - log_len
-    log_xaxis = [[math.pow(10, a) * math.pow(10, i / 100) for i in range(100)] for a in range(log_len)]
-    log_xaxis.append([math.pow(10, log_len) * math.pow(10, i / 100) for i in range(int(100 * residual_len))])
+    log_xaxis = [[math.pow(10, a) * math.pow(10, i / 1000) for i in range(1000)] for a in range(log_len)]
+    log_xaxis.append([math.pow(10, log_len) * math.pow(10, i / 1000) for i in range(int(1000 * residual_len))])
     log_xaxis = np.concatenate(log_xaxis, axis=None)
     log_xaxis = np.unique(log_xaxis.astype(int))
     return log_xaxis
@@ -58,10 +58,9 @@ class SeriesOfSGD:
 
 class SGDRun:
 
-    def __init__(self, size_dataset, all_avg_w, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
+    def __init__(self, size_dataset, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
-        self.all_avg_w = all_avg_w
         self.last_w = last_w
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
@@ -71,7 +70,7 @@ class SGDRun:
 
 
 class SGD(ABC):
-    
+
     def __init__(self, clients: List[Client], nb_epoch: int = 1, reg: int = REGULARIZATION) -> None:
         super().__init__()
         self.clients = clients
@@ -170,7 +169,6 @@ class SGD(ABC):
     def gradient_descent(self, label: str = None, deacreasing_step_size: bool = False) -> SGDRun:
         log_xaxis = log_sampling_xaxix(self.size_dataset)
 
-        all_avg_w = []
         w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
@@ -205,7 +203,6 @@ class SGD(ABC):
 
                 current_w = self.sgd_update(current_w, grad, gamma)
                 avg_w = current_w / it + avg_w * (it - 1) / it
-                all_avg_w.append(avg_w)
 
                 for client in self.clients:
                     client.update_model(current_w, avg_w)
@@ -222,7 +219,7 @@ class SGD(ABC):
         else:
             cov_matrix = self.approx_hessian
 
-        return SGDRun(self.size_dataset, all_avg_w, current_w, losses, avg_losses, np.diag(cov_matrix),
+        return SGDRun(self.size_dataset, current_w, losses, avg_losses, np.diag(cov_matrix),
                       label=label)
 
     @abstractmethod
