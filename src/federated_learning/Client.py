@@ -9,16 +9,17 @@ from src.SyntheticDataset import SyntheticDataset
 
 class Client:
 
-    def __init__(self, dim: int, local_size: int, power_cov: int, nb_clients: int, use_ortho_matrix: bool,
+    def __init__(self, client_id: int, dim: int, local_size: int, power_cov: int, nb_clients: int, use_ortho_matrix: bool,
                  heterogeneity: str, eigenvalues = None, w0_seed: int = 42) -> None:
         super().__init__()
+        self.client_id = client_id
         self.dim = dim
         self.local_size = local_size
         self.dataset = SyntheticDataset()
         self.dataset.generate_dataset(dim, size_dataset=local_size, power_cov=power_cov, r_sigma=0,
                                       nb_clients=nb_clients, use_ortho_matrix=use_ortho_matrix,
                                       do_logistic_regression=False, heterogeneity=heterogeneity,
-                                      eigenvalues=eigenvalues, w0_seed=w0_seed)
+                                      eigenvalues=eigenvalues, w0_seed=w0_seed, client_id=client_id)
         self.w = self.dataset.w0
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)

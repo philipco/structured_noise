@@ -38,7 +38,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = self.quantizator.nb_bits_by_iter() / (32 * self.dim) #1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
+        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
         print("Level sparsification:", self.sparsificator.level)
@@ -60,7 +60,6 @@ class AbstractDataset:
 
     def set_step_size(self):
         # We generate a dataset of a maximal size.
-        size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.L = np.max(self.eigenvalues)
         print("L=", self.L)
 
@@ -95,10 +94,11 @@ class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
                          use_ortho_matrix: bool, do_logistic_regression: bool, heterogeneity: str,
-                         eigenvalues: np.array = None, w0_seed: int = 42):
+                         client_id: int, eigenvalues: np.array = None, w0_seed: int = 42):
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
-                                eigenvalues=eigenvalues, heterogeneity=heterogeneity, w0_seed=w0_seed)
+                                client_id=client_id, eigenvalues=eigenvalues, heterogeneity=heterogeneity,
+                                w0_seed=w0_seed)
         self.define_compressors()
         self.generate_X()
         self.generate_Y()
@@ -106,11 +106,12 @@ class SyntheticDataset(AbstractDataset):
         print_mem_usage("Just created the dataset ...")
 
     def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
-                           use_ortho_matrix: bool, heterogeneity: str, eigenvalues: np.array = None, w0_seed: int = 42):
+                           use_ortho_matrix: bool, heterogeneity: str, client_id: int, eigenvalues: np.array = None,
+                           w0_seed: int = 42):
         self.dim = dim
         self.nb_clients = nb_clients
         if heterogeneity == "sigma":
-            self.power_cov = np.random.choice([1,2,3,4])#,5,6])
+            self.power_cov = np.random.choice([3,4,5,6]) # for sigma
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -124,10 +125,9 @@ class SyntheticDataset(AbstractDataset):
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
         if self.heterogeneity == "wstar":
-            # sign = np.sign(np.random.normal(0, 1, size=self.dim))
-            self.w_star = np.random.normal(1, 1, size=self.dim) #np.array([sign[i] * np.exp(-i / 10.) for i in range(self.dim)])
+            self.w_star = np.random.normal(0, 1, size=self.dim)
         else:
-            self.w_star = np.ones(self.dim) #np.array([(-1) ** (i + 1) * np.exp(-i / 10.) for i in range(self.dim)]) #np.ones(self.dim) #
+            self.w_star = np.ones(self.dim)
 
         # Used to generate self.X
         if eigenvalues is None:
