@@ -27,7 +27,7 @@ DISABLE = False
 CORRECTION_SQUARE_COV = False
 CORRECTION_DIAG = False
 
-IT_THRESHOLD = 0 # 50 for wstar
+IT_THRESHOLD = 10 # 50 for wstar
 
 
 def log_sampling_xaxix(size_dataset):
@@ -60,7 +60,8 @@ class SeriesOfSGD:
 
 class SGDRun:
 
-    def __init__(self, size_dataset, nb_epoch: int, sto: bool, batch_size: int, last_w, losses, avg_losses, diag_cov_gradients, label=None) -> None:
+    def __init__(self, size_dataset, nb_epoch: int, sto: bool, batch_size: int, last_w, losses, avg_losses,
+                 diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
         self.batch_size = batch_size
@@ -77,12 +78,13 @@ class SGDRun:
 
 class SGD(ABC):
 
-    def __init__(self, clients: List[Client], nb_epoch: int = 1, sto: bool = True, batch_size: int = 1,
+    def __init__(self, clients: List[Client], step_formula, nb_epoch: int = 1, sto: bool = True, batch_size: int = 1,
                  reg: int = REGULARIZATION) -> None:
         super().__init__()
         self.clients = clients
         self.sto = sto
         self.batch_size = batch_size
+        self.step_formula = step_formula
         if self.sto:
             self.nb_epoch = 1
         else:
@@ -171,11 +173,6 @@ class SGD(ABC):
     def sgd_update(self, w, gradient, gamma):
         return w - gamma * gradient #TODO : - self.reg * (w - self.synthetic_dataset.w0)
 
-    def get_step_size(self, it: int, gamma: int, deacreasing_step_size: bool = False):
-        if deacreasing_step_size:
-            return 1 / (np.sqrt(it) * self. L)
-        return 1 / (2 * (self.compressor.omega_c + 1) * self.clients[0].dataset.trace) # without omega for wstar
-
     def update_approximative_hessian(self, grad, it):
         if it == 0:
             self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim))
@@ -202,7 +199,8 @@ class SGD(ABC):
             indices = np.arange(self.size_dataset) if self.sto else np.array([1])
             for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
-                gamma = self.get_step_size(it, self.gamma, deacreasing_step_size)
+                r2 = np.mean([c.dataset.trace for c in self.clients])
+                gamma = self.step_formula(it, r2, self.compressor.omega_c)
                 grad = np.zeros(self.dim)
 
                 for client in self.clients:
@@ -294,9 +292,9 @@ class SGDNoised(SGD):
 
 class SGDCompressed(SGD):
 
-    def __init__(self, clients: List[Client], compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
+    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
                  batch_size: int = 1) -> None:
-        super().__init__(clients, nb_epoch, sto, batch_size)
+        super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
         self.compressor = compressor
 
     def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
@@ -311,9 +309,9 @@ class SGDCompressed(SGD):
 
 class SGDArtemis(SGD):
 
-    def __init__(self, clients: List[Client], compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
+    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
                  batch_size: int = 1) -> None:
-        super().__init__(clients, nb_epoch, sto, batch_size)
+        super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
         self.compressor = compressor
 
     def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):

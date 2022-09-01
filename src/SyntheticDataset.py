@@ -125,7 +125,7 @@ class SyntheticDataset(AbstractDataset):
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
         if self.heterogeneity == "wstar":
-            self.w_star = np.random.normal(0, 1, size=self.dim)
+            self.w_star = np.random.normal(client_id, 1, size=self.dim)
         else:
             self.w_star = np.ones(self.dim)
 
