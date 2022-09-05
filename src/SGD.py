@@ -27,7 +27,7 @@ DISABLE = False
 CORRECTION_SQUARE_COV = False
 CORRECTION_DIAG = False
 
-IT_THRESHOLD = 10 # 50 for wstar
+IT_THRESHOLD = 0 # 50 for wstar
 
 
 def log_sampling_xaxix(size_dataset):
@@ -69,7 +69,7 @@ class SGDRun:
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
         if sto:
-            self.log_xaxis = log_sampling_xaxix(size_dataset)
+            self.log_xaxis = log_sampling_xaxix(size_dataset // self.batch_size) * self.batch_size
         else:
             self.log_xaxis = np.arange(nb_epoch)
         self.diag_cov_gradients = diag_cov_gradients
@@ -148,7 +148,7 @@ class SGD(ABC):
         if additive_stochastic_gradient:
             return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
         if self.batch_size > 1:
-            indices = np.random.choice(dataset.size_dataset, self.batch_size)
+            indices = np.random.choice(min(dataset.size_dataset,MAX_SIZE_DATASET), self.batch_size)
             x, y = dataset.X_complete[indices], dataset.Y[indices]
         else:
             x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
@@ -182,7 +182,7 @@ class SGD(ABC):
 
     def gradient_descent(self, label: str = None, deacreasing_step_size: bool = False) -> SGDRun:
         if self.sto:
-            log_xaxis = log_sampling_xaxix(self.size_dataset)
+            log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size) * self.batch_size
         else:
             log_xaxis = np.arange(self.nb_epoch)
 
@@ -196,7 +196,7 @@ class SGD(ABC):
         nb_epoch = 1 if self.sto else self.nb_epoch
         for epoch in tqdm(range(nb_epoch), disable=self.sto or DISABLE):
 
-            indices = np.arange(self.size_dataset) if self.sto else np.array([1])
+            indices = np.arange(self.size_dataset // self.batch_size) if self.sto else np.array([1])
             for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
                 r2 = np.mean([c.dataset.trace for c in self.clients])
@@ -204,12 +204,12 @@ class SGD(ABC):
                 grad = np.zeros(self.dim)
 
                 for client in self.clients:
-                    if idx % MAX_SIZE_DATASET == 0 and idx != 0:
+                    if idx % (MAX_SIZE_DATASET // self.batch_size) == 0 and idx != 0:
                         print("Regenerating ...")
                         client.dataset.regenerate_dataset()
 
                     local_grad = self.compute_gradient(
-                        client.w, client.dataset, idx % MAX_SIZE_DATASET,
+                        client.w, client.dataset, idx % (MAX_SIZE_DATASET // self.batch_size),
                         self.additive_stochastic_gradient)
                     # Smart initialization
                     # if it == 1:
@@ -234,7 +234,7 @@ class SGD(ABC):
                 if not self.sto and epoch in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])
-                elif self.sto and idx in log_xaxis[1:]:
+                elif self.sto and idx * self.batch_size in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])
 

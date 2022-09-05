@@ -3,12 +3,13 @@ Created by Constantin Philippenko, 20th December 2021.
 """
 import copy
 import hashlib
+from typing import List
 
 import numpy as np
 
 import matplotlib
 
-from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD
+from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD, FONTSIZE
 from src.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client, check_clients
 
@@ -46,24 +47,19 @@ STOCHASTIC = True
 
 step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
 
-def setup_plot(losses1, avg_losses1, label1, losses2, avg_losses2, label2, optimal_loss):
-    fig, ax = plt.subplots(figsize=(8, 7))
-    plot_SGD_and_AVG(losses1, avg_losses1, optimal_loss, label1)
-    plot_SGD_and_AVG(losses2, avg_losses2, optimal_loss, label2)
 
-    ax.label(loc='best', fontsize=15)
-    ax.set_xlabel(r"$\log_{10}(k)$", fontsize=15)
-    ax[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
-    ax[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
-    ax.grid(True)
-    plt.show()
-
-
-def plot_eigen_values(list_of_sgd, hash_string: str = None):
+def plot_eigen_values(list_of_sgd, hash_string: str = None, custom_legend: List = None):
     fig, ax = plt.subplots(figsize=(6.5, 6))
     for sgd_try in list_of_sgd:
         plt.plot(np.log10(np.arange(1, DIM + 1)), np.log10(sgd_try.diag_cov_gradients), label=sgd_try.label, lw=2)
     ax.tick_params(axis='both', labelsize=15)
+
+    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    if custom_legend is not None:
+        l2 = ax.legend(handles=custom_legend, loc="upper right", fontsize=FONTSIZE)
+        ax.add_artist(l2)
+    ax.add_artist(l1)
+
     ax.legend(loc='lower left', fontsize=15)
     ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
     ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)

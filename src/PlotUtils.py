@@ -1,13 +1,18 @@
 """Created by Constantin Philippenko, 7th April 2022."""
+from typing import List
+
 import numpy as np
 from PIL import Image
 from matplotlib import transforms, pyplot as plt
+from matplotlib.legend import Legend
 from matplotlib.patches import Ellipse
 
 from src.SGD import SGDRun
 
 FONTSIZE = 17
 LINESIZE = 3
+
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
 
 
 def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
@@ -51,18 +56,27 @@ def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string:
     else:
         plt.show()
 
-def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
+def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None, custom_legend: List = None):
     fig, ax = plt.subplots(figsize=(8, 4))
 
     ax.plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
-                 label="{0}".format(sgd_nocompr.label), lw = LINESIZE)
+                 label="{0}".format(sgd_nocompr.label), lw = LINESIZE, color = COLORS[0])
 
-    for sgd_try in all_sgd:
-        ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
-                label="{0}".format(sgd_try.label), lw = LINESIZE)
+    for i in range(len(all_sgd)):
+        sgd_try = all_sgd[i]
+        label = None if "art" in sgd_try.label else "{0}".format(sgd_try.label)
+        line_style = "--" if "art" in sgd_try.label else "-"
+        color = COLORS[i] if "art" in sgd_try.label else COLORS[i+1] # index shift because we must exclude the blue colors (for vanilla SGD).
+        ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss), label=label, lw=LINESIZE,
+                linestyle=line_style, color=color)
 
-    ax.legend(loc='best', fontsize=FONTSIZE)
-    ax.set_ylim(top=0.1)
+    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    if custom_legend is not None:
+        l2 = ax.legend(handles=custom_legend, loc="upper right")
+        ax.add_artist(l2)
+    ax.add_artist(l1)
+
+    ax.set_ylim(top=0.5)
     ax.grid(True)
     ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
     ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
