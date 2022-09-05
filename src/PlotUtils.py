@@ -64,9 +64,9 @@ def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str =
 
     for i in range(len(all_sgd)):
         sgd_try = all_sgd[i]
-        label = None if "art" in sgd_try.label else "{0}".format(sgd_try.label)
-        line_style = "--" if "art" in sgd_try.label else "-"
-        color = COLORS[i] if "art" in sgd_try.label else COLORS[i+1] # index shift because we must exclude the blue colors (for vanilla SGD).
+        label = None if "-art" in sgd_try.label else "{0}".format(sgd_try.label)
+        line_style = "--" if "-art" in sgd_try.label else "-"
+        color = COLORS[i//2+1] if "-art" in sgd_try.label else COLORS[i//2+1] # index shift because we must exclude the blue colors (for vanilla SGD).
         ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss), label=label, lw=LINESIZE,
                 linestyle=line_style, color=color)
 
