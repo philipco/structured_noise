@@ -41,7 +41,7 @@ if __name__ == '__main__':
     synthetic_dataset = clients[0].dataset
     synthetic_dataset.power_cov = POWER_COV
 
-    hash_string = hashlib.shake_256(clients[0].dataset.string_for_hash().encode()).hexdigest(4)
+    hash_string = synthetic_dataset.string_for_hash(STOCHASTIC)
 
     labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
@@ -69,18 +69,19 @@ if __name__ == '__main__':
     print("Optimal loss:", optimal_loss)
     sgd_series = SeriesOfSGD(all_sgd)
     create_folder_if_not_existing("pickle")
-    sgd_series.save("pickle/C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
-
-    setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                        hash_string="C{0}-{1}_both".format(NB_CLIENTS, synthetic_dataset.string_for_hash()))
+    sgd_series.save("pickle/C{0}-{1}".format(NB_CLIENTS, hash_string))
 
     legend_line = [Line2D([0], [0], color="black", lw=2, label='w.o. mem.'),
                     Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. mem.')]
 
+    setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
+                        hash_string="C{0}-{1}-artemis-_both".format(NB_CLIENTS, hash_string))
+                        #custom_legend=legend_line)
+
     plot_only_avg(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                  hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()),
+                  hash_string="C{0}-{1}-artemis".format(NB_CLIENTS, hash_string),
                   custom_legend=legend_line)
 
     plot_eigen_values([sgd_nocompr] + all_sgd,
-                      hash_string="C{0}-{1}".format(NB_CLIENTS, synthetic_dataset.string_for_hash()),
+                      hash_string="C{0}-{1}-artemis".format(NB_CLIENTS, hash_string),
                       custom_legend=legend_line)

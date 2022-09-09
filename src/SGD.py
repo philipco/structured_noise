@@ -160,7 +160,7 @@ class SGD(ABC):
         return (x @ w - y) @ x / len(y)
 
     def compute_full_gradient(self, w, dataset):
-        return (dataset.X_complete @ w - dataset.Y) @ dataset.X_complete / dataset.size_dataset
+        return dataset.Xcarre @ w - dataset.Z
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]

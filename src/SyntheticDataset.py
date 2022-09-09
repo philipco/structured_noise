@@ -165,12 +165,14 @@ class SyntheticDataset(AbstractDataset):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
         self.X_complete = copy.deepcopy(self.X)
+        self.Xcarre = self.X_complete.T @ self.X_complete / size_generator
 
 
     def generate_Y(self):
         lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
+        self.Z = self.X_complete.T @ self.Y / size_generator
 
     def generate_couple_X_Y(self):
         lower_sigma = self.nb_clients
