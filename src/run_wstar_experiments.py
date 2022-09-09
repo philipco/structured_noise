@@ -28,7 +28,7 @@ USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
 
 HETEROGENEITY = "wstar"
-STOCHASTIC = True
+STOCHASTIC = False
 
 step_size = lambda it, r2, omega: 1 / (2*r2)
 
@@ -75,8 +75,8 @@ if __name__ == '__main__':
                     Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. mem.')]
 
     setup_plot_with_SGD(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
-                        hash_string="C{0}-{1}-artemis-_both".format(NB_CLIENTS, hash_string))
-                        #custom_legend=legend_line)
+                        hash_string="C{0}-{1}-artemis_both".format(NB_CLIENTS, hash_string),
+                        custom_legend=legend_line)
 
     plot_only_avg(all_sgd, sgd_nocompr=sgd_nocompr, optimal_loss=optimal_loss,
                   hash_string="C{0}-{1}-artemis".format(NB_CLIENTS, hash_string),

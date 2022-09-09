@@ -13,7 +13,8 @@ FONTSIZE = 17
 LINESIZE = 3
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
-
+COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green", "tab:red", "tab:red",
+          "tab:purple", "tab:purple", "tab:brown", "tab:brown"]
 
 def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
     images = [Image.open(fn) for fn in file_names]
@@ -21,29 +22,42 @@ def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
                    save_all=True, duration=duration, loop=loop)
 
 
-def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
-
-    # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
-    #              label="SGD {0}".format(sgd_run.label))
-    # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
-    #              label="AvgSGD {0}".format(sgd_run.label))
-
-    axes[0].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.losses - optimal_loss),
-                 label="SGD {0}".format(sgd_run.label), lw = LINESIZE)
-    axes[1].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.avg_losses - optimal_loss),
-                 label="AvgSGD {0}".format(sgd_run.label), lw = LINESIZE)
+# def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss, custom_legend: List = None):
+#
+#     # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
+#     #              label="SGD {0}".format(sgd_run.label))
+#     # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
+#     #              label="AvgSGD {0}".format(sgd_run.label))
+#
+#
 
 
-def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
+def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None, custom_legend: List = None):
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
-    plot_SGD_and_AVG(axes, sgd_nocompr, optimal_loss)
+    axes[0].plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.losses - optimal_loss),
+                 label="SGD {0}".format(sgd_nocompr.label), lw=LINESIZE, color=COLORS[0])
+    axes[1].plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
+                 label="AvgSGD {0}".format(sgd_nocompr.label), lw=LINESIZE, color=COLORS[0])
 
-    for sgd_try in all_sgd:
-        plot_SGD_and_AVG(axes, sgd_try, optimal_loss)
+    for i in range(len(all_sgd)):
+        sgd_try = all_sgd[i]
+        label_sgd = None if "-art" in sgd_try.label else "SGD {0}".format(sgd_try.label)
+        label_avg_sgd = None if "-art" in sgd_try.label else "AvgSGD {0}".format(sgd_try.label)
+        line_style = "--" if "-art" in sgd_try.label else "-"
+        color = COLORS[i // 2 + 1] if "-art" in sgd_try.label else COLORS[
+            i // 2 + 1]  # index shift because we must exclude the blue colors (for vanilla SGD).
+        axes[0].plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.losses - optimal_loss),
+                     label=label_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+        axes[1].plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
+                     label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
 
     for ax in axes:
-        ax.legend(loc='lower left', fontsize=10)
+        l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+        if custom_legend is not None:
+            l2 = ax.legend(handles=custom_legend, loc="upper right")
+            ax.add_artist(l2)
+        ax.add_artist(l1)
         # ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
@@ -55,6 +69,7 @@ def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string:
         plt.close()
     else:
         plt.show()
+
 
 def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None, custom_legend: List = None):
     fig, ax = plt.subplots(figsize=(8, 4))

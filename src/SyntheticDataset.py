@@ -23,12 +23,14 @@ class AbstractDataset:
         super().__init__()
         self.name = name
 
-    def     string_for_hash(self):
+    def string_for_hash(self, stochastic: bool = False):
         hash = "N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
         if self.use_ortho_matrix:
             hash = "{0}-ortho".format(hash)
+        if not stochastic:
+            hash = "{0}-full".format(hash)
         return hash
 
     def define_compressors(self):
