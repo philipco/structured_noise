@@ -9,7 +9,7 @@ import numpy as np
 
 import matplotlib
 
-from src.PlotUtils import plot_SGD_and_AVG, plot_only_avg, setup_plot_with_SGD, FONTSIZE
+from src.PlotUtils import plot_only_avg, setup_plot_with_SGD, FONTSIZE
 from src.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client, check_clients
 
@@ -27,7 +27,7 @@ from matplotlib import pyplot as plt
 
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed, SGDArtemis, FullGD
 
-SIZE_DATASET = 100000
+SIZE_DATASET = 10**8
 DIM = 100
 POWER_COV = 4 # 1 for wstar
 R_SIGMA=0
