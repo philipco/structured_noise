@@ -24,6 +24,13 @@ class Client:
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)
 
+    def regenerate_dataset(self):
+        self.dataset.generate_X()
+        self.dataset.generate_Y()
+        self.w = self.dataset.w0
+        self.avg_w = self.w
+        self.local_memory = np.zeros(self.dim)
+
     def update_model(self, w: np.ndarray, avg_w: np.ndarray) -> None:
         self.w = w
         self.avg_w = avg_w

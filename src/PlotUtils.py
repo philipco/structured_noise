@@ -22,35 +22,59 @@ def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
                    save_all=True, duration=duration, loop=loop)
 
 
-# def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss, custom_legend: List = None):
-#
-#     # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
-#     #              label="SGD {0}".format(sgd_run.label))
-#     # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
-#     #              label="AvgSGD {0}".format(sgd_run.label))
-#
-#
+def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = None):
+    fig, ax = plt.subplots(figsize=(6.5, 6))
+
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
+        dim = list_of_sgd[0].dim
+
+        diag_cov = np.mean([np.log10(sgd.diag_cov_gradients) for sgd in list_of_sgd], axis=0)
+        plt.plot(np.log10(np.arange(1, dim + 1)), diag_cov, label=label, lw=LINESIZE)
+        i+=1
+    ax.tick_params(axis='both', labelsize=15)
+
+    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    if custom_legend is not None:
+        l2 = ax.legend(handles=custom_legend, loc="upper right", fontsize=FONTSIZE)
+        ax.add_artist(l2)
+    ax.add_artist(l1)
+
+    ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
+    ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
+    if hash_string:
+        plt.savefig('{0}-eigenvalues.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
+        plt.close()
+    else:
+        plt.show()
 
 
-def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None, custom_legend: List = None):
+def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
-    axes[0].plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.losses - optimal_loss),
-                 label="SGD {0}".format(sgd_nocompr.label), lw=LINESIZE, color=COLORS[0])
-    axes[1].plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
-                 label="AvgSGD {0}".format(sgd_nocompr.label), lw=LINESIZE, color=COLORS[0])
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
 
-    for i in range(len(all_sgd)):
-        sgd_try = all_sgd[i]
-        label_sgd = None if "-art" in sgd_try.label else "SGD {0}".format(sgd_try.label)
-        label_avg_sgd = None if "-art" in sgd_try.label else "AvgSGD {0}".format(sgd_try.label)
-        line_style = "--" if "-art" in sgd_try.label else "-"
-        color = COLORS[i // 2 + 1] if "-art" in sgd_try.label else COLORS[
-            i // 2 + 1]  # index shift because we must exclude the blue colors (for vanilla SGD).
-        axes[0].plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.losses - optimal_loss),
-                     label=label_sgd, lw=LINESIZE, linestyle=line_style, color=color)
-        axes[1].plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
-                     label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+        losses = np.mean([np.log10(sgd.losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+
+        avg_losses = np.mean([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        avg_losses_var = np.std([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        log_xaxis = np.log10(list_of_sgd[0].log_xaxis)
+
+        label_sgd = None if "-art" in label else "SGD {0}".format(label)
+        label_avg_sgd = None if "-art" in label else "AvgSGD {0}".format(label)
+        line_style = "--" if "-art" in label else "-"
+        if with_artemis:
+            color = COLORS[i // 2 + 1] if "-art" in label else COLORS[
+                i // 2 + 1]  # index shift because we must exclude the blue colors (for vanilla SGD).
+        else:
+            color = COLORS[i]
+        axes[0].plot(log_xaxis, losses, label=label_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+
+        axes[1].plot(log_xaxis, avg_losses, label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+
+        axes[1].fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2)
+        i+=1
 
     for ax in axes:
         l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
@@ -71,19 +95,23 @@ def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string:
         plt.show()
 
 
-def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None, custom_legend: List = None):
+def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
     fig, ax = plt.subplots(figsize=(8, 4))
 
-    ax.plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
-                 label="{0}".format(sgd_nocompr.label), lw = LINESIZE, color = COLORS[0])
-
-    for i in range(len(all_sgd)):
-        sgd_try = all_sgd[i]
-        label = None if "-art" in sgd_try.label else "{0}".format(sgd_try.label)
-        line_style = "--" if "-art" in sgd_try.label else "-"
-        color = COLORS[i//2+1] if "-art" in sgd_try.label else COLORS[i//2+1] # index shift because we must exclude the blue colors (for vanilla SGD).
-        ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss), label=label, lw=LINESIZE,
-                linestyle=line_style, color=color)
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
+        avg_losses = np.mean([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        avg_losses_var = np.std([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        log_xaxis = np.log10(list_of_sgd[0].log_xaxis)
+        label_avg_sgd = None if "-art" in label else "{0}".format(label)
+        line_style = "--" if "-art" in label else "-"
+        if with_artemis:
+            color = COLORS[i//2+1] if "-art" in label else COLORS[i//2+1] # index shift because we must exclude the blue colors (for vanilla SGD).
+        else:
+            color = COLORS[i]
+        ax.plot(log_xaxis, avg_losses, label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+        plt.fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2)
+        i+=1
 
     l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
     if custom_legend is not None:
@@ -91,7 +119,7 @@ def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str =
         ax.add_artist(l2)
     ax.add_artist(l1)
 
-    ax.set_ylim(top=0.5)
+    # ax.set_ylim(top=0.5)
     ax.grid(True)
     ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
     ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)

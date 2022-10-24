@@ -42,17 +42,17 @@ def log_sampling_xaxix(size_dataset):
 
 class SeriesOfSGD:
 
-    def __init__(self, list_of_sgd) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.series = []
-        for serie in list_of_sgd:
-            assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
-            self.series.append(serie)
+        self.dict_of_sgd = {}
 
     def append(self, list_of_sgd):
         for serie in list_of_sgd:
             assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
-            self.series.append(serie)
+            if serie.label in self.dict_of_sgd:
+                self.dict_of_sgd[serie.label].append(serie)
+            else:
+                self.dict_of_sgd[serie.label] = [serie]
 
     def save(self, filename: str):
         pickle_saver(self, filename)
@@ -60,11 +60,12 @@ class SeriesOfSGD:
 
 class SGDRun:
 
-    def __init__(self, size_dataset, nb_epoch: int, sto: bool, batch_size: int, last_w, losses, avg_losses,
+    def __init__(self, size_dataset, nb_epoch: int, sto: bool, batch_size: int, dim:int, last_w, losses, avg_losses,
                  diag_cov_gradients, label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
         self.batch_size = batch_size
+        self.dim = dim
         self.last_w = last_w
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
@@ -248,8 +249,8 @@ class SGD(ABC):
         print("Local gradient at optimal point:")
         optimal_grad = [np.linalg.norm(self.compute_full_gradient(avg_w, c.dataset)) for c in self.clients]
         print("B^2 = ", np.mean(optimal_grad))
-        return SGDRun(self.size_dataset, self.nb_epoch, self.sto, self.batch_size, current_w, losses, avg_losses, np.diag(cov_matrix),
-                      label=label)
+        return SGDRun(self.size_dataset, self.nb_epoch, self.sto, self.batch_size, self.dim, avg_w, losses, avg_losses,
+                      np.diag(cov_matrix), label=label)
 
     @abstractmethod
     def gradient_processing(self, grad, client: Client):
