@@ -211,7 +211,7 @@ class RandK(RandomSparsification):
         return 32 * self.level * self.dim
 
 
-class SQuantization(CompressionModel):
+class Quantization(CompressionModel):
 
     def __init__(self, level: int, dim: int = None, norm: int = 2, div_omega: int = 1, constant: int = 1):
         self.biased = False
@@ -250,13 +250,13 @@ class SQuantization(CompressionModel):
         return (3 + 3 / 2) * np.log2(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
 
 
-class PoissonQuantization(SQuantization):
+class PoissonQuantization(Quantization):
 
     def sample(self, p, n):
         return np.random.binomial(1, p, n)
 
 
-class StabilizedQuantization(SQuantization):
+class StabilizedQuantization(Quantization):
 
     def __compress__(self, vector):
         U = ortho_group.rvs(dim=self.dim)

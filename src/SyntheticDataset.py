@@ -10,7 +10,7 @@ from scipy.linalg import toeplitz
 from scipy.special import expit
 from scipy.stats import ortho_group
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching, find_level_of_quantization, \
+from src.CompressionModel import Quantization, RandomSparsification, Sketching, find_level_of_quantization, \
     AllOrNothing, StabilizedQuantization, RandK
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
@@ -36,7 +36,7 @@ class AbstractDataset:
     def define_compressors(self):
 
         self.LEVEL_QTZ = 1
-        self.quantizator = SQuantization(self.LEVEL_QTZ, dim=self.dim)
+        self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 

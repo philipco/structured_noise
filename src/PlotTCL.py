@@ -10,15 +10,13 @@ from src.federated_learning.Client import Client, check_clients
 sy.init_printing(use_unicode=True)
 
 import matplotlib
-import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from tqdm import tqdm
 
-from src.PlotUtils import confidence_ellipse, plot_ellipse
+from src.PlotUtils import plot_ellipse
 from src.CompressionModel import *
 from src.SGD import SGDCompressed
-from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
 from src.Utilities import create_folder_if_not_existing
 from src.main import plot_only_avg
@@ -52,6 +50,8 @@ DO_LOGISTIC_REGRESSION = False
 
 LAST_POINTS = 0
 NB_TRY = 100
+
+step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
 
 FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
@@ -234,16 +234,15 @@ def compute_theory_TCL():
 
 if __name__ == '__main__':
 
-    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
-                      EIGENVALUES, w0_seed=None) for i in
+    clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
+                      eigenvalues=EIGENVALUES, w0_seed=None) for i in
                range(NB_CLIENTS)]
     check_clients(clients, HETEROGENEITY)
     synthetic_dataset = clients[0].dataset
 
-    no_compressor = SQuantization(0, dim=DIM)
+    no_compressor = Quantization(0, dim=DIM)
     my_compressors = [no_compressor, synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator,
-                      synthetic_dataset.rand_sketcher,
-                      synthetic_dataset.sparsificator, synthetic_dataset.rand1,
+                      synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator, synthetic_dataset.rand1,
                       synthetic_dataset.all_or_nothinger]
     labels = ["No compression"] + [compressor.get_name() for compressor in my_compressors[1:]]
 
@@ -265,8 +264,7 @@ if __name__ == '__main__':
 
         for idx_compressor in range(len(my_compressors)):
             compressor = my_compressors[idx_compressor]
-            sgd = SGDCompressed(clients, compressor).gradient_descent(label=compressor.get_name(),
-                                                                      deacreasing_step_size=True)
+            sgd = SGDCompressed(clients, step_size, compressor).gradient_descent(label=compressor.get_name(), deacreasing_step_size=True)
             # We save only the excess loss of the first try.
             if idx == 0:
                 all_sgd_descent.append(sgd)

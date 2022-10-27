@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching
+from src.CompressionModel import Quantization
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
 from src.Utilities import create_folder_if_not_existing
@@ -64,16 +64,17 @@ def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim:
     upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY, nb_clients=NB_CLIENTS)
+                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY, client_id=0,
+                               nb_clients=NB_CLIENTS)
     dataset.define_compressors()
     dataset.power_cov = POWER_COV
     dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
-    no_compressor = SQuantization(0, dim=dim)
+    no_compressor = Quantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher,
-                      dataset.rand1, dataset.all_or_nothinger]
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher, dataset.rand1,
+                      dataset.all_or_nothinger]
 
     all_diagonals = []
     for compressor in my_compressors:
@@ -105,7 +106,8 @@ if __name__ == '__main__':
 
     labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
-    clients = [Client(DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in range(NB_CLIENTS)]
+    clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY)
+               for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
     all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)

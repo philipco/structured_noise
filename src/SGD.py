@@ -11,7 +11,7 @@ from numpy.linalg import inv
 from scipy.linalg import sqrtm
 from tqdm import tqdm
 
-from src.CompressionModel import CompressionModel, SQuantization
+from src.CompressionModel import CompressionModel, Quantization
 from src.JITProduct import *
 from src.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
@@ -106,7 +106,7 @@ class SGD(ABC):
         self.approx_hessian = np.identity(self.dim)
         self.debiased_hessian = np.identity(self.dim)
         self.reg = reg
-        self.compressor = SQuantization(0, dim=self.dim)
+        self.compressor = Quantization(0, dim=self.dim)
 
     def compute_federated_empirical_risk(self, w, avg_w) -> [float, float]:
         # Bien réfléchir au calcul de la loss dans le cas fédéré !!!

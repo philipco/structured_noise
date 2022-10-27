@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching
+from src.CompressionModel import Quantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
 from src.Utilities import create_folder_if_not_existing
@@ -64,7 +64,7 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> [List[float], Syntheti
     dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
-    no_compressor = SQuantization(0, dim=dim)
+    no_compressor = Quantization(0, dim=dim)
 
     my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher,
                       dataset.rand1, dataset.all_or_nothinger]

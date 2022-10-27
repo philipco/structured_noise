@@ -186,12 +186,12 @@ if __name__ == '__main__':
 
     synthetic_dataset = SyntheticDataset()
     synthetic_dataset.generate_constants(DIM, SIZE_DATASET, POWER_COV, R_SIGMA, NB_CLIENTS, USE_ORTHO_MATRIX,
-                                         eigenvalues=EIGENVALUES, heterogeneity=HETEROGENEITY, w0_seed=None)
+                                         eigenvalues=EIGENVALUES, client_id=0, heterogeneity=HETEROGENEITY, w0_seed=None)
     synthetic_dataset.define_compressors()
     synthetic_dataset.generate_X()
 
     labels = ["no compr.", "quantiz.", "stab. quantiz.", "gauss. proj.", "sparsif", "rand1", "all or noth."]
-    no_compressor = SQuantization(0, dim=DIM)
+    no_compressor = Quantization(0, dim=DIM)
     my_compressors = [no_compressor, synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator,
                       synthetic_dataset.rand_sketcher,
                       synthetic_dataset.sparsificator, synthetic_dataset.rand1,
