@@ -44,10 +44,12 @@ def check_clients(clients: List[Client], heterogeneity: str):
             assert (clients[0].dataset.upper_sigma == c.dataset.upper_sigma).any()
         elif heterogeneity == "sigma":
             assert (clients[0].dataset.w_star == c.dataset.w_star).any()
-            assert (clients[0].dataset.upper_sigma != c.dataset.upper_sigma).any()
         elif heterogeneity == "homog":
             assert (clients[0].dataset.w_star == c.dataset.w_star).any()
             assert (clients[0].dataset.ortho_matrix == c.dataset.ortho_matrix).any()
             assert (clients[0].dataset.upper_sigma == c.dataset.upper_sigma).any()
         else:
             raise ValueError("Parameter of heterogeneity is unkrecognized.")
+    # We check that at least one covariance is different to the one of the first client.
+    if heterogeneity == "sigma":
+        any([clients[0].dataset.power_cov != c.dataset.power_cov for c in clients[1:]])

@@ -117,7 +117,7 @@ if __name__ == '__main__':
                         custom_legend=legend_line, with_artemis=True)
 
     plot_only_avg(sgd_series, optimal_loss=optimal_loss, hash_string="C{0}-{1}-artemis".format(nb_clients, hash_string),
-                  custom_legend=legend_line, with_artemis=True)
+                  custom_legend=legend_line, with_artemis=True, stochastic=stochastic)
 
     plot_eigen_values(sgd_series, hash_string="C{0}-{1}-artemis".format(nb_clients, hash_string),
                       custom_legend=legend_line)

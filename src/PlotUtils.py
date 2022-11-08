@@ -94,7 +94,8 @@ def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_l
         plt.show()
 
 
-def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
+def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False,
+                  stochastic: bool = True):
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0
@@ -121,7 +122,10 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
     # ax.set_ylim(top=0.5)
     ax.grid(True)
     ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
-    ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
+    if not stochastic:
+        ax.set_xlabel(r"$\log_{10}(\#epoch)$", fontsize=FONTSIZE)
+    else:
+        ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
     # ax.set_title("Avg SGD")
 
     if hash_string:
