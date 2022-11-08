@@ -29,7 +29,7 @@ class CompressionModel(ABC):
             self.omega_c = None
 
     @abstractmethod
-    def __compress__(self, vector: np.ndarray, dim_to_use: int):
+    def __compress__(self, vector: np.ndarray) -> np.ndarray:
         """Compresses a vector with the mechanism of the operator of compression."""
         pass
 
@@ -95,7 +95,7 @@ class TopKSparsification(CompressionModel):
             assert 0 <= level < 1, "k is a probability."
         self.biased = True
 
-    def __compress__(self, vector: np.ndarray):
+    def __compress__(self, vector: np.ndarray) -> np.ndarray:
         indices = np.argpartition(vector, -self.level)[-self.level:]
         compression = np.zeros_like(vector)
         for i in indices:
@@ -248,6 +248,50 @@ class Quantization(CompressionModel):
             return self.dim * 32
         frac = 2 * (self.level ** 2 + self.dim) / (self.level * (self.level+ np.sqrt(self.dim)))
         return (3 + 3 / 2) * np.log2(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
+
+
+class CorrelatedQuantization(Quantization):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        self.biased = False
+        super().__init__(level, dim, norm, constant)
+
+    def __compress__(self, vector):
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        if norm_x == 0:
+            return vector
+        alea = np.random.uniform(0,1)
+        all_levels = np.array([1 if alea < (np.abs(v) / norm_x) else 0 for v in vector])
+        return all_levels * norm_x * np.sign(vector)
+
+    def __omega_c_formula__(self, dim_to_use):
+        return np.sqrt(dim_to_use)
+
+    def get_name(self) -> str:
+        return "Cor-Qtzd"
+
+
+class AntiCorrelatedQuantization(Quantization):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        self.biased = False
+        super().__init__(level, dim, norm, constant)
+
+    def __compress__(self, vector):
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        if norm_x == 0:
+            return vector
+        alea = np.random.uniform(0,1, 1)
+        alea = [alea if i % 2 == 0 else 1 - alea for i in range(len(vector))]
+        scaled_vector = np.abs(vector) / norm_x
+        all_levels = np.array([1 if alea[i] < scaled_vector[i] else 0 for i in range(len(vector))])
+        return all_levels * norm_x * np.sign(vector)
+
+    def __omega_c_formula__(self, dim_to_use):
+        return np.sqrt(dim_to_use)
+
+    def get_name(self) -> str:
+        return "Anticor-Qtzd"
 
 
 class PoissonQuantization(Quantization):

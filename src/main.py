@@ -22,14 +22,13 @@ matplotlib.rcParams.update({
 from src.SGD import SGDRun, SeriesOfSGD, SGDVanilla, SGDCompressed
 
 DIM = 100
-POWER_COV = 4 # 1 for wstar
+POWER_COV = 4
 R_SIGMA=0
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
 
-NB_EPOCH = 400
-BATCH_SIZE = 1 # 64 for wstar
+BATCH_SIZE = 1
 
 DO_LOGISTIC_REGRESSION = False
 
@@ -73,7 +72,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_size = args.dataset_size
     nb_clients = int(args.nb_clients)
-    use_ortho_matrix = bool(args.use_ortho_matrix)
+    use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
     heterogeneity = args.heterogeneity
     
 
@@ -91,8 +90,8 @@ if __name__ == '__main__':
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 
-        vanilla_sgd = SGDVanilla(clients, step_size, nb_epoch=NB_EPOCH, sto=STOCHASTIC, batch_size=BATCH_SIZE)
-        sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0], deacreasing_step_size=DECR_STEP_SIZE)
+        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE)
+        sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
         my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator, synthetic_dataset.sketcher,
@@ -102,8 +101,8 @@ if __name__ == '__main__':
             compressor = my_compressors[i]
             print("Compressor: {0}".format(compressor.get_name()))
             all_sgd.append(
-                SGDCompressed(clients, step_size, compressor, nb_epoch=NB_EPOCH, sto=STOCHASTIC, batch_size=BATCH_SIZE).gradient_descent(
-                label=labels[i+1], deacreasing_step_size=DECR_STEP_SIZE))
+                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE).gradient_descent(
+                label=labels[i+1]))
 
         optimal_loss = 0
         print("Optimal loss:", optimal_loss)

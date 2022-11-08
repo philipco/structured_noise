@@ -65,8 +65,7 @@ def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_l
         label_avg_sgd = None if "-art" in label else "AvgSGD {0}".format(label)
         line_style = "--" if "-art" in label else "-"
         if with_artemis:
-            color = COLORS[i // 2 + 1] if "-art" in label else COLORS[
-                i // 2 + 1]  # index shift because we must exclude the blue colors (for vanilla SGD).
+            color = COLORS[(i-1) // 2  + 1] if i > 0 else COLORS[0]
         else:
             color = COLORS[i]
         axes[0].plot(log_xaxis, losses, label=label_sgd, lw=LINESIZE, linestyle=line_style, color=color)
@@ -106,11 +105,11 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         label_avg_sgd = None if "-art" in label else "{0}".format(label)
         line_style = "--" if "-art" in label else "-"
         if with_artemis:
-            color = COLORS[i//2+1] if "-art" in label else COLORS[i//2+1] # index shift because we must exclude the blue colors (for vanilla SGD).
+            color = COLORS[(i - 1) // 2 + 1] if i > 0 else COLORS[0]
         else:
             color = COLORS[i]
         ax.plot(log_xaxis, avg_losses, label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
-        plt.fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2)
+        plt.fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2, color=color)
         i+=1
 
     l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)

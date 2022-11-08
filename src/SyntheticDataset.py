@@ -6,12 +6,10 @@ import random
 
 import numpy as np
 from numpy.random import multivariate_normal
-from scipy.linalg import toeplitz
-from scipy.special import expit
 from scipy.stats import ortho_group
 
 from src.CompressionModel import Quantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK
+    AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -23,7 +21,7 @@ class AbstractDataset:
         super().__init__()
         self.name = name
 
-    def string_for_hash(self, stochastic: bool = False):
+    def string_for_hash(self, stochastic: bool = False, batch_size: int = 1):
         hash = "N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -31,12 +29,17 @@ class AbstractDataset:
             hash = "{0}-ortho".format(hash)
         if not stochastic:
             hash = "{0}-full".format(hash)
+        elif batch_size != 1:
+            hash = "{0}-b{1}".format(hash, batch_size)
         return hash
 
     def define_compressors(self):
 
         self.LEVEL_QTZ = 1
         self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
+
+        self.correlated_quantizator = CorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)
+        self.anti_cor_quantiz = AntiCorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 

@@ -181,7 +181,7 @@ class SGD(ABC):
             self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim)) / it + self.approx_hessian * (
                         it - 1) / it
 
-    def gradient_descent(self, label: str = None, deacreasing_step_size: bool = False) -> SGDRun:
+    def gradient_descent(self, label: str = None) -> SGDRun:
         if self.sto:
             log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size) * self.batch_size
         else:
