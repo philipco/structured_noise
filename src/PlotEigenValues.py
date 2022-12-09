@@ -29,6 +29,7 @@ POWER_COV = 4
 R_SIGMA=0
 
 NB_CLIENTS = 1
+EIGENVALUES = None #np.array([1,0.001]) #np.array([0.1,0.1, 0.00001,0.00001,0.00001,0.00001,0.00001, 0.00001, 0.00001])
 
 USE_ORTHO_MATRIX = True
 HETEROGENEITY = "homog"
@@ -106,7 +107,8 @@ if __name__ == '__main__':
 
     labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
-    clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY)
+    clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
+                      eigenvalues=EIGENVALUES)
                for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)

@@ -17,7 +17,8 @@ from tqdm import tqdm
 from src.PlotUtils import plot_ellipse
 from src.CompressionModel import *
 from src.SGD import SGDCompressed
-from src.TheoreticalCov import get_theoretical_cov
+from src.TheoreticalCov import get_theoretical_cov, compute_inversion, compute_empirical_covariance, \
+    compute_limit_distrib
 from src.Utilities import create_folder_if_not_existing
 from src.main import plot_only_avg
 
@@ -57,18 +58,6 @@ FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
 
 COLORS = ["tab:blue", "tab:orange", "tab:brown", "tab:green", "tab:red", "tab:purple", "tab:cyan"]
-
-
-def compute_inversion(matrix):
-    return np.linalg.inv(matrix)
-
-
-def compute_limit_distrib(inv_sigma, error_cov):
-    return inv_sigma @ error_cov @ inv_sigma
-
-
-def compute_empirical_covariance(random_vector):
-    return random_vector.T.dot(random_vector) / random_vector.shape[0]
 
 
 def get_legend_limit_distrib():
@@ -163,7 +152,7 @@ def plot_theory_TCL(sigma, all_covariances, labels):
     plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
 
-def compute_covariance_of_compressors(dataset, compressor):
+def compute_covariance_of_compressors(clients, compressor):
     empirical_cov = []
     for client in clients:
         X = client.dataset.X_complete
