@@ -5,6 +5,28 @@ import numpy as np
 from src.SyntheticDataset import SyntheticDataset
 
 
+def compute_inversion(matrix):
+    return np.linalg.inv(matrix)
+
+
+def compute_limit_distrib(inv_sigma, error_cov):
+    return inv_sigma @ error_cov @ inv_sigma
+
+
+def compute_empirical_covariance(random_vector):
+    return random_vector.T.dot(random_vector) / random_vector.shape[0]
+
+
+def compress_and_compute_covariance(dataset, compressor):
+    X = dataset.X_complete
+    X_compressed = X.copy()
+    for i in range(len(X)):
+        # TODO : with gaussian multiplication to check that the distribution is still ...
+        X_compressed[i] = compressor.compress(X[i])
+    cov_matrix = compute_empirical_covariance(X_compressed)
+    return cov_matrix, X_compressed
+
+
 def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
 
     sigma = dataset.upper_sigma
@@ -29,6 +51,12 @@ def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
 
     elif compression_name == "PartialParticipation":
         return sigma / dataset.LEVEL_RDK
+
+    elif compression_name == "DP":
+        return sigma * (1 + np.trace(sigma) / dataset.LEVEL_RDK)
+
+    # elif compression_name == "Ind DP":
+    #     return sigma * 1 + np.trace(sigma) / dataset.LEVEL_RDK)
 
     return None
 

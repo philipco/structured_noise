@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from src.CompressionModel import SQuantization, RandomSparsification, Sketching
+from src.CompressionModel import Quantization, RandomSparsification, Sketching
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
 from src.Utilities import create_folder_if_not_existing
@@ -64,9 +64,9 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> [List[float], Syntheti
     dataset.upper_sigma = upper_sigma
     dataset.generate_X()
 
-    no_compressor = SQuantization(0, dim=dim)
+    no_compressor = Quantization(0, dim=dim)
 
-    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.rand_sketcher,
+    my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher,
                       dataset.rand1, dataset.all_or_nothinger]
 
     all_trace = []
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     axes.legend(loc='best', fontsize=FONTSIZE)
     axes.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
     # axes.set_title('Empirical (plain) vs theoretical trace (dashed)')
-    axes.set_ylabel(r"$\log(\mathrm{Tr}(\frac{1}{K} \mathcal C (x)^{\otimes 2} H^{-1})_i)$", fontsize=FONTSIZE)
+    axes.set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}_{\mathrm{emp.}} H^{-1})_i)$", fontsize=FONTSIZE)
 
     print("Script completed.")
     folder = "pictures/trace/"

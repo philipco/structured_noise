@@ -1,11 +1,20 @@
 """Created by Constantin Philippenko, 7th April 2022."""
+from typing import List
+
 import numpy as np
 from PIL import Image
 from matplotlib import transforms, pyplot as plt
+from matplotlib.legend import Legend
 from matplotlib.patches import Ellipse
 
 from src.SGD import SGDRun
 
+FONTSIZE = 15
+LINESIZE = 3
+
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
+COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green", "tab:red", "tab:red",
+          "tab:purple", "tab:purple", "tab:brown", "tab:brown"]
 
 def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
     images = [Image.open(fn) for fn in file_names]
@@ -13,63 +22,145 @@ def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
                    save_all=True, duration=duration, loop=loop)
 
 
-def plot_SGD_and_AVG(axes, sgd_run: SGDRun, optimal_loss):
+def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = None):
+    fig, ax = plt.subplots(figsize=(6.5, 6))
 
-    # axes[0].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.losses - optimal_loss),
-    #              label="SGD {0}".format(sgd_run.label))
-    # axes[1].plot(np.arange(len(sgd_run.losses)), np.log10(sgd_run.avg_losses - optimal_loss),
-    #              label="AvgSGD {0}".format(sgd_run.label))
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
+        dim = list_of_sgd[0].dim
 
-    axes[0].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.losses - optimal_loss),
-                 label="SGD {0}".format(sgd_run.label))
-    axes[1].plot(np.log10(sgd_run.log_xaxis), np.log10(sgd_run.avg_losses - optimal_loss),
-                 label="AvgSGD {0}".format(sgd_run.label))
+        diag_cov = np.mean([np.log10(sgd.diag_cov_gradients) for sgd in list_of_sgd], axis=0)
+        plt.plot(np.log10(np.arange(1, dim + 1)), diag_cov, label=label, lw=LINESIZE)
+        i+=1
+    ax.tick_params(axis='both', labelsize=15)
+
+    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    if custom_legend is not None:
+        l2 = ax.legend(handles=custom_legend, loc="upper right", fontsize=FONTSIZE)
+        ax.add_artist(l2)
+    ax.add_artist(l1)
+
+    ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=15)
+    ax.set_ylabel(r"$\log(Diag(\frac{\mathcal C (X)^T.\mathcal C (X)}{n})_i)$", fontsize=15)
+    if hash_string:
+        plt.savefig('{0}-eigenvalues.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
+        plt.close()
+    else:
+        plt.show()
 
 
-def setup_plot_with_SGD(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
+def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
-    plot_SGD_and_AVG(axes, sgd_nocompr, optimal_loss)
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
 
-    for sgd_try in all_sgd:
-        plot_SGD_and_AVG(axes, sgd_try, optimal_loss)
+        losses = np.mean([np.log10(sgd.losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+
+        avg_losses = np.mean([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        avg_losses_var = np.std([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        log_xaxis = np.log10(list_of_sgd[0].log_xaxis)
+
+        label_sgd = None if "-art" in label else "SGD {0}".format(label)
+        label_avg_sgd = None if "-art" in label else "AvgSGD {0}".format(label)
+        line_style = "--" if "-art" in label else "-"
+        if with_artemis:
+            color = COLORS[(i-1) // 2  + 1] if i > 0 else COLORS[0]
+        else:
+            color = COLORS[i]
+        axes[0].plot(log_xaxis, losses, label=label_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+
+        axes[1].plot(log_xaxis, avg_losses, label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+
+        axes[1].fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2)
+        i+=1
 
     for ax in axes:
-        ax.legend(loc='lower left', fontsize=10)
+        l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+        if custom_legend is not None:
+            l2 = ax.legend(handles=custom_legend, loc="upper right")
+            ax.add_artist(l2)
+        ax.add_artist(l1)
         # ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
-    axes[1].set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
-    axes[1].set_xlabel(r"$\log_{10}(n)$", fontsize=15)
+    axes[1].set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=15)
+    axes[1].set_xlabel(r"$\log_{10}(k)$", fontsize=15)
 
     if hash_string:
-        plt.savefig('{0}.eps'.format("./pictures/" + hash_string), format='eps')
+        plt.savefig('{0}.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
         plt.close()
     else:
         plt.show()
 
-def plot_only_avg(all_sgd, sgd_nocompr: SGDRun, optimal_loss, hash_string: str = None):
+
+def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False,
+                  stochastic: bool = True):
     fig, ax = plt.subplots(figsize=(8, 4))
 
-    ax.plot(np.log10(sgd_nocompr.log_xaxis), np.log10(sgd_nocompr.avg_losses - optimal_loss),
-                 label="{0}".format(sgd_nocompr.label))
+    i = 0
+    for label, list_of_sgd in all_sgd.dict_of_sgd.items():
+        avg_losses = np.mean([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        avg_losses_var = np.std([np.log10(sgd.avg_losses - optimal_loss) for sgd in list_of_sgd], axis=0)
+        log_xaxis = np.log10(list_of_sgd[0].log_xaxis)
+        label_avg_sgd = None if "-art" in label else "{0}".format(label)
+        line_style = "--" if "-art" in label else "-"
+        if with_artemis:
+            color = COLORS[(i - 1) // 2 + 1] if i > 0 else COLORS[0]
+        else:
+            color = COLORS[i]
+        ax.plot(log_xaxis, avg_losses, label=label_avg_sgd, lw=LINESIZE, linestyle=line_style, color=color)
+        plt.fill_between(log_xaxis, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2, color=color)
+        i+=1
 
-    for sgd_try in all_sgd:
-        ax.plot(np.log10(sgd_try.log_xaxis), np.log10(sgd_try.avg_losses - optimal_loss),
-                label="{0}".format(sgd_try.label))
+    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    if custom_legend is not None:
+        l2 = ax.legend(handles=custom_legend, loc="upper right")
+        ax.add_artist(l2)
+    ax.add_artist(l1)
 
-    ax.legend(loc='best', fontsize=15)
-    ax.set_ylim(top=0.5)
+    # ax.set_ylim(top=0.5)
     ax.grid(True)
-    ax.set_ylabel(r"$\log_{10}(F(\bar w_k) - F(w_*))$", fontsize=15)
-    ax.set_xlabel(r"$\log_{10}(n)$", fontsize=15)
-    ax.set_title("Avg SGD")
+    ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
+    if not stochastic:
+        ax.set_xlabel(r"$\log_{10}(\#epoch)$", fontsize=FONTSIZE)
+    else:
+        ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
+    # ax.set_title("Avg SGD")
 
     if hash_string:
-        plt.savefig('{0}.png'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
+        plt.savefig('{0}.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
         plt.close()
     else:
         plt.show()
+
+
+def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
+                               theoretical_cov, ax_max):
+    ax.scatter(X[:min(150, len(X)), 0], X[:min(150, len(X)), 1], color=COLORS[0], alpha=0.5,
+               label="No compression", zorder=3)
+    ax.scatter(all_compressed_point[:, 0], all_compressed_point[:, 1], color=COLORS[1], alpha=0.5, s=25,
+               label="Compression", zorder=1)
+    # (covariance, "", ax, edgecolor=COLORS[1], zorder=2, lw = LINESIZE)
+    # confidence_ellipse(data_covariance, "", ax, edgecolor=COLORS[0], zorder=2, lw=LINESIZE)
+    if ax_max is not None:
+        ax.set_xlim(-ax_max, ax_max)
+        ax.set_ylim(-ax_max, ax_max)
+    ax.axvline(x=0, color="black")
+    ax.axhline(y=0, color="black")
+
+    plot_ellipse(data_covariance, r"$H_{\mathrm{emp.}}$", ax, color=COLORS[0], linestyle="-", zorder=0,
+                 lw=LINESIZE, n_std=2, plot_eig=False)
+
+    print(covariance)
+    plot_ellipse(covariance, r"$\mathfrak{C}(H_{\mathrm{emp.})}$", ax, color=COLORS[1],
+                 linestyle="-", zorder=0, lw=LINESIZE, n_std=2, plot_eig=False)
+
+    if theoretical_cov is not None:
+        plot_ellipse(theoretical_cov, r"$\mathfrak{C}(H_{\mathrm{th.})}$", ax, plot_eig=False,
+                     color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
+
+    ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
 
 def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):

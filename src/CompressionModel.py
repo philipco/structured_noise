@@ -29,7 +29,7 @@ class CompressionModel(ABC):
             self.omega_c = None
 
     @abstractmethod
-    def __compress__(self, vector: np.ndarray, dim_to_use: int):
+    def __compress__(self, vector: np.ndarray) -> np.ndarray:
         """Compresses a vector with the mechanism of the operator of compression."""
         pass
 
@@ -95,7 +95,7 @@ class TopKSparsification(CompressionModel):
             assert 0 <= level < 1, "k is a probability."
         self.biased = True
 
-    def __compress__(self, vector: np.ndarray):
+    def __compress__(self, vector: np.ndarray) -> np.ndarray:
         indices = np.argpartition(vector, -self.level)[-self.level:]
         compression = np.zeros_like(vector)
         for i in indices:
@@ -191,10 +191,8 @@ class PoissonSparsification(CompressionModel):
 class RandK(RandomSparsification):
 
     def __init__(self, sub_dim: int, dim: int = None, biased=False, norm: int = 2, constant: int = 1):
-        self.biased = biased
+        super().__init__(sub_dim / dim, dim, biased, norm, constant)
         self.sub_dim = sub_dim
-        self.level = self.sub_dim / dim
-        self.dim = dim
         assert 1 <= sub_dim <= dim, "The sub dimension is not correct."
 
     def __compress__(self, vector: np.ndarray):
@@ -213,7 +211,7 @@ class RandK(RandomSparsification):
         return 32 * self.level * self.dim
 
 
-class SQuantization(CompressionModel):
+class Quantization(CompressionModel):
 
     def __init__(self, level: int, dim: int = None, norm: int = 2, div_omega: int = 1, constant: int = 1):
         self.biased = False
@@ -252,13 +250,57 @@ class SQuantization(CompressionModel):
         return (3 + 3 / 2) * np.log2(frac) * self.level * (self.level + np.sqrt(self.dim)) + 32
 
 
-class PoissonQuantization(SQuantization):
+class CorrelatedQuantization(Quantization):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        self.biased = False
+        super().__init__(level, dim, norm, constant)
+
+    def __compress__(self, vector):
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        if norm_x == 0:
+            return vector
+        alea = np.random.uniform(0,1)
+        all_levels = np.array([1 if alea < (np.abs(v) / norm_x) else 0 for v in vector])
+        return all_levels * norm_x * np.sign(vector)
+
+    def __omega_c_formula__(self, dim_to_use):
+        return np.sqrt(dim_to_use)
+
+    def get_name(self) -> str:
+        return "Cor-Qtzd"
+
+
+class AntiCorrelatedQuantization(Quantization):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        self.biased = False
+        super().__init__(level, dim, norm, constant)
+
+    def __compress__(self, vector):
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        if norm_x == 0:
+            return vector
+        alea = np.random.uniform(0,1, 1)
+        alea = [alea if i % 2 == 0 else 1 - alea for i in range(len(vector))]
+        scaled_vector = np.abs(vector) / norm_x
+        all_levels = np.array([1 if alea[i] < scaled_vector[i] else 0 for i in range(len(vector))])
+        return all_levels * norm_x * np.sign(vector)
+
+    def __omega_c_formula__(self, dim_to_use):
+        return np.sqrt(dim_to_use)
+
+    def get_name(self) -> str:
+        return "Anticor-Qtzd"
+
+
+class PoissonQuantization(Quantization):
 
     def sample(self, p, n):
         return np.random.binomial(1, p, n)
 
 
-class StabilizedQuantization(SQuantization):
+class StabilizedQuantization(Quantization):
 
     def __compress__(self, vector):
         U = ortho_group.rvs(dim=self.dim)
@@ -302,7 +344,7 @@ class Sketching(CompressionModel):
         return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
 
     def __omega_c_formula__(self, dim_to_use: int):
-        return 0
+        return (1 - self.level) / self.level
 
     def get_name(self) -> str:
         return "Sketching"
@@ -327,13 +369,47 @@ class AllOrNothing(CompressionModel):
         return b * vector / self.level
 
     def __omega_c_formula__(self, dim_to_use: int):
-        pass
+        return (1 - self.level) / self.level
 
     def get_name(self) -> str:
         return "PartialParticipation"
 
     def nb_bits_by_iter(self):
         return 32 * self.level * self.dim
+
+
+
+class DifferentialPrivacy(CompressionModel):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        super().__init__(level, dim, norm, constant)
+
+    def sample(self):
+        return np.random.normal(0, 1 / np.sqrt(self.level))
+
+    def __compress__(self, vector):
+
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        dp_vector = vector + self.sample()
+        return dp_vector
+
+    def __omega_c_formula__(self, dim_to_use):
+        return 1/self.level
+
+    def get_name(self) -> str:
+        return "DP"
+
+    def nb_bits_by_iter(self):
+        return self.dim * 32
+
+
+class IndependantDifferentialPrivacy(DifferentialPrivacy):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        super().__init__(level, dim, norm, constant)
+
+    def sample(self):
+        return np.random.normal(0, 1 / np.sqrt(self.level), self.dim)
 
 
 def find_level_of_quantization(dim, level_of_sparsification):
