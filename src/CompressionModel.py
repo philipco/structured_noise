@@ -378,6 +378,40 @@ class AllOrNothing(CompressionModel):
         return 32 * self.level * self.dim
 
 
+
+class DifferentialPrivacy(CompressionModel):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        super().__init__(level, dim, norm, constant)
+
+    def sample(self):
+        return np.random.normal(0, 1 / np.sqrt(self.level))
+
+    def __compress__(self, vector):
+
+        norm_x = np.linalg.norm(vector, ord=self.norm)
+        dp_vector = vector + self.sample()
+        return dp_vector
+
+    def __omega_c_formula__(self, dim_to_use):
+        return 1/self.level
+
+    def get_name(self) -> str:
+        return "DP"
+
+    def nb_bits_by_iter(self):
+        return self.dim * 32
+
+
+class IndependantDifferentialPrivacy(DifferentialPrivacy):
+
+    def __init__(self, level: int, dim: int = None, norm: int = 2, constant: int = 1):
+        super().__init__(level, dim, norm, constant)
+
+    def sample(self):
+        return np.random.normal(0, 1 / np.sqrt(self.level), self.dim)
+
+
 def find_level_of_quantization(dim, level_of_sparsification):
     """Given a level of sparsfication and a dimensionality, return the level of quantization to communicate a constant
     number of bits."""

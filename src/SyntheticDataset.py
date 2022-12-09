@@ -6,10 +6,12 @@ import random
 
 import numpy as np
 from numpy.random import multivariate_normal
-from scipy.stats import ortho_group
+from scipy.stats import ortho_group, multivariate_t
 
 from src.CompressionModel import Quantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization
+    AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
+    DifferentialPrivacy, IndependantDifferentialPrivacy
+from src.CustomDistribution import diamond_distribution
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
 
@@ -46,6 +48,10 @@ class AbstractDataset:
         self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(1, dim=self.dim, biased=False)
+
+        self.dp = DifferentialPrivacy(self.LEVEL_RDK, dim=self.dim)
+        self.ind_dp = IndependantDifferentialPrivacy(self.LEVEL_RDK, dim=self.dim)
+
         print("Level sparsification:", self.sparsificator.level)
 
         self.sketcher = Sketching(self.LEVEL_RDK, self.dim, randomized=True)
@@ -166,12 +172,19 @@ class SyntheticDataset(AbstractDataset):
         self.generate_X()
         self.generate_Y()
 
-    def generate_X(self):
+    def generate_X(self, features_distribution: str = "normal"):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
+        if features_distribution == "diamond":
+            self.X = diamond_distribution(size_generator)
+            self.upper_sigma = np.identity(2) / 2
+        elif features_distribution == "cauchy":
+            self.X = multivariate_t.rvs(np.zeros(self.dim), self.upper_sigma, size=size_generator, df=2)
+        elif features_distribution == "normal":
+            self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
+        else:
+            raise ValueError("Unknow features distribution.")
         self.X_complete = copy.deepcopy(self.X)
         self.Xcarre = self.X_complete.T @ self.X_complete / size_generator
-
 
     def generate_Y(self):
         lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
@@ -179,9 +192,4 @@ class SyntheticDataset(AbstractDataset):
         self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
         self.Z = self.X_complete.T @ self.Y / size_generator
 
-    def generate_couple_X_Y(self):
-        lower_sigma = self.nb_clients
-        x = multivariate_normal(np.zeros(self.dim), self.upper_sigma)
-        y = x @ self.w_star + np.random.normal(0, lower_sigma)
-        return x, y
 

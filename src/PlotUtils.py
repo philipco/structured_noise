@@ -9,7 +9,7 @@ from matplotlib.patches import Ellipse
 
 from src.SGD import SGDRun
 
-FONTSIZE = 17
+FONTSIZE = 15
 LINESIZE = 3
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
@@ -133,6 +133,34 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         plt.close()
     else:
         plt.show()
+
+
+def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
+                               theoretical_cov, ax_max):
+    ax.scatter(X[:min(150, len(X)), 0], X[:min(150, len(X)), 1], color=COLORS[0], alpha=0.5,
+               label="No compression", zorder=3)
+    ax.scatter(all_compressed_point[:, 0], all_compressed_point[:, 1], color=COLORS[1], alpha=0.5, s=25,
+               label="Compression", zorder=1)
+    # (covariance, "", ax, edgecolor=COLORS[1], zorder=2, lw = LINESIZE)
+    # confidence_ellipse(data_covariance, "", ax, edgecolor=COLORS[0], zorder=2, lw=LINESIZE)
+    if ax_max is not None:
+        ax.set_xlim(-ax_max, ax_max)
+        ax.set_ylim(-ax_max, ax_max)
+    ax.axvline(x=0, color="black")
+    ax.axhline(y=0, color="black")
+
+    plot_ellipse(data_covariance, r"$H_{\mathrm{emp.}}$", ax, color=COLORS[0], linestyle="-", zorder=0,
+                 lw=LINESIZE, n_std=2, plot_eig=False)
+
+    print(covariance)
+    plot_ellipse(covariance, r"$\mathfrak{C}(H_{\mathrm{emp.})}$", ax, color=COLORS[1],
+                 linestyle="-", zorder=0, lw=LINESIZE, n_std=2, plot_eig=False)
+
+    if theoretical_cov is not None:
+        plot_ellipse(theoretical_cov, r"$\mathfrak{C}(H_{\mathrm{th.})}$", ax, plot_eig=False,
+                     color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
+
+    ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
 
 def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
