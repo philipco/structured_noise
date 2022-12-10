@@ -111,9 +111,10 @@ class SyntheticDataset(AbstractDataset):
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
                                 client_id=client_id, eigenvalues=eigenvalues, heterogeneity=heterogeneity,
                                 w0_seed=w0_seed)
+        self.lower_sigma = lower_sigma
         self.define_compressors()
         self.generate_X()
-        self.generate_Y(lower_sigma)
+        self.generate_Y()
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
@@ -187,14 +188,14 @@ class SyntheticDataset(AbstractDataset):
         self.X_complete = copy.deepcopy(self.X)
         self.Xcarre = self.X_complete.T @ self.X_complete / size_generator
 
-    def generate_Y(self, lower_sigma: int):
+    def generate_Y(self):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star
-        if lower_sigma is None:
+        if self.lower_sigma is None:
             lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
             self.Y += np.random.normal(0, lower_sigma, size=size_generator)
-        elif lower_sigma != 0:
-            self.Y += np.random.normal(0, lower_sigma, size=size_generator)
+        elif self.lower_sigma != 0:
+            self.Y += np.random.normal(0, self.lower_sigma, size=size_generator)
         self.Z = self.X_complete.T @ self.Y / size_generator
 
 

@@ -124,7 +124,7 @@ if __name__ == '__main__':
                       custom_legend=legend_line, with_artemis=True, stochastic=stochastic)
 
         for client in clients:
-            client.regenerate_dataset(lower_sigma)
+            client.regenerate_dataset()
 
     setup_plot_with_SGD(sgd_series, optimal_loss=optimal_loss,
                         hash_string="C{0}-{1}-artemis_both".format(nb_clients, hash_string),
