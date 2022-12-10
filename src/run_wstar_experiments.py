@@ -40,6 +40,7 @@ if __name__ == '__main__':
         type=str,
         help="Stochastic or full batch",
         required=True,
+        default=True,
     )
     parser.add_argument(
         "--batch_size",
@@ -55,22 +56,32 @@ if __name__ == '__main__':
         required=False,
         default=True,
     )
+    parser.add_argument(
+        "--noiseless",
+        type=str,
+        help="Use noise or not",
+        required=False,
+        default=False,
+    )
     args = parser.parse_args()
     nb_clients = args.nb_clients
     batch_size = args.batch_size
     stochastic = True if args.stochastic == "True" else False
+    noiseless = True if args.noiseless == "True" else False
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
 
-    if stochastic:
-        size_dataset = 10**8
-        nb_epoch = 1
-    else:
-        size_dataset = 10**7
-        nb_epoch = 10**6
+    legend_line = [Line2D([0], [0], color="black", lw=2, label='w.o. mem.'),
+                    Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. mem.')]
+
+    # if stochastic:
+    size_dataset = 5*10**7
+    nb_epoch = 1
+
+    lower_sigma = 0 if noiseless else None
 
     np.random.seed(10)
-    clients = [Client(i, DIM, size_dataset // nb_clients, POWER_COV, nb_clients, USE_ORTHO_MATRIX, HETEROGENEITY)
-               for i in range(nb_clients)]
+    clients = [Client(i, DIM, size_dataset // nb_clients, POWER_COV, nb_clients, USE_ORTHO_MATRIX, HETEROGENEITY,
+                      lower_sigma=lower_sigma) for i in range(nb_clients)]
 
     sgd_series = SeriesOfSGD()
     for run_id in range(NB_RUNS):
@@ -78,12 +89,14 @@ if __name__ == '__main__':
         synthetic_dataset = clients[0].dataset
         synthetic_dataset.power_cov = POWER_COV
 
-        hash_string = synthetic_dataset.string_for_hash(stochastic, batch_size)
+        hash_string = synthetic_dataset.string_for_hash(nb_runs=NB_RUNS,stochastic=stochastic, batch_size=batch_size,
+                                                        noiseless=noiseless)
 
         labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
-        vanilla_sgd = SGDVanilla(clients, step_size, nb_epoch=nb_epoch, sto=stochastic, batch_size=batch_size)
+        vanilla_sgd = SGDVanilla(clients, step_size, nb_epoch=nb_epoch, sto=stochastic, batch_size=batch_size,
+                                 start_averaging=0)
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
@@ -95,10 +108,10 @@ if __name__ == '__main__':
             print("Compressor: {0}".format(compressor.get_name()))
             all_sgd.append(
                 SGDCompressed(clients, step_size, compressor, nb_epoch=nb_epoch, sto=stochastic,
-                              batch_size=batch_size).gradient_descent(label=labels[i + 1]))
+                              batch_size=batch_size, start_averaging=0).gradient_descent(label=labels[i + 1]))
             all_sgd.append(
                 SGDArtemis(clients, step_size, compressor, nb_epoch=nb_epoch, sto=stochastic,
-                           batch_size=batch_size).gradient_descent(label=labels[i + 1] + "-art"))
+                           batch_size=batch_size, start_averaging=0).gradient_descent(label=labels[i + 1] + "-art"))
 
         optimal_loss = 0
         print("Optimal loss:", optimal_loss)
@@ -106,18 +119,16 @@ if __name__ == '__main__':
         create_folder_if_not_existing("pickle")
         sgd_series.save("pickle/C{0}-{1}".format(nb_clients, hash_string))
 
-        for client in clients:
-            client.regenerate_dataset()
+        plot_only_avg(sgd_series, optimal_loss=optimal_loss,
+                      hash_string="C{0}-{1}-artemis".format(nb_clients, hash_string),
+                      custom_legend=legend_line, with_artemis=True, stochastic=stochastic)
 
-    legend_line = [Line2D([0], [0], color="black", lw=2, label='w.o. mem.'),
-                    Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. mem.')]
+        for client in clients:
+            client.regenerate_dataset(lower_sigma)
 
     setup_plot_with_SGD(sgd_series, optimal_loss=optimal_loss,
                         hash_string="C{0}-{1}-artemis_both".format(nb_clients, hash_string),
                         custom_legend=legend_line, with_artemis=True)
-
-    plot_only_avg(sgd_series, optimal_loss=optimal_loss, hash_string="C{0}-{1}-artemis".format(nb_clients, hash_string),
-                  custom_legend=legend_line, with_artemis=True, stochastic=stochastic)
 
     plot_eigen_values(sgd_series, hash_string="C{0}-{1}-artemis".format(nb_clients, hash_string),
                       custom_legend=legend_line)

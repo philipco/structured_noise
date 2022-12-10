@@ -18,12 +18,9 @@ With Artemis:
 Full: 24h
 Stochastic: 14h.
 ```run_wstar_experiments.py --nb_clients 10 --use_ortho_matrix True --stochastic True```
+```run_wstar_experiments.py --nb_clients 10 --use_ortho_matrix True --stochastic False```
 
 TODO :
-- Comprendre le full batch avec Artemis - size = 130MB.
 - faire tourner le code sur le serveur avec 5 runs
 - explorer la quantization décorrélé/anticorrélé, notamment dans les cas limites.
 - calculer la matrice de covariance pour le sketching
-- finir d'écrire la section sur les wstars différents.
-- commenter tous les théorèmes.
-- problème de référencement des th/lem/prop ...

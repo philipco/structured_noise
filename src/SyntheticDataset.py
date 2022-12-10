@@ -2,7 +2,6 @@
 Created by Constantin Philippenko, 10th January 2022.
 """
 import copy
-import random
 
 import numpy as np
 from numpy.random import multivariate_normal
@@ -23,8 +22,8 @@ class AbstractDataset:
         super().__init__()
         self.name = name
 
-    def string_for_hash(self, stochastic: bool = False, batch_size: int = 1):
-        hash = "N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity)
+    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, noiseless: bool = None):
+        hash = "{4}runs-N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity, nb_runs)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
         if self.use_ortho_matrix:
@@ -33,6 +32,8 @@ class AbstractDataset:
             hash = "{0}-full".format(hash)
         elif batch_size != 1:
             hash = "{0}-b{1}".format(hash, batch_size)
+        if noiseless:
+            hash = "{0}-noiseless".format(hash)
         return hash
 
     def define_compressors(self):
@@ -105,14 +106,14 @@ class SyntheticDataset(AbstractDataset):
 
     def generate_dataset(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
                          use_ortho_matrix: bool, do_logistic_regression: bool, heterogeneity: str,
-                         client_id: int, eigenvalues: np.array = None, w0_seed: int = 42):
+                         client_id: int, eigenvalues: np.array = None, w0_seed: int = 42, lower_sigma: int = None):
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
                                 client_id=client_id, eigenvalues=eigenvalues, heterogeneity=heterogeneity,
                                 w0_seed=w0_seed)
         self.define_compressors()
         self.generate_X()
-        self.generate_Y()
+        self.generate_Y(lower_sigma)
         self.set_step_size()
         print_mem_usage("Just created the dataset ...")
 
@@ -186,10 +187,14 @@ class SyntheticDataset(AbstractDataset):
         self.X_complete = copy.deepcopy(self.X)
         self.Xcarre = self.X_complete.T @ self.X_complete / size_generator
 
-    def generate_Y(self):
-        lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
+    def generate_Y(self, lower_sigma: int):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.Y = self.X_complete @ self.w_star + np.random.normal(0, lower_sigma, size=size_generator)
+        self.Y = self.X_complete @ self.w_star
+        if lower_sigma is None:
+            lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
+            self.Y += np.random.normal(0, lower_sigma, size=size_generator)
+        elif lower_sigma != 0:
+            self.Y += np.random.normal(0, lower_sigma, size=size_generator)
         self.Z = self.X_complete.T @ self.Y / size_generator
 
 
