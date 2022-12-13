@@ -57,7 +57,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--use_ortho_matrix",
-        type=bool,
+        type=str,
         help="Use an orthogonal matrix.",
         required=False,
         default=True,
@@ -75,6 +75,10 @@ if __name__ == '__main__':
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
     heterogeneity = args.heterogeneity
     
+    if nb_clients == 1:
+        step_size = lambda it, r2, omega: 1 / ((omega + 1) * r2)
+    else:
+        step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
 
     np.random.seed(10)
     clients = [Client(i, DIM, dataset_size // nb_clients, POWER_COV, nb_clients, use_ortho_matrix, heterogeneity)
@@ -84,7 +88,7 @@ if __name__ == '__main__':
     for run_id in range(NB_RUNS):
         check_clients(clients, heterogeneity)
         synthetic_dataset = clients[0].dataset
-        hash_string = synthetic_dataset.string_for_hash(STOCHASTIC)
+        hash_string = synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC)
 
         labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
 
@@ -110,11 +114,11 @@ if __name__ == '__main__':
         create_folder_if_not_existing("pickle")
         sgd_series.save("pickle/C{0}-{1}".format(nb_clients, hash_string))
 
+        plot_only_avg(sgd_series, optimal_loss=optimal_loss,
+                      hash_string="C{0}-{1}".format(nb_clients, hash_string))
+
         for client in clients:
             client.regenerate_dataset()
-
-    plot_only_avg(sgd_series, optimal_loss=optimal_loss,
-                  hash_string="C{0}-{1}".format(nb_clients, hash_string))
 
     setup_plot_with_SGD(sgd_series, optimal_loss=optimal_loss,
                         hash_string="C{0}-{1}_both".format(nb_clients, hash_string))

@@ -27,8 +27,6 @@ DISABLE = False
 CORRECTION_SQUARE_COV = False
 CORRECTION_DIAG = False
 
-IT_THRESHOLD = 0 # 50 for wstar
-
 
 def log_sampling_xaxix(size_dataset):
     log_len = np.int(math.log10(size_dataset))
@@ -69,10 +67,10 @@ class SGDRun:
         self.last_w = last_w
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
-        if sto:
-            self.log_xaxis = log_sampling_xaxix(size_dataset // self.batch_size) * self.batch_size
-        else:
-            self.log_xaxis = np.arange(nb_epoch)
+        # if sto:
+        self.log_xaxis = log_sampling_xaxix(size_dataset // self.batch_size) * self.batch_size
+        # else:
+        #     self.log_xaxis = np.arange(nb_epoch)
         self.diag_cov_gradients = diag_cov_gradients
         self.label = label
 
@@ -80,16 +78,17 @@ class SGDRun:
 class SGD(ABC):
 
     def __init__(self, clients: List[Client], step_formula, nb_epoch: int = 1, sto: bool = True, batch_size: int = 1,
-                 reg: int = REGULARIZATION) -> None:
+                 start_averaging: int = 0, reg: int = REGULARIZATION) -> None:
         super().__init__()
         self.clients = clients
         self.sto = sto
         self.batch_size = batch_size
         self.step_formula = step_formula
-        if self.sto:
-            self.nb_epoch = 1
-        else:
-            self.nb_epoch = nb_epoch
+        # if self.sto:
+        self.nb_epoch = 1
+        # else:
+        #     self.nb_epoch = 1#nb_epoch
+        self.start_averaging = start_averaging  # 50 for wstar, 0 otherwise.
         self. L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
         self.size_dataset, self.w0 = clients[0].local_size, clients[0].dataset.w0
         self.w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
@@ -161,7 +160,7 @@ class SGD(ABC):
         return (x @ w - y) @ x / len(y)
 
     def compute_full_gradient(self, w, dataset):
-        return dataset.Xcarre @ w - dataset.Z
+        return dataset.upper_sigma @ (w - dataset.w_star)
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
@@ -182,10 +181,10 @@ class SGD(ABC):
                         it - 1) / it
 
     def gradient_descent(self, label: str = None) -> SGDRun:
-        if self.sto:
-            log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size) * self.batch_size
-        else:
-            log_xaxis = np.arange(self.nb_epoch)
+        # if self.sto:
+        log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size) * self.batch_size
+        # else:
+        #     log_xaxis = np.arange(self.nb_epoch)
 
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
@@ -194,10 +193,10 @@ class SGD(ABC):
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
 
-        nb_epoch = 1 if self.sto else self.nb_epoch
+        nb_epoch = 1 #if self.sto else self.nb_epoch
         for epoch in tqdm(range(nb_epoch), disable=self.sto or DISABLE):
 
-            indices = np.arange(self.size_dataset // self.batch_size) if self.sto else np.array([1])
+            indices = np.arange(self.size_dataset // self.batch_size) #if self.sto else np.array([1])
             for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
                 r2 = np.mean([c.dataset.trace for c in self.clients])
@@ -223,19 +222,20 @@ class SGD(ABC):
                 it += 1
 
                 current_w = self.sgd_update(current_w, grad, gamma)
-                if it <= IT_THRESHOLD:
+                if it <= self.start_averaging:
                     avg_w = current_w
                 else:
-                    avg_w = current_w / (it-IT_THRESHOLD) + avg_w * (it - IT_THRESHOLD- 1) / (it - IT_THRESHOLD)
+                    avg_w = current_w / (it-self.start_averaging) \
+                            + avg_w * (it - self.start_averaging- 1) / (it - self.start_averaging)
 
                 for client in self.clients:
                     client.update_model(current_w, avg_w)
 
                 current_loss = self.compute_federated_true_risk(current_w, avg_w)
-                if not self.sto and epoch in log_xaxis[1:]:
-                    losses.append(current_loss[0])
-                    avg_losses.append(current_loss[1])
-                elif self.sto and idx * self.batch_size in log_xaxis[1:]:
+                # if not self.sto and epoch in log_xaxis[1:]:
+                #     losses.append(current_loss[0])
+                #     avg_losses.append(current_loss[1])
+                if idx * self.batch_size in log_xaxis[1:]:
                     losses.append(current_loss[0])
                     avg_losses.append(current_loss[1])
 
@@ -294,7 +294,7 @@ class SGDNoised(SGD):
 class SGDCompressed(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1) -> None:
+                 batch_size: int = 1, start_averaging: int = 0,) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
         self.compressor = compressor
 
@@ -311,7 +311,7 @@ class SGDCompressed(SGD):
 class SGDArtemis(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1) -> None:
+                 batch_size: int = 1, start_averaging: int = 0,) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
         self.compressor = compressor
 
