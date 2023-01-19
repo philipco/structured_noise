@@ -315,7 +315,7 @@ class Sketching(CompressionModel):
     def __init__(self, level: int, dim: int = None, randomized = False, type_proj = "gaussian", norm: int = 2, constant: int = 1):
         super().__init__(level, dim, norm, constant)
         self.biased = False
-        self.sub_dim = int(dim * level)
+        self.sub_dim = int(dim * level) if dim * level > 1 else 1
         self.randomized = randomized
         self.type_proj = type_proj
         self.PHI = self.random_projector()
