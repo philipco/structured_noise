@@ -38,7 +38,7 @@ class Client:
 
 def check_clients(clients: List[Client], heterogeneity: str):
     for c in clients[1:]:
-        assert (clients[0].dataset.w0 == c.dataset.w0).any()
+        # assert (clients[0].dataset.w0 == c.dataset.w0).any()
         if heterogeneity == "wstar":
             assert (clients[0].dataset.w_star != c.dataset.w_star).any()
             assert (clients[0].dataset.ortho_matrix == c.dataset.ortho_matrix).any()

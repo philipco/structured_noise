@@ -1,5 +1,5 @@
 """Created by Constantin Philippenko, 11th April 2022."""
-
+import math
 # axmax = max ellipse ! Sinon, outliners !
 from typing import List
 
@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from src.PlotUtils import plot_ellipse
 from src.CompressionModel import *
-from src.SGD import SGDCompressed
+from src.SGD import SGDCompressed, SGDArtemis, SeriesOfSGD
 from src.TheoreticalCov import get_theoretical_cov, compute_inversion, compute_empirical_covariance, \
     compute_limit_distrib
 from src.Utilities import create_folder_if_not_existing
@@ -32,7 +32,7 @@ matplotlib.rcParams.update({
 
 # TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
 
-SIZE_DATASET = 10**5
+SIZE_DATASET = 10**6
 POWER_COV = 4
 R_SIGMA = 0
 
@@ -43,8 +43,8 @@ EIGENVALUES = np.array([1,0.2])
 FONTSIZE = 17
 LINESIZE = 2
 
-NB_CLIENTS = 1
-HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
+NB_CLIENTS = 10
+HETEROGENEITY = "wstar" # "wstar" "sigma" "homog"
 
 USE_ORTHO_MATRIX = True
 DO_LOGISTIC_REGRESSION = False
@@ -52,7 +52,7 @@ DO_LOGISTIC_REGRESSION = False
 LAST_POINTS = 0
 NB_TRY = 100
 
-step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
+step_size = lambda it, r2, omega: 1 / (np.sqrt(it))
 
 FOLDER = "pictures/TCL/muL={0}".format(min(EIGENVALUES)/max(EIGENVALUES))
 create_folder_if_not_existing(FOLDER)
@@ -103,7 +103,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     fig, ax = plt.subplots(figsize=(6, 5))
     plot_TCL_of_a_compressor(ax, sigma, all_covariances[0], all_avg_sgd[0], title=labels[0])
     ax.legend(loc='upper left', fancybox=True, framealpha=0.5)
-    filename = "{0}/C{1}-N{2}-TCL_without_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
+    filename = "{0}/C{1}-N{2}-{3}-TCL_without_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET,HETEROGENEITY)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
@@ -114,7 +114,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
         plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, all_covariances[idx_compressor],
                                  all_avg_sgd[idx_compressor], title=labels[idx_compressor])
     axes_TCL[0].legend(loc='upper left', fancybox=True, framealpha=0.5)
-    filename = "{0}/C{1}-N{2}-TCL_with_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET)
+    filename = "{0}/C{1}-N{2}-{3}-TCL_with_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET, HETEROGENEITY)
     if USE_ORTHO_MATRIX:
         filename = "{0}-ortho".format(filename)
     plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
@@ -228,10 +228,11 @@ if __name__ == '__main__':
                range(NB_CLIENTS)]
     check_clients(clients, HETEROGENEITY)
     synthetic_dataset = clients[0].dataset
+    w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 
     no_compressor = Quantization(0, dim=DIM)
     my_compressors = [no_compressor, synthetic_dataset.quantizator, synthetic_dataset.stabilized_quantizator,
-                      synthetic_dataset.rand_sketcher, synthetic_dataset.sparsificator, synthetic_dataset.rand1,
+                      synthetic_dataset.sketcher, synthetic_dataset.sparsificator, synthetic_dataset.rand1,
                       synthetic_dataset.all_or_nothinger]
     labels = ["No compression"] + [compressor.get_name() for compressor in my_compressors[1:]]
 
@@ -253,17 +254,19 @@ if __name__ == '__main__':
 
         for idx_compressor in range(len(my_compressors)):
             compressor = my_compressors[idx_compressor]
-            sgd = SGDCompressed(clients, step_size, compressor).gradient_descent(label=compressor.get_name(), deacreasing_step_size=True)
+            sgd = SGDArtemis(clients, step_size, compressor, sto=True).gradient_descent(label=compressor.get_name())
             # We save only the excess loss of the first try.
             if idx == 0:
                 all_sgd_descent.append(sgd)
-            all_avg_sgd[idx_compressor].append(sgd.all_avg_w[-1:] - synthetic_dataset.w_star)
+            all_avg_sgd[idx_compressor].append([sgd.last_w - w_star])
 
         # We plot the excess loss of the first try.
         if idx == 0:
-            plot_only_avg(all_sgd_descent[1:], sgd_nocompr=all_sgd_descent[0], optimal_loss=0,
-                          hash_string="TCL/muL={0}/C{1}-N{2}-avg_sgd".format(min(EIGENVALUES)/max(EIGENVALUES),
-                                                                             NB_CLIENTS, SIZE_DATASET))
+            sgd_series = SeriesOfSGD()
+            sgd_series.append(all_sgd_descent)
+            plot_only_avg(sgd_series, optimal_loss=0,
+                          hash_string="TCL/muL={0}/C{1}-N{2}-{3}-avg_sgd".format(min(EIGENVALUES)/max(EIGENVALUES),
+                                                                             NB_CLIENTS, SIZE_DATASET, HETEROGENEITY))
 
     all_avg_sgd = [np.concatenate(avg_sgd) for avg_sgd in all_avg_sgd]
     plot_TCL(synthetic_dataset.upper_sigma, all_covariances, all_avg_sgd, labels)
