@@ -27,9 +27,9 @@ def compress_and_compute_covariance(dataset, compressor):
     return cov_matrix, X_compressed
 
 
-def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
+def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name: str):
 
-    sigma = dataset.upper_sigma
+    sigma = dataset.upper_sigma * dataset.lower_sigma / nb_clients
     diag_sigma = np.diag(np.diag(sigma))
 
     if compression_name == "No compression":

@@ -74,7 +74,7 @@ def get_legend_limit_distrib():
     return legend_line, legend_color
 
 
-def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
+def plot_TCL_of_a_compressor(ax, sigma, lower_sigma, nb_clients, empirical_cov, avg_dist_to_opt, title):
 
     inv_sigma = compute_inversion(sigma)
 
@@ -85,7 +85,7 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
     plot_ellipse(compute_limit_distrib(inv_sigma, empirical_cov),
                        r"$H^{-1} \mathfrak{C}_{\mathrm{emp.}} H^{-1}$", ax, color=COLORS[1],
                        linestyle="--", marker="x", markevery=100, zorder=0, lw=LINESIZE)
-    plot_ellipse(inv_sigma,  r"$H^{-1}$", ax,
+    plot_ellipse(lower_sigma * inv_sigma/nb_clients,  r"$\sigma^2 H^{-1}/N$", ax,
                        color=COLORS[0], zorder=0, lw=LINESIZE, linestyle=":")
 
     ax.scatter(avg_dist_to_opt[:, 0], avg_dist_to_opt[:, 1], color=COLORS[1], alpha=0.5)
@@ -99,9 +99,9 @@ def plot_TCL_of_a_compressor(ax, sigma, empirical_cov, avg_dist_to_opt, title):
     ax.set_title(title, fontsize=FONTSIZE)
 
 
-def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
+def plot_TCL(sigma, lower_sigma, nb_clients, all_covariances, all_avg_sgd, labels):
     fig, ax = plt.subplots(figsize=(6, 5))
-    plot_TCL_of_a_compressor(ax, sigma, all_covariances[0], all_avg_sgd[0], title=labels[0])
+    plot_TCL_of_a_compressor(ax, sigma, lower_sigma, nb_clients, all_covariances[0], all_avg_sgd[0], title=labels[0])
     ax.legend(loc='upper left', fancybox=True, framealpha=0.5)
     filename = "{0}/C{1}-N{2}-{3}-TCL_without_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET,HETEROGENEITY)
     if USE_ORTHO_MATRIX:
@@ -111,7 +111,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 6))
     axes_TCL = axes_TCL.flat
     for idx_compressor in range(1, len(all_covariances)):
-        plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, all_covariances[idx_compressor],
+        plot_TCL_of_a_compressor(axes_TCL[idx_compressor - 1], sigma, lower_sigma, nb_clients, all_covariances[idx_compressor],
                                  all_avg_sgd[idx_compressor], title=labels[idx_compressor])
     axes_TCL[0].legend(loc='upper left', fancybox=True, framealpha=0.5)
     filename = "{0}/C{1}-N{2}-{3}-TCL_with_compression".format(FOLDER, NB_CLIENTS, SIZE_DATASET, HETEROGENEITY)
@@ -120,7 +120,7 @@ def plot_TCL(sigma, all_covariances, all_avg_sgd, labels):
     plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 
 
-def plot_theory_TCL(sigma, all_covariances, labels):
+def plot_theory_TCL(sigma, lower_sigma, nb_clients, all_covariances, labels):
     fig_TCL, axes_TCL = plt.subplots(2, 3, figsize=(10, 6))
     axes_TCL = axes_TCL.flat
     for idx_compressor in range(1, len(all_covariances)):
@@ -130,13 +130,13 @@ def plot_theory_TCL(sigma, all_covariances, labels):
                      r"$H^{-1} \mathfrak{C}_{\mathrm{emp.}} H^{-1}$", ax, plot_eig=True,
                      color=COLORS[1], zorder=0, lw=LINESIZE)
 
-        theoretical_cov = get_theoretical_cov(synthetic_dataset, labels[idx_compressor])
+        theoretical_cov = get_theoretical_cov(synthetic_dataset, nb_clients, labels[idx_compressor])
         if theoretical_cov is not None:
             plot_ellipse(compute_limit_distrib(inv_sigma, theoretical_cov),
                          r"$H^{-1} \mathfrak{C}_{\mathrm{th.}} H^{-1}$", ax, plot_eig=False,
                          color=COLORS[1], zorder=0, lw=LINESIZE, linestyle="--", marker="x", markevery=100)
 
-        plot_ellipse(inv_sigma, r"$H^{-1}$", ax, plot_eig=True,
+        plot_ellipse(lower_sigma * inv_sigma / nb_clients, r"$\sigma^2 H^{-1} / N$", ax, plot_eig=True,
                            color=COLORS[0], zorder=0, lw=LINESIZE)
 
         ax.scatter(0, 0, c='red', s=3)
@@ -154,13 +154,13 @@ def plot_theory_TCL(sigma, all_covariances, labels):
 
 def compute_covariance_of_compressors(clients, compressor):
     empirical_cov = []
-    for client in clients:
-        X = client.dataset.X_complete
-        X_compressed = X.copy()
-        for i in range(X.shape[0]):
-            X_compressed[i] = compressor.compress(X[i])
-    empirical_cov.append(compute_empirical_covariance(X_compressed))
-    return np.mean(empirical_cov, axis = 0)
+    X_compressed = clients[0].dataset.X_complete.copy()
+    for i in range(X_compressed.shape[0]):
+        sum = 0
+        for client in clients:
+            sum += client.dataset.X_complete[i] * client.dataset.epsilon[i]
+        X_compressed[i] = compressor.compress(sum / len(clients))
+    return compute_empirical_covariance(X_compressed)
 
 
 def get_all_covariances_of_compressors(clients: List[Client], my_compressors):
@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
     all_covariances = get_all_covariances_of_compressors(clients, my_compressors)
 
-    plot_theory_TCL(synthetic_dataset.upper_sigma, all_covariances, labels)
+    plot_theory_TCL(synthetic_dataset.upper_sigma, len(clients), synthetic_dataset.lower_sigma, all_covariances, labels)
     # compute_theory_TCL()
 
     all_avg_sgd = [[] for idx_compressor in range(len(my_compressors))]
@@ -269,6 +269,6 @@ if __name__ == '__main__':
                                                                              NB_CLIENTS, SIZE_DATASET, HETEROGENEITY))
 
     all_avg_sgd = [np.concatenate(avg_sgd) for avg_sgd in all_avg_sgd]
-    plot_TCL(synthetic_dataset.upper_sigma, all_covariances, all_avg_sgd, labels)
+    plot_TCL(synthetic_dataset.upper_sigma, synthetic_dataset.lower_sigma, len(clients), all_covariances, all_avg_sgd, labels)
 
 

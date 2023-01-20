@@ -85,15 +85,15 @@ def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim:
     return all_diagonals, labels, dataset
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset, labels):
+def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
 
     ### No compression
-    all_covariance = [get_theoretical_cov(dataset, "No compression"),
-                      get_theoretical_cov(dataset, "Qtzd"),
-                      get_theoretical_cov(dataset, "Sparsification"),
-                      get_theoretical_cov(dataset, "Sketching"),
-                      get_theoretical_cov(dataset, "Rand1"),
-                      get_theoretical_cov(dataset, "PartialParticipation")]
+    all_covariance = [get_theoretical_cov(dataset, nb_clients, "No compression"),
+                      get_theoretical_cov(dataset, nb_clients, "Qtzd"),
+                      get_theoretical_cov(dataset, nb_clients, "Sparsification"),
+                      get_theoretical_cov(dataset, nb_clients, "Sketching"),
+                      get_theoretical_cov(dataset, nb_clients, "Rand1"),
+                      get_theoretical_cov(dataset, nb_clients, "PartialParticipation")]
 
     if USE_ORTHO_MATRIX:
         for i in range(len(all_covariance)):
@@ -112,7 +112,7 @@ if __name__ == '__main__':
                for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
-    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
+    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, len(clients), labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
 
-    hash = dataset.string_for_hash()
+    hash = dataset.string_for_hash(nb_runs=1)
     plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
 
     plt.show()
