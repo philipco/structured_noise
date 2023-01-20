@@ -192,10 +192,9 @@ class SyntheticDataset(AbstractDataset):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X_complete @ self.w_star
         if self.lower_sigma is None:
-            lower_sigma = np.sqrt(self.nb_clients)  # Used only to introduce noise in the true labels.
-            self.Y += np.random.normal(0, lower_sigma, size=size_generator)
-        elif self.lower_sigma != 0:
-            self.Y += np.random.normal(0, self.lower_sigma, size=size_generator)
+            self.lower_sigma = self.nb_clients  # Used only to introduce noise in the true labels.
+        self.epsilon = np.random.normal(0, np.sqrt(self.lower_sigma), size=size_generator)
+        self.Y += self.epsilon
         self.Z = self.X_complete.T @ self.Y / size_generator
 
 
