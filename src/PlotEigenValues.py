@@ -28,14 +28,15 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
-NB_CLIENTS = 1
+NB_CLIENTS = 10
 EIGENVALUES = None #np.array([1,0.001]) #np.array([0.1,0.1, 0.00001,0.00001,0.00001,0.00001,0.00001, 0.00001, 0.00001])
 
+# In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
 USE_ORTHO_MATRIX = True
-HETEROGENEITY = "homog"
+HETEROGENEITY = "sigma"
 
-FONTSIZE = 17
-LINESIZE = 3
+FONTSIZE = 20
+LINESIZE = 4
 
 
 def prepare_sparsification(x, p):
@@ -85,15 +86,15 @@ def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim:
     return all_diagonals, labels, dataset
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset, labels):
+def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
 
     ### No compression
-    all_covariance = [get_theoretical_cov(dataset, "No compression"),
-                      get_theoretical_cov(dataset, "Qtzd"),
-                      get_theoretical_cov(dataset, "Sparsification"),
-                      get_theoretical_cov(dataset, "Sketching"),
-                      get_theoretical_cov(dataset, "Rand1"),
-                      get_theoretical_cov(dataset, "PartialParticipation")]
+    all_covariance = [get_theoretical_cov(dataset, nb_clients, "No compression"),
+                      get_theoretical_cov(dataset, nb_clients, "Qtzd"),
+                      get_theoretical_cov(dataset, nb_clients, "Sparsification"),
+                      get_theoretical_cov(dataset, nb_clients, "Sketching"),
+                      get_theoretical_cov(dataset, nb_clients, "Rand1"),
+                      get_theoretical_cov(dataset, nb_clients, "PartialParticipation")]
 
     if USE_ORTHO_MATRIX:
         for i in range(len(all_covariance)):
@@ -112,7 +113,7 @@ if __name__ == '__main__':
                for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
-    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
+    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, len(clients), labels=labels)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
@@ -126,12 +127,12 @@ if __name__ == '__main__':
         ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
     axes[0].set_title('Empirical eigenvalues', fontsize=FONTSIZE)
     axes[1].set_title('Theoretical eigenvalues', fontsize=FONTSIZE)
-    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}_{\mathrm{emp.}})_i)$", fontsize=FONTSIZE)
+    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}^{\mathrm{ania}})_i)$", fontsize=FONTSIZE)
     plt.legend(loc='lower left', fontsize=FONTSIZE)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
 
-    hash = dataset.string_for_hash()
+    hash = dataset.string_for_hash(nb_runs=1)
     plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
 
     plt.show()

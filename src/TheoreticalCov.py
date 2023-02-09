@@ -27,9 +27,9 @@ def compress_and_compute_covariance(dataset, compressor):
     return cov_matrix, X_compressed
 
 
-def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
+def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name: str):
 
-    sigma = dataset.upper_sigma
+    sigma = dataset.upper_sigma * dataset.lower_sigma / nb_clients
     diag_sigma = np.diag(np.diag(sigma))
 
     if compression_name == "No compression":
@@ -39,12 +39,14 @@ def get_theoretical_cov(dataset: SyntheticDataset, compression_name: str):
         return sigma - diag_sigma + np.sqrt(np.trace(sigma)) * np.sqrt(diag_sigma)
 
     elif compression_name == "Sparsification":
-        ones = np.ones((dataset.dim, dataset.dim))
-        P = dataset.LEVEL_RDK ** 2 * ones + (dataset.LEVEL_RDK - dataset.LEVEL_RDK ** 2) * np.eye(dataset.dim)
-        return P * sigma / dataset.LEVEL_RDK ** 2
+        return sigma + diag_sigma * (1 - dataset.LEVEL_RDK) / dataset.LEVEL_RDK
 
     elif compression_name == "Sketching":
-        return sigma * (1 + 1 / dataset.sketcher.sub_dim) + np.trace(sigma) * np.identity(dataset.dim) / dataset.sketcher.sub_dim
+        alpha = dataset.sketcher.sub_dim * (dataset.sketcher.sub_dim + 2) / ( dataset.dim * (dataset.dim +2))
+        beta = (dataset.dim - dataset.sketcher.sub_dim) * dataset.sketcher.sub_dim / (dataset.dim ** 2 * (dataset.dim))
+        formula = (sigma * (alpha - beta)  + np.trace(sigma) * np.identity(dataset.dim) * beta)
+        print(dataset.sketcher.sub_dim**2)
+        return dataset.dim**2 * formula / dataset.sketcher.sub_dim**2
 
     elif compression_name == "Rand1":
         return diag_sigma * dataset.dim

@@ -315,7 +315,7 @@ class Sketching(CompressionModel):
     def __init__(self, level: int, dim: int = None, randomized = False, type_proj = "gaussian", norm: int = 2, constant: int = 1):
         super().__init__(level, dim, norm, constant)
         self.biased = False
-        self.sub_dim = int(dim * level)
+        self.sub_dim = int(dim * level) if dim * level > 1 else 1
         self.randomized = randomized
         self.type_proj = type_proj
         self.PHI = self.random_projector()
@@ -334,14 +334,14 @@ class Sketching(CompressionModel):
             return phi
         else:
             raise ValueError("Type of projection is unknown.")
-        return phi / np.sqrt(self.sub_dim)
+        return phi
 
     def __compress__(self, vector: np.ndarray) -> np.ndarray:
         if self.randomized:
             self.PHI = self.random_projector()
             self.PHI_INV = np.linalg.pinv(self.PHI)
         empirical_proba = self.sub_dim / self.dim
-        return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
+        return (self.PHI_INV @ self.PHI @ vector) / empirical_proba
 
     def __omega_c_formula__(self, dim_to_use: int):
         return (1 - self.level) / self.level

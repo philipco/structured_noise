@@ -178,7 +178,7 @@ if __name__ == '__main__':
                       synthetic_dataset.all_or_nothinger]
 
     all_covariances, all_compressed_points = get_all_covariances(synthetic_dataset, my_compressors)
-    all_theoretical_covariances = [get_theoretical_cov(synthetic_dataset, c.get_name()) for c in my_compressors]
+    all_theoretical_covariances = [get_theoretical_cov(synthetic_dataset, 1, c.get_name()) for c in my_compressors]
     print("Printing all covariance matrices.")
     for i in range(len(labels)):
         print(labels[i])
