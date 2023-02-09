@@ -149,9 +149,9 @@ class SGD(ABC):
             return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
         if self.batch_size > 1:
             indices = np.random.choice(min(dataset.size_dataset,MAX_SIZE_DATASET), self.batch_size)
-            x, y = dataset.X_complete[indices], dataset.Y[indices]
+            x, y, epsilon = dataset.X_complete[indices], dataset.Y[indices], dataset.epsilon[indices]
         else:
-            x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
+            x, y, epsilon = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]]), np.array([dataset.epsilon[index]])
 
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
