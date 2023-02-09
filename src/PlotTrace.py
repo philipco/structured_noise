@@ -58,7 +58,8 @@ def compute_trace(dataset: SyntheticDataset, dim: int) -> [List[float], Syntheti
     upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
     dataset.generate_constants(dim, size_dataset=SIZE_DATASET, power_cov=POWER_COV, r_sigma=R_SIGMA,
-                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY, nb_clients=NB_CLIENTS)
+                               use_ortho_matrix=USE_ORTHO_MATRIX, heterogeneity=HETEROGENEITY, nb_clients=NB_CLIENTS,
+                               client_id=0)
     dataset.define_compressors()
     dataset.power_cov = POWER_COV
     dataset.upper_sigma = upper_sigma
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     theoretical_trace_by_operators = [[] for i in range(len(labels))]
 
     for dim in range_trace:
-        clients = [Client(dim, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
+        clients = [Client(i, dim, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY) for i in
                    range(NB_CLIENTS)]
         dataset = SyntheticDataset()
         all_trace, dataset = compute_trace(dataset, dim)
@@ -115,14 +116,14 @@ if __name__ == '__main__':
     axes.legend(loc='best', fontsize=FONTSIZE)
     axes.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
     # axes.set_title('Empirical (plain) vs theoretical trace (dashed)')
-    axes.set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}_{\mathrm{emp.}} H^{-1})_i)$", fontsize=FONTSIZE)
+    axes.set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
 
     print("Script completed.")
     folder = "pictures/trace/"
     create_folder_if_not_existing(folder)
 
-    hash = dataset.string_for_hash()
-    plt.savefig("{0}/C{1}-{2}.eps".format(folder, NB_CLIENTS, hash), format='eps')
+    hash = dataset.string_for_hash(nb_runs=1)
+    plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
 
     plt.show()
 

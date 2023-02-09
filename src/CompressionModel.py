@@ -334,14 +334,14 @@ class Sketching(CompressionModel):
             return phi
         else:
             raise ValueError("Type of projection is unknown.")
-        return phi / np.sqrt(self.sub_dim)
+        return phi
 
     def __compress__(self, vector: np.ndarray) -> np.ndarray:
         if self.randomized:
             self.PHI = self.random_projector()
             self.PHI_INV = np.linalg.pinv(self.PHI)
         empirical_proba = self.sub_dim / self.dim
-        return self.PHI_INV @ (self.PHI @ vector / empirical_proba)
+        return (self.PHI_INV @ self.PHI @ vector) / empirical_proba
 
     def __omega_c_formula__(self, dim_to_use: int):
         return (1 - self.level) / self.level

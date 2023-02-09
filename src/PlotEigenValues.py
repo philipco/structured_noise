@@ -28,14 +28,15 @@ DIM = 100
 POWER_COV = 4
 R_SIGMA=0
 
-NB_CLIENTS = 1
+NB_CLIENTS = 10
 EIGENVALUES = None #np.array([1,0.001]) #np.array([0.1,0.1, 0.00001,0.00001,0.00001,0.00001,0.00001, 0.00001, 0.00001])
 
+# In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
 USE_ORTHO_MATRIX = True
-HETEROGENEITY = "homog"
+HETEROGENEITY = "sigma"
 
-FONTSIZE = 17
-LINESIZE = 3
+FONTSIZE = 20
+LINESIZE = 4
 
 
 def prepare_sparsification(x, p):
@@ -126,7 +127,7 @@ if __name__ == '__main__':
         ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
     axes[0].set_title('Empirical eigenvalues', fontsize=FONTSIZE)
     axes[1].set_title('Theoretical eigenvalues', fontsize=FONTSIZE)
-    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}_{\mathrm{emp.}})_i)$", fontsize=FONTSIZE)
+    axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}^{\mathrm{ania}})_i)$", fontsize=FONTSIZE)
     plt.legend(loc='lower left', fontsize=FONTSIZE)
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
