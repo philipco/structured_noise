@@ -161,7 +161,7 @@ class SyntheticDataset(AbstractDataset):
             # self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=40)
             # We fix the rotation matrix only when in dimension (for sake of TCL's plots clarity).
             if self.dim == 2:
-                theta = -3*np.pi / 8
+                theta = 3*np.pi / 8
                 self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             else:
                 if self.heterogeneity == "sigma":

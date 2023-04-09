@@ -5,11 +5,10 @@ import matplotlib
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.PlotUtils import confidence_ellipse, create_gif, plot_ellipse, COLORS, FONTSIZE, LINESIZE, \
-    add_scatter_plot_to_figure
+from src.PlotUtils import confidence_ellipse, create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
 from src.CompressionModel import *
 from src.SyntheticDataset import SyntheticDataset
-from src.TheoreticalCov import get_theoretical_cov, compute_empirical_covariance, compress_and_compute_covariance
+from src.TheoreticalCov import get_theoretical_cov, compress_and_compute_covariance
 from src.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -20,21 +19,21 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 100
+SIZE_DATASET = 500
 POWER_COV = 4
 R_SIGMA=0
 
 DIM = 2
 NB_CLIENTS = 1
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
 HETEROGENEITY = "homog"
 
-NB_RANDOM_COMPRESSION = 5
-NB_COMPRESSED_POINT = 50
+NB_RANDOM_COMPRESSION = 1
+NB_COMPRESSED_POINT = SIZE_DATASET
 
 FEATURES_DISTRIBUTION = "normal" # cauchy, diamond or normal
-EIGENVALUES = np.array([0.5,0.5])
+EIGENVALUES = np.array([1,10])
 if FEATURES_DISTRIBUTION in ["cauchy", "normal"]:
     FOLDER = "pictures/ellipse/{0}/muL={1}/".format(FEATURES_DISTRIBUTION, min(EIGENVALUES)/max(EIGENVALUES))
 else:
@@ -88,7 +87,11 @@ def compute_quadratic_error(x, all_compression):
 def plot_compression_process_by_compressor(dataset, compressor, data_covariance, covariance_compr, theoretical_cov, ax):
 
     X = dataset.X_complete
-    ax_max = max([X[i,j] for i in range(X.shape[0]) for j in range(2)]) / dataset.LEVEL_RDK + 1 # (to see the entire ellipse).
+    eigenvalues, eigenvectors = np.linalg.eig(data_covariance)
+    if dataset.use_ortho_matrix:
+        ax_max = max(eigenvalues) * max(eigenvectors.flat)
+    else:
+        ax_max = max(eigenvalues) * 0.7
 
     folder = FOLDER + compressor.get_name()
     create_folder_if_not_existing(folder)
@@ -122,7 +125,7 @@ def get_all_covariances(dataset: SyntheticDataset, my_compressors):
 def plot_compression_process(dataset, my_compressors, covariances, theoretical_covariances, labels):
 
     nb_of_columns = len(labels) // 2
-    fig_distrib, axes_distrib = plt.subplots(2, nb_of_columns, figsize=(4*nb_of_columns, 2*nb_of_columns))
+    fig_distrib, axes_distrib = plt.subplots(1, 2*nb_of_columns, figsize=(4.5*nb_of_columns, nb_of_columns))
     axes_distrib = axes_distrib.flatten()
 
     for i in range(1, len(my_compressors)):
@@ -169,8 +172,6 @@ if __name__ == '__main__':
     labels = ["no compr.", "quantiz.", "stab. quantiz.", "gauss. proj.", "sparsif", "rand1", "all or noth."]
     no_compressor = Quantization(0, dim=DIM)
     my_compressors = [no_compressor, synthetic_dataset.quantizator,
-                      synthetic_dataset.correlated_quantizator,
-                      synthetic_dataset.anti_cor_quantiz,
                       synthetic_dataset.stabilized_quantizator,
                       synthetic_dataset.sketcher,
                       synthetic_dataset.sparsificator,
@@ -187,4 +188,4 @@ if __name__ == '__main__':
     plot_compression_process(dataset=synthetic_dataset, my_compressors=my_compressors, covariances=all_covariances,
                              theoretical_covariances=all_theoretical_covariances, labels=labels)
 
-    plot_ellipse_simple(dataset=synthetic_dataset, covariances=all_covariances, labels=labels)
+    # plot_ellipse_simple(dataset=synthetic_dataset, covariances=all_covariances, labels=labels)
