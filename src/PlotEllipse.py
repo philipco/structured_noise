@@ -26,7 +26,7 @@ R_SIGMA=0
 DIM = 2
 NB_CLIENTS = 1
 
-USE_ORTHO_MATRIX = False
+USE_ORTHO_MATRIX = True
 HETEROGENEITY = "homog"
 
 NB_RANDOM_COMPRESSION = 1
@@ -89,7 +89,7 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     X = dataset.X_complete
     eigenvalues, eigenvectors = np.linalg.eig(data_covariance)
     if dataset.use_ortho_matrix:
-        ax_max = max(eigenvalues) * max(eigenvectors.flat)
+        ax_max = max(eigenvalues) * 0.7
     else:
         ax_max = max(eigenvalues) * 0.7
 
