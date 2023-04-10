@@ -2,6 +2,7 @@
 Created by Constantin Philippenko, 10th January 2022.
 """
 import copy
+import math
 
 import numpy as np
 from numpy.random import multivariate_normal
@@ -13,6 +14,7 @@ from src.CompressionModel import Quantization, RandomSparsification, Sketching, 
 from src.CustomDistribution import diamond_distribution
 from src.JITProduct import diagonalization
 from src.Utilities import print_mem_usage
+
 
 MAX_SIZE_DATASET = 10**6
 
@@ -36,9 +38,12 @@ class AbstractDataset:
             hash = "{0}-noiseless".format(hash)
         return hash
 
-    def define_compressors(self):
+    def define_compressors(self, omega=None):
 
-        self.LEVEL_QTZ = 1
+        if omega is None:
+            self.LEVEL_QTZ = 1
+        else:
+            self.LEVEL_QTZ = round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
         self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.correlated_quantizator = CorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)
@@ -90,17 +95,6 @@ class AbstractDataset:
         self.gamma = 1 / ((self.sparsificator.omega_c + 1) * self.trace)
 
         print("Taken step size:", self.gamma)
-
-
-class RealLifeDataset(AbstractDataset):
-
-    def load_data(self, X, Y, do_logistic_regression: bool, name: str = None):
-        self.do_logistic_regression = do_logistic_regression
-        self.X, self.Y = X, Y
-        self.upper_sigma = self.X.T @ self.X
-        self.w_star = None
-        self.size_dataset, self.dim = X.shape[0], X.shape[1]
-        self.set_step_size()
 
 class SyntheticDataset(AbstractDataset):
 
