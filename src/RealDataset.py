@@ -1,21 +1,18 @@
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn import decomposition
-from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader
 from torchvision import datasets
 import torchvision.transforms as transforms
 from torchvision.datasets import EMNIST, Food101, Places365, Flowers102, EuroSAT
 
 from src.CompressionModel import RandK
-from src.PickleHandler import pickle_loader, pickle_saver
+from src.utilities.PickleHandler import pickle_loader, pickle_saver
 from src.SyntheticDataset import AbstractDataset
-from src.Utilities import get_project_root, file_exist, create_folder_if_not_existing
+from src.utilities.Utilities import file_exist, create_folder_if_not_existing, get_path_to_datasets
 
 
-def get_path_to_datasets() -> str:
-    """Return the path to the datasets. For sake of anonymization, the path to datasets on clusters is not keep on
-    GitHub and must be personalized locally"""
-    return get_project_root()
-
+IMG_SIZE = 16
+resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
 
 class RealLifeDataset(AbstractDataset):
 
@@ -48,113 +45,125 @@ class RealLifeDataset(AbstractDataset):
                                              std=[0.229, 0.224, 0.225])
 
             transform_train = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, 4),
+                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                normalize,
+                # normalize,
+                resize,
+                transforms.Grayscale(),
             ])
 
             train_data = datasets.CIFAR10(root=path_to_dataset, train=True, download=True, transform=transform_train)
-            flat_data = np.reshape(train_data.data, (len(train_data), -1))
 
-        if dataset_name == 'cifar100':
+        elif dataset_name == 'cifar100':
 
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                              std=[0.229, 0.224, 0.225])
 
             transform_train = transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, 4),
+                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                normalize,
+                # normalize,
+                resize,
+                transforms.Grayscale(),
             ])
 
             train_data = datasets.CIFAR100(root=path_to_dataset, train=True, download=True, transform=transform_train)
-            flat_data = np.reshape(train_data.data, (len(train_data), -1))
 
         elif dataset_name == 'mnist':
-            # Normalization see : https://stackoverflow.com/a/67233938
-            transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+            # CropCenter is required because all pictures have a black band around it, which causes to have eigenvalues
+            # equal to zero.
+            transform = transforms.Compose([transforms.ToTensor(), transforms.CenterCrop((20,20)), resize,  #transforms.Normalize((0.1307,), (0.3081,))
+                                            ])
             train_data = datasets.MNIST(root=path_to_dataset, train=True, download=False, transform=transform)
-            flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
 
-        elif dataset_name == "fashion_mnist":
+        elif dataset_name == "fashion-mnist":
 
-            train_transforms = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.1307,), (0.3081,))
-            ])
+            train_transforms = transforms.Compose([transforms.CenterCrop((20,20)), resize, transforms.ToTensor(),  #transforms.Normalize((0.1307,), (0.3081,))
+                                                   ])
             train_data = datasets.FashionMNIST(path_to_dataset, download=True, train=True, transform=train_transforms)
-            flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
-
-        elif dataset_name == "EuroSAT":
-            transform = transforms.Compose([
-                transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5,))]
-            )
-            train_data = EuroSAT("../../DATASETS", download=False, transform=transform)
-            data = []
-            print("Getting all pictures from the EuroSAT dataset.")
-            for i in range(len(train_data)):
-                data.append(np.reshape(train_data[i][0].numpy(), -1))
-            flat_data = np.array(data)
 
         elif dataset_name == "emnist":
-            transform = transforms.Compose([
-                transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
-            )
+            transform = transforms.Compose([transforms.CenterCrop((20,20)), resize, transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
             train_data = EMNIST("./dataset", train=True, download=True, transform=transform, split="balanced")
-            flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
+
+        elif dataset_name == "euroSAT":
+            # transform = transforms.Compose([
+            #     transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5,))])
+            transform_train = transforms.Compose([
+                transforms.ToTensor(),
+                # normalize,
+                resize,
+                transforms.Grayscale(),
+            ])
+            train_data = EuroSAT("../../DATASETS", download=False, transform=transform_train)
 
         elif dataset_name == "Food101":
-            transform = transforms.Compose([
-                transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5))]
-            )
+            transform = transforms.Compose([resize, transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5))])
             train_data = Food101("./dataset", download=True, transform=transform, split="train")
-            flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
+            # flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
 
         elif dataset_name == "Places365":
             transform = transforms.Compose([
-                transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5))]
+                resize, transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5))]
             )
             train_data = Places365("./dataset", download=True, transform=transform, split="train-standard", small=True)
-            flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
+            # flat_data = np.reshape(train_data.data.numpy(), (len(train_data), -1))
 
-        elif dataset_name == "Flowers102":
-            img_size = 32
+        elif dataset_name == "flowers102":
             imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            transform = transforms.Compose([transforms.Resize(img_size),
-                                           transforms.Pad(8, padding_mode='reflect'),
-                                           transforms.RandomCrop(img_size),
-                                           transforms.ToTensor(),
-                                           transforms.Normalize(*imagenet_stats)])
-            train_data = Flowers102("./dataset", download=True, transform=transform, split="train")
-            data = []
-            print("Getting all pictures from the Flowers102 dataset.")
-            for i in range(len(train_data)):
-                data.append(np.reshape(train_data[i][0].numpy(), -1))
-            flat_data = np.array(data)
+            # transform_train = transforms.Compose([#transforms.Resize(crop),
+            #                                #transforms.Pad(8, padding_mode='reflect'),
+            #                                crop,
+            #                                transforms.ToTensor(),
+            #                                transforms.Normalize(*imagenet_stats)])
+
+            transform_train = transforms.Compose([
+                # transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                # normalize,
+                resize,
+                transforms.Grayscale(),
+            ])
+
+            train_data = Flowers102("./dataset", download=True, transform=transform_train, split="train")
         else:
             raise ValueError("{0} unknown".format(dataset_name))
 
+        batch_size = 128
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
+        flat_data = []
+        # Iterate over the transformed MNIST training set and print the shape of each image
+        for batch_idx, (data, target) in enumerate(train_loader):
+            flat_data.append(np.reshape(data.numpy(), (len(data), -1)))
+
+        flat_data = np.concatenate(flat_data)
         self.dim = len(flat_data[0])
         self.size_dataset = len(flat_data)
-        standardize_data = StandardScaler().fit_transform(flat_data)
+        standardize_data = flat_data
+        # standardize_data = StandardScaler().fit_transform(flat_data)
         print("Mean:", np.mean(standardize_data))
         print("Standard deviation:", np.std(standardize_data))
         self.upper_sigma = np.cov(standardize_data.T)
         eig, eigvectors = np.linalg.eig(self.upper_sigma)
         big_eig = (eig.real > 10**-14).sum()
-        if big_eig != self.dim:
-            print("Warning: there is {0} eigenvalues that are smaller than 10^-14".format(self.dim - big_eig))
-            pca = decomposition.PCA(big_eig)
-            self.X_complete = pca.fit_transform(standardize_data)
-            self.upper_sigma = np.cov(self.X_complete.T)
-            self.dim = big_eig
-        else:
-            self.X_complete = standardize_data
+        eig = np.sort(eig)[::-1]
+        print("Eigenvalues - biggest: {0}, 32: {1}, 64: {2}, smallest: {3}".format(eig[0], eig[31], eig[63], eig[big_eig-1]))
+        # if big_eig != self.dim:
+        print("Warning: there is {0} eigenvalues that are smaller than 10^-14".format(self.dim - big_eig))
+        # pca = decomposition.PCA(big_eig)
+        self.X_complete = standardize_data #pca.fit_transform(standardize_data)
+        self.upper_sigma = np.cov(self.X_complete.T)
+        # self.dim = big_eig #big_eig
 
-        self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
+        print("Effective dimension:", len(self.X_complete[0]))
+
+        print("Plus grande valeur propre:", eig[0])
+        self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)# + np.identity(self.dim) * reg )
+
+        print("Trace H:", np.trace(self.upper_sigma))
+        plt.show()
+        print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
         print("Computed cov.")
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1):

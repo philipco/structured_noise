@@ -1,8 +1,6 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
 """
-import cmath
-from typing import List
 
 import matplotlib
 import numpy as np
@@ -12,11 +10,11 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from src.CompressionModel import Quantization
+from src.utilities.PickleHandler import pickle_saver
 from src.RealDataset import RealLifeDataset
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
-from src.Utilities import create_folder_if_not_existing
-from src.federated_learning.Client import Client
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -104,7 +102,7 @@ def plot_eigenvalues_and_compute_trace(dataset_name, labels):
 
     fig, axes = plt.subplots(1, 1, figsize=(6, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
-        axes.plot(np.log10(np.arange(1, dataset.dim + 1)), np.sort(np.log10(diagonal))[::-1], label=label, lw=LINESIZE)
+        axes.plot(np.arange(1, dataset.dim + 1), np.sort(np.log10(diagonal))[::-1], label=label, lw=LINESIZE)
     # for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
     #     axes[1].plot(np.log10(np.arange(1, dataset.dim + 1)), np.sort(np.log10(diagonal))[::-1], label=label, lw = LINESIZE, linestyle="--")
 
@@ -132,9 +130,12 @@ def plot_traces_by_dataset(all_traces, compressors):
     df.columns = ["compressor", "dataset", "trace"]
 
     # Create a stacked bar plot
+    sns.set(rc={'figure.figsize': (10, 5)})
     sns.set(style="whitegrid")
     sns.barplot(x="dataset", y="trace", hue="compressor", data=df, palette="tab10", edgecolor="none")
     plt.yscale('log')
+    plt.ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$")
+    plt.xlabel("")
     folder = "pictures/epsilon_eigenvalues/"
     create_folder_if_not_existing(folder)
     plt.savefig("{0}/trace_barplot_real_datasets.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
@@ -145,11 +146,15 @@ def plot_traces_by_dataset(all_traces, compressors):
 
 if __name__ == '__main__':
 
-    labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
-    datasets = ["mnist", "fashion_mnist", "emnist", "cifar10", "cifar100", "EuroSAT"] #"mnist", "cifar10", "Flowers102"]
+    labels = ["no compr.", "s-quantiz.", "sparsif.", "rand-k", "sketching", "partial part."]
+    datasets = ["cifar10", "cifar100", "mnist", "fashion-mnist", "emnist", "flowers102", "euroSAT"] #"emnist", "cifar10", "cifar100"]#, "EuroSAT"] #"mnist", "cifar10", "Flowers102"]
     traces = {}
     for dataset_name in datasets:
         all_traces = plot_eigenvalues_and_compute_trace(dataset_name, labels)
         traces[dataset_name] = all_traces
+
+    folder = "pictures/epsilon_eigenvalues".format(dataset_name)
+    create_folder_if_not_existing(folder)
+    pickle_saver(traces, "{0}/all_traces.pkl".format(folder))
 
     plot_traces_by_dataset(traces, labels)
