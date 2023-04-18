@@ -25,15 +25,15 @@ matplotlib.rcParams.update({
 
 SIZE_DATASET = 10**4
 DIM = 100
-POWER_COV = 4
+POWER_COV = 1
 R_SIGMA=0
 
-NB_CLIENTS = 10
+NB_CLIENTS = 1
 EIGENVALUES = None #np.array([1,0.001]) #np.array([0.1,0.1, 0.00001,0.00001,0.00001,0.00001,0.00001, 0.00001, 0.00001])
 
 # In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
 USE_ORTHO_MATRIX = True
-HETEROGENEITY = "sigma"
+HETEROGENEITY = "homog"
 
 FONTSIZE = 20
 LINESIZE = 4
@@ -55,10 +55,13 @@ def compute_diag(dataset, compressor):
 
     cov_matrix = X_compressed.T.dot(X_compressed) / SIZE_DATASET
 
+    # We diagonalize the covariance matrix by using the rotation matrix Q that was used to generate the dataset.
+    # We don't compute the eigenvalues using np.linalg.eig as it introduces some errors.
     cov_matrix = dataset.ortho_matrix.T.dot(cov_matrix).dot(dataset.ortho_matrix)
 
+    eigvalues, _ = np.linalg.eig(cov_matrix)
     diag = np.diag(cov_matrix)
-    return diag, cov_matrix
+    return diag, cov_matrix # Warning: if the eigenvalues are increasing, don't forget to sort the diag.
 
 
 def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim: int, labels):

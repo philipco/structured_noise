@@ -19,14 +19,14 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 500
+SIZE_DATASET = 100
 POWER_COV = 4
 R_SIGMA=0
 
 DIM = 2
 NB_CLIENTS = 1
 
-USE_ORTHO_MATRIX = True
+USE_ORTHO_MATRIX = False
 HETEROGENEITY = "homog"
 
 NB_RANDOM_COMPRESSION = 1
@@ -89,9 +89,9 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     X = dataset.X_complete
     eigenvalues, eigenvectors = np.linalg.eig(data_covariance)
     if dataset.use_ortho_matrix:
-        ax_max = max(eigenvalues) * 0.7
+        ax_max = max(eigenvalues) * 0.61
     else:
-        ax_max = max(eigenvalues) * 0.7
+        ax_max = max(eigenvalues) * 0.61
 
     folder = FOLDER + compressor.get_name()
     create_folder_if_not_existing(folder)
@@ -124,8 +124,8 @@ def get_all_covariances(dataset: SyntheticDataset, my_compressors):
 
 def plot_compression_process(dataset, my_compressors, covariances, theoretical_covariances, labels):
 
-    nb_of_columns = len(labels) // 2
-    fig_distrib, axes_distrib = plt.subplots(1, 2*nb_of_columns, figsize=(4.5*nb_of_columns, nb_of_columns))
+    nb_of_columns = len(labels) - 1
+    fig_distrib, axes_distrib = plt.subplots(1, nb_of_columns, figsize=(4*nb_of_columns, 4))
     axes_distrib = axes_distrib.flatten()
 
     for i in range(1, len(my_compressors)):
@@ -133,7 +133,7 @@ def plot_compression_process(dataset, my_compressors, covariances, theoretical_c
         plot_compression_process_by_compressor(dataset, compressor, covariances[0], covariances[i],
                                                theoretical_covariances[i], axes_distrib[i - 1])
 
-    axes_distrib[0].legend(loc='lower right', fontsize=10)
+    # axes_distrib[0].legend(loc='lower right', fontsize=10)
 
     filename = FOLDER + "scatter_plot"
     if USE_ORTHO_MATRIX:

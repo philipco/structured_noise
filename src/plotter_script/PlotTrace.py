@@ -7,10 +7,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from src.CompressionModel import Quantization, RandomSparsification, Sketching
+from src.CompressionModel import Quantization
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client
 
 matplotlib.rcParams.update({

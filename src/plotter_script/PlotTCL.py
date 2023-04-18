@@ -1,5 +1,4 @@
 """Created by Constantin Philippenko, 11th April 2022."""
-import math
 # axmax = max ellipse ! Sinon, outliners !
 from typing import List
 
@@ -14,12 +13,12 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from tqdm import tqdm
 
-from src.PlotUtils import plot_ellipse
+from src.utilities.PlotUtils import plot_ellipse
 from src.CompressionModel import *
-from src.SGD import SGDCompressed, SGDArtemis, SeriesOfSGD
+from src.SGD import SGDArtemis, SeriesOfSGD
 from src.TheoreticalCov import get_theoretical_cov, compute_inversion, compute_empirical_covariance, \
     compute_limit_distrib
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.Utilities import create_folder_if_not_existing
 from src.main import plot_only_avg
 
 matplotlib.rcParams.update({

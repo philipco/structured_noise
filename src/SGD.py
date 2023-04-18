@@ -13,9 +13,9 @@ from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel, Quantization
 from src.JITProduct import *
-from src.PickleHandler import pickle_saver
+from src.utilities.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
-from src.Utilities import print_mem_usage
+from src.utilities.Utilities import print_mem_usage
 from src.federated_learning.Client import Client
 
 ONLY_ADDITIVE_NOISE = False

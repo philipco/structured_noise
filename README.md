@@ -19,8 +19,3 @@ Full: 24h
 Stochastic: 14h.
 ```run_wstar_experiments.py --nb_clients 10 --use_ortho_matrix True --stochastic "True"```
 ```run_wstar_experiments.py --nb_clients 10 --use_ortho_matrix True --stochastic "False"```
-
-TODO :
-- faire tourner le code sur le serveur avec 5 runs
-- explorer la quantization décorrélé/anticorrélé, notamment dans les cas limites.
-- calculer la matrice de covariance pour le sketching

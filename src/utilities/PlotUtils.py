@@ -138,17 +138,15 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
 
 def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
                                theoretical_cov, ax_max):
-
-    ax.scatter(X[:min(150, len(X)), 0], X[:min(150, len(X)), 1], color=COLORS[0], alpha=0.5, s=15,
+    mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
+    result = X[mask]
+    ax.scatter(result[:min(200, len(result)), 0], result[:min(200, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
                label="No compression", zorder=2)
-    ax.scatter(all_compressed_point[:min(150, len(X)), 0], all_compressed_point[:min(150, len(X)), 1], color=COLORS[1],
-               alpha=0.5, s=15, label="Compression", zorder=1)
 
-    if ax_max is not None:
-        ax.set_xlim(-ax_max, ax_max)
-        ax.set_ylim(-ax_max, ax_max)
-    ax.axvline(x=0, color="black")
-    ax.axhline(y=0, color="black")
+    mask = (np.abs(all_compressed_point[:, 0]) <= ax_max) & (np.abs(all_compressed_point[:, 1]) <= ax_max)
+    result = all_compressed_point[mask]
+    ax.scatter(result[:min(200, len(result)), 0], result[:min(200, len(result)), 1], color=COLORS[1],
+               alpha=0.5, s=15, label="Compression", zorder=1)
 
     plot_ellipse(data_covariance, r"$\mathcal{E}_{\mathrm{Cov}[{x_k}}]$", ax, color=COLORS[0], linestyle="-", zorder=3,
                  lw=LINESIZE, n_std=2, plot_eig=True)
@@ -161,6 +159,19 @@ def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_cov
     #                  color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
 
     ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
+
+    ax.axis('equal')
+    if ax_max is not None:
+        print("Ax max:", ax_max)
+        ax.set_xlim(-ax_max, ax_max)
+        ax.set_ylim(-ax_max, ax_max)
+        x_ticks = [i for i in range(0, -math.floor(ax_max), -2)][::-1] + [i for i in range(0, math.floor(ax_max), 2)]
+        y_ticks = [i for i in range(0,-7,-2)][::-1] + [i for i in range(0,7,2)]
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+    ax.axvline(x=0, color="black")
+    ax.axhline(y=0, color="black")
+
 
 
 def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
@@ -179,7 +190,11 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
 
     ax.plot(X, Y, label = label, **kwargs)
 
-
+    if kwargs["color"] == COLORS[0]:
+        kwargs["zorder"] = 5
+    else:
+        kwargs["zorder"] = 4
+    kwargs["lw"] = 4
     if plot_eig:
         V1 = 0.9 * Q @ np.array([math.sqrt(n_std * D[0]), 0])
         V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])

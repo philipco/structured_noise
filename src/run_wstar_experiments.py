@@ -6,9 +6,9 @@ import argparse
 import numpy as np
 from matplotlib.lines import Line2D
 
-from src.PlotUtils import plot_only_avg, setup_plot_with_SGD
+from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD
 from src.SGD import SeriesOfSGD, SGDArtemis, SGDCompressed, SGDVanilla
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import check_clients, Client
 from src.main import plot_eigen_values
 

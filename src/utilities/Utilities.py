@@ -36,3 +36,9 @@ def print_mem_usage(info = None):
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss * 10**-9 # Memory in Gb.
     print("Memory usage: {0:1.2f}Gb".format(mem))
+
+
+def get_path_to_datasets() -> str:
+    """Return the path to the datasets. For sake of anonymization, the path to datasets on clusters is not keep on
+    GitHub and must be personalized locally"""
+    return get_project_root()
