@@ -8,12 +8,11 @@ import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group, multivariate_t
 
-from src.CompressionModel import Quantization, RandomSparsification, Sketching, find_level_of_quantization, \
-    AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
+from src.CompressionModel import Quantization, RandomSparsification, Sketching, AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
     DifferentialPrivacy, IndependantDifferentialPrivacy
 from src.CustomDistribution import diamond_distribution
 from src.JITProduct import diagonalization
-from src.Utilities import print_mem_usage
+from src.utilities.Utilities import print_mem_usage
 
 
 MAX_SIZE_DATASET = 10**6
@@ -147,15 +146,9 @@ class SyntheticDataset(AbstractDataset):
         self.upper_sigma = np.diag(self.eigenvalues, k=0) #toeplitz(0.6 ** np.arange(0, self.dim)) #
 
         if self.use_ortho_matrix:
-            # theta = np.pi / 4
-            # self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]]) #ortho_group.rvs(dim=self.dim)
-            # if self.heterogeneity == "sigma":
-            #     self.ortho_matrix = ortho_group.rvs(dim=self.dim)
-            # else:
-            # self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=40)
             # We fix the rotation matrix only when in dimension (for sake of TCL's plots clarity).
             if self.dim == 2:
-                theta = 3*np.pi / 8
+                theta = np.pi / 8
                 self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             else:
                 if self.heterogeneity == "sigma":
@@ -179,7 +172,10 @@ class SyntheticDataset(AbstractDataset):
         elif features_distribution == "cauchy":
             self.X = multivariate_t.rvs(np.zeros(self.dim), self.upper_sigma, size=size_generator, df=2)
         elif features_distribution == "normal":
-            self.X = multivariate_normal(np.zeros(self.dim), self.upper_sigma, size=size_generator)
+            m = np.zeros(self.dim) #self.eigenvalues if self.power_cov > 0 else self.eigenvalues * 0.05
+            m_carre = np.kron(m,m).reshape((m.shape[0], m.shape[0]))
+            self.second_moment_cov = self.upper_sigma + m_carre
+            self.X = multivariate_normal(m, self.upper_sigma, size=size_generator)
         else:
             raise ValueError("Unknow features distribution.")
         self.X_complete = copy.deepcopy(self.X)

@@ -29,7 +29,7 @@ def compress_and_compute_covariance(dataset, compressor):
 
 def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name: str):
 
-    sigma = dataset.upper_sigma / nb_clients
+    sigma = dataset.second_moment_cov / nb_clients
     diag_sigma = np.diag(np.diag(sigma))
 
     if compression_name == "No compression":

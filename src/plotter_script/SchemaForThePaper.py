@@ -4,9 +4,8 @@ from matplotlib import pyplot as plt
 
 from scipy.stats import multivariate_t, multivariate_normal
 
-from src.PlotUtils import confidence_ellipse
-from src.SyntheticDataset import SyntheticDataset
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.PlotUtils import confidence_ellipse
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",

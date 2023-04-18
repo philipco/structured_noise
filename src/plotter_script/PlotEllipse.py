@@ -5,11 +5,11 @@ import matplotlib
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.PlotUtils import confidence_ellipse, create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
+from src.utilities.PlotUtils import confidence_ellipse, create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
 from src.CompressionModel import *
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov, compress_and_compute_covariance
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
@@ -19,7 +19,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-SIZE_DATASET = 100
+SIZE_DATASET = 2000
 POWER_COV = 4
 R_SIGMA=0
 
