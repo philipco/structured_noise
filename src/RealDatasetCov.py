@@ -16,7 +16,6 @@ from src.utilities.PickleHandler import pickle_saver
 from src.RealDataset import RealLifeDataset
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
-from src.utilities.PlotUtils import COLORS
 from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -34,6 +33,8 @@ sns.set(font='serif', style='white',
         rc={'text.usetex': True, 'pgf.rcfonts': False})
 
 FOLDER = "pictures/real_dataset"
+
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
 
 NB_CLIENTS = 1
 # DATASET_NAME = "Flowers102" # TODO Food101 : 1h
@@ -160,7 +161,7 @@ if __name__ == '__main__':
 
     else:
 
-        datasets = ["cifar10"] #, "mnist", "fashion-mnist", "emnist", "flowers102",
+        datasets = ["quantum", "cifar10"] #, "mnist", "fashion-mnist", "emnist", "flowers102",
                     # "euroSAT"]
         for dataset_name in datasets:
             print(">>>>> {0}".format(dataset_name))
