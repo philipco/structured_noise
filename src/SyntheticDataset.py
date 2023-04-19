@@ -37,12 +37,14 @@ class AbstractDataset:
             hash = "{0}-noiseless".format(hash)
         return hash
 
-    def define_compressors(self, omega=None):
+    def define_compressors(self, s=None):
 
-        if omega is None:
-            self.LEVEL_QTZ = 1
-        else:
-            self.LEVEL_QTZ = round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
+        # if omega is None:
+        #     self.LEVEL_QTZ = 1
+        # elif omega == 0:
+        #     self.LEVEL_QTZ = 0
+        # else:
+        self.LEVEL_QTZ = s #round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
         self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.correlated_quantizator = CorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)

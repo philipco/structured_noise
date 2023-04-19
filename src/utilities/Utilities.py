@@ -11,7 +11,7 @@ import psutil
 def get_project_root() -> str:
     import pathlib
     path = str(pathlib.Path().absolute())
-    root_dir = str(Path(__file__).parent)#.parent.parent)
+    root_dir = str(Path(__file__).parent.parent)#.parent)
     split = path.split(root_dir)
     return split[0] + "/" + root_dir
 
@@ -41,4 +41,4 @@ def print_mem_usage(info = None):
 def get_path_to_datasets() -> str:
     """Return the path to the datasets. For sake of anonymization, the path to datasets on clusters is not keep on
     GitHub and must be personalized locally"""
-    return get_project_root()
+    return '{0}/../../DATASETS/'.format(get_project_root())

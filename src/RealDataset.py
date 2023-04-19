@@ -1,11 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.random import multivariate_normal
+from sklearn import decomposition
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 from torchvision import datasets
 import torchvision.transforms as transforms
 from torchvision.datasets import EMNIST, Food101, Places365, Flowers102, EuroSAT
 
 from src.CompressionModel import RandK
+from src.PytorchDatasetClass import QuantumDataset, A9ADataset, PhishingDataset
 from src.utilities.PickleHandler import pickle_loader, pickle_saver
 from src.SyntheticDataset import AbstractDataset
 from src.utilities.Utilities import file_exist, create_folder_if_not_existing, get_path_to_datasets
@@ -16,29 +20,36 @@ resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
 
 class RealLifeDataset(AbstractDataset):
 
-    def __init__(self, dataset_name: str, omega=None):
+    def __init__(self, dataset_name: str, s=None):
         super().__init__(dataset_name)
         if file_exist("pickle/real_dataset/{0}.pkl".format(dataset_name)):
             myinstance = pickle_loader("pickle/real_dataset/{0}".format(dataset_name))
             for k in myinstance.__dict__.keys():
                 setattr(self, k, getattr(myinstance, k))
-            self.define_compressors(omega)
+            self.define_compressors(s)
         else:
             print("Preparing the dataset.")
             self.load_data(dataset_name)
-            self.define_compressors(omega)
+            self.define_compressors(s)
+            self.define_constants()
             create_folder_if_not_existing("pickle/real_dataset/")
             pickle_saver(self, "pickle/real_dataset/{0}".format(dataset_name))
             print("Done dataset preparation.")
 
-    def define_compressors(self, omega=None):
-        super().define_compressors(omega=omega)
+    def define_constants(self, w0_seed: int = 42):
+        if w0_seed is not None:
+            self.w0 = np.zeros(self.dim)
+        else:
+            self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
+
+    def define_compressors(self, s=None):
+        super().define_compressors(s=s)
         self.rand1 = RandK(self.sketcher.sub_dim, dim=self.dim, biased=False)
         print("New omega rand1:", self.rand1.omega_c)
 
 
     def load_data(self, dataset_name):
-        path_to_dataset = '{0}/../../DATASETS/'.format(get_path_to_datasets())
+        path_to_dataset = get_path_to_datasets()
         if dataset_name == 'cifar10':
 
             normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -83,8 +94,17 @@ class RealLifeDataset(AbstractDataset):
             train_data = datasets.FashionMNIST(path_to_dataset, download=True, train=True, transform=train_transforms)
 
         elif dataset_name == "emnist":
-            transform = transforms.Compose([transforms.CenterCrop((20,20)), resize, transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+            transform = transforms.Compose([transforms.CenterCrop((20,20)), resize, transforms.ToTensor()])
             train_data = EMNIST("./dataset", train=True, download=True, transform=transform, split="balanced")
+
+        elif dataset_name == "quantum":
+            train_data = QuantumDataset()
+
+        elif dataset_name == "a9a":
+            train_data = A9ADataset()
+
+        elif dataset_name == "phishing":
+            train_data = PhishingDataset()
 
         elif dataset_name == "euroSAT":
             # transform = transforms.Compose([
@@ -140,29 +160,33 @@ class RealLifeDataset(AbstractDataset):
         flat_data = np.concatenate(flat_data)
         self.dim = len(flat_data[0])
         self.size_dataset = len(flat_data)
-        standardize_data = flat_data
-        # standardize_data = StandardScaler().fit_transform(flat_data)
+
+        standardize_data = StandardScaler().fit_transform(flat_data)
+        self.X_complete = standardize_data
         print("Mean:", np.mean(standardize_data))
         print("Standard deviation:", np.std(standardize_data))
+
         self.upper_sigma = np.cov(standardize_data.T)
         eig, eigvectors = np.linalg.eig(self.upper_sigma)
         big_eig = (eig.real > 10**-14).sum()
         eig = np.sort(eig)[::-1]
-        print("Eigenvalues - biggest: {0}, 32: {1}, 64: {2}, smallest: {3}".format(eig[0], eig[31], eig[63], eig[big_eig-1]))
-        # if big_eig != self.dim:
+        if self.dim >= 64:
+            print("Eigenvalues - biggest: {0}, 32: {1}, 64: {2}, smallest: {3}".format(eig[0], eig[31], eig[63], eig[big_eig-1]))
+        else:
+            print("Eigenvalues - biggest: {0}, smallest: {1}".format(eig[0], eig[big_eig - 1]))
         print("Warning: there is {0} eigenvalues that are smaller than 10^-14".format(self.dim - big_eig))
-        # pca = decomposition.PCA(big_eig)
-        self.X_complete = standardize_data #pca.fit_transform(standardize_data)
-        self.upper_sigma = np.cov(self.X_complete.T)
-        # self.dim = big_eig #big_eig
+        pca = decomposition.PCA(self.dim)
+        self.X_pca = pca.fit_transform(standardize_data)
+        self.upper_sigma_pca = np.cov(self.X_pca.T)
 
         print("Effective dimension:", len(self.X_complete[0]))
 
-        print("Plus grande valeur propre:", eig[0])
-        self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)# + np.identity(self.dim) * reg )
+        self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
+        self.upper_sigma_inv_pca = np.linalg.inv(self.upper_sigma_pca)
 
         print("Trace H:", np.trace(self.upper_sigma))
-        plt.show()
+        # plt.imshow(self.upper_sigma)
+        # plt.show()
         print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
         print("Computed cov.")
 
