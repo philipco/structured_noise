@@ -44,7 +44,10 @@ class AbstractDataset:
         # elif omega == 0:
         #     self.LEVEL_QTZ = 0
         # else:
-        self.LEVEL_QTZ = s #round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
+        if s is None:
+            self.LEVEL_QTZ = 1
+        else:
+            self.LEVEL_QTZ = s #round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
         self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.correlated_quantizator = CorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)
@@ -142,7 +145,12 @@ class SyntheticDataset(AbstractDataset):
 
         # Used to generate self.X
         if eigenvalues is None:
-            self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
+            if self.power_cov == "isotropic":
+                self.eigenvalues = np.ones(self.dim)
+            elif self.power_cov == "gap":
+                self.eigenvalues = np.array([1 if i < self.dim // 2 else 1 / i for i in range(self.dim)])
+            else:
+                self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
         else:
             self.eigenvalues = eigenvalues
         self.upper_sigma = np.diag(self.eigenvalues, k=0) #toeplitz(0.6 ** np.arange(0, self.dim)) #
