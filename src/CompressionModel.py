@@ -28,6 +28,10 @@ class CompressionModel(ABC):
         else:
             self.omega_c = None
 
+    def reset_level(self, level: int):
+        self.level = level
+        self.omega_c = self.__compute_omega_c__(dim=self.dim)
+
     @abstractmethod
     def __compress__(self, vector: np.ndarray) -> np.ndarray:
         """Compresses a vector with the mechanism of the operator of compression."""
@@ -52,7 +56,7 @@ class CompressionModel(ABC):
         This formula is unique for each operator of compression."""
         pass
 
-    def __compute_omega_c__(self, vector: np.ndarray = None, dim: int = None):
+    def __compute_omega_c__(self,  dim: int = None):
         """Compute the value of omega_c."""
         # If s==0, it means that there is no compression.
         # But for the need of experiments, we may need to compute the quantization constant associated with s=1.

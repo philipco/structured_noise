@@ -57,7 +57,7 @@ class AbstractDataset:
 
         self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
-        self.rand1 = RandK(1, dim=self.dim, biased=False)
+        self.rand1 = RandK(int(self.dim * self.LEVEL_RDK) if self.dim * self.LEVEL_RDK > 1 else 1, dim=self.dim, biased=False)
 
         self.dp = DifferentialPrivacy(self.LEVEL_RDK, dim=self.dim)
         self.ind_dp = IndependantDifferentialPrivacy(self.LEVEL_RDK, dim=self.dim)

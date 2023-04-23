@@ -74,11 +74,6 @@ if __name__ == '__main__':
     nb_clients = int(args.nb_clients)
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
     heterogeneity = args.heterogeneity
-    
-    if nb_clients == 1:
-        step_size = lambda it, r2, omega: 1 / ((omega + 1) * r2)
-    else:
-        step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
 
     np.random.seed(10)
     clients = [Client(i, DIM, dataset_size // nb_clients, POWER_COV, nb_clients, use_ortho_matrix, heterogeneity)
@@ -90,7 +85,7 @@ if __name__ == '__main__':
         synthetic_dataset = clients[0].dataset
         hash_string = synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC)
 
-        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
+        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 
