@@ -74,7 +74,7 @@ if __name__ == '__main__':
                     Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. mem.')]
 
     # if stochastic:
-    size_dataset = 5*10**7
+    size_dataset = 10**8
     nb_epoch = 1
 
     lower_sigma = 0 if noiseless else None
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         hash_string = synthetic_dataset.string_for_hash(nb_runs=NB_RUNS,stochastic=stochastic, batch_size=batch_size,
                                                         noiseless=noiseless)
 
-        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
+        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
         vanilla_sgd = SGDVanilla(clients, step_size, nb_epoch=nb_epoch, sto=stochastic, batch_size=batch_size,
