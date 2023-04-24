@@ -18,7 +18,6 @@ class QuantumDataset(Dataset):
     def __init__(self, train: bool = True, iid: str = "iid"):
         root = get_project_root()
         bool_iid = True if iid == "iid" else False
-        create_folder_if_not_existing("{0}/pickle/quantum-{1}-N20".format(root, iid))
         X_train, Y_train, dim = prepare_quantum(20, data_path="{0}/pickle/".format(root),
                                                          pickle_path="{0}/pickle/quantum-{1}-N20".format(root, iid),
                                                          iid=bool_iid)

@@ -1,6 +1,7 @@
 """
 Created by Constantin Philippenko, 29th April 2022.
 """
+import random
 from typing import List
 
 import numpy as np
@@ -50,10 +51,16 @@ class ClientRealDataset:
         self.w = self.dataset.w0
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)
+        self.regenerate_dataset()  # We shuffle data also at initialisation.
 
     def update_model(self, w: np.ndarray, avg_w: np.ndarray) -> None:
         self.w = w
         self.avg_w = avg_w
+
+    def regenerate_dataset(self):
+        c = list(zip(self.dataset.X_complete, self.dataset.X_pca, self.dataset.Y))
+        random.shuffle(c)
+        self.dataset.X_complete, self.dataset.X_pca, self.dataset.Y = zip(*c)
 
 
 def check_clients(clients: List[Client], heterogeneity: str):

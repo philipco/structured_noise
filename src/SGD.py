@@ -28,7 +28,8 @@ CORRECTION_SQUARE_COV = False
 CORRECTION_DIAG = False
 
 
-def log_sampling_xaxix(size_dataset):
+def log_sampling_xaxix(size_dataset, nb_epoch: int = 1):
+    size_dataset *= nb_epoch
     log_len = np.int(math.log10(size_dataset))
     residual_len = math.log10(size_dataset) - log_len
     log_xaxis = [[math.pow(10, a) * math.pow(10, i / 1000) for i in range(1000)] for a in range(log_len)]
@@ -67,8 +68,9 @@ class SGDRun:
         self.last_w = last_w
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
+        self.nb_epoch = nb_epoch
         # if sto:
-        self.log_xaxis = log_sampling_xaxix(size_dataset // self.batch_size) * self.batch_size
+        self.log_xaxis = log_sampling_xaxix((size_dataset) // self.batch_size,  self.nb_epoch) * self.batch_size
         # else:
         #     self.log_xaxis = np.arange(nb_epoch)
         self.diag_cov_gradients = diag_cov_gradients
@@ -84,20 +86,23 @@ class SGD(ABC):
         self.sto = sto
         self.batch_size = batch_size
         self.step_formula = step_formula
-        # if self.sto:
-        self.nb_epoch = 1
-        # else:
-        #     self.nb_epoch = 1#nb_epoch
+
+        self.nb_epoch = nb_epoch
+
         self.start_averaging = start_averaging  # 50 for wstar, 0 otherwise.
-        self. L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
+        self.L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
         self.size_dataset, self.w0 = clients[0].local_size, clients[0].dataset.w0
-        self.w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
         self.sigma = clients[0].dataset.upper_sigma
 
         self.additive_stochastic_gradient = ONLY_ADDITIVE_NOISE
 
-        self.use_ortho_matrix = clients[0].dataset.use_ortho_matrix
-        self.ortho_matrix = clients[0].dataset.ortho_matrix
+        if not clients[0].dataset.real_dataset:
+            self.use_ortho_matrix = clients[0].dataset.use_ortho_matrix
+            self.ortho_matrix = clients[0].dataset.ortho_matrix
+
+        self.w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
+
+
         self.root_square_upper_sigma = sqrtm(self.sigma)
         self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
 
@@ -116,12 +121,13 @@ class SGD(ABC):
     def compute_federated_true_risk(self, w, avg_w) -> [float, float]:
         true_federated_risk = [
             wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
-            - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+            # TODO !!!
+            # - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                for i in range(len(self.clients))
         ]
         true_federated_avg_risk = [
                     wAw_product(0.5, minus(avg_w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
-                    - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+                    # - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                        for i in range(len(self.clients))
                 ]
         return np.mean(true_federated_risk, axis=0), np.mean(true_federated_avg_risk, axis=0)
@@ -149,9 +155,9 @@ class SGD(ABC):
             return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
         if self.batch_size > 1:
             indices = np.random.choice(min(dataset.size_dataset,MAX_SIZE_DATASET), self.batch_size)
-            x, y, epsilon = dataset.X_complete[indices], dataset.Y[indices], dataset.epsilon[indices]
+            x, y = dataset.X_complete[indices], dataset.Y[indices]
         else:
-            x, y, epsilon = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]]), np.array([dataset.epsilon[index]])
+            x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
 
         if CORRECTION_SQUARE_COV:
             x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
@@ -182,7 +188,7 @@ class SGD(ABC):
 
     def gradient_descent(self, label: str = None) -> SGDRun:
         # if self.sto:
-        log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size) * self.batch_size
+        log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size, self.nb_epoch) * self.batch_size
         # else:
         #     log_xaxis = np.arange(self.nb_epoch)
 
@@ -192,57 +198,56 @@ class SGD(ABC):
         current_loss = self.compute_federated_true_risk(current_w, avg_w)
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
+        indices = np.arange((self.size_dataset * self.nb_epoch) // self.batch_size) #if self.sto else np.array([1])
+        for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
-        nb_epoch = 1 #if self.sto else self.nb_epoch
-        for epoch in tqdm(range(nb_epoch), disable=self.sto or DISABLE):
+            r2 = np.mean([c.dataset.trace for c in self.clients])
+            gamma = self.step_formula(it, r2, self.compressor.omega_c)
+            grad = np.zeros(self.dim)
 
-            indices = np.arange(self.size_dataset // self.batch_size) #if self.sto else np.array([1])
-            for idx in tqdm(indices, disable=not self.sto or DISABLE):
+            for client in self.clients:
+                if idx % (MAX_SIZE_DATASET // self.batch_size) == 0 and idx != 0:
+                    print("Regenerating ...")
+                    client.dataset.regenerate_dataset()
 
-                r2 = np.mean([c.dataset.trace for c in self.clients])
-                gamma = self.step_formula(it, r2, self.compressor.omega_c)
-                grad = np.zeros(self.dim)
+                local_grad = self.compute_gradient(
+                    client.w, client.dataset, idx % (self.size_dataset // self.batch_size),
+                    self.additive_stochastic_gradient)
+                # Smart initialization
+                # if it == 1:
+                #     client.local_memory = local_grad
+                grad += self.gradient_processing(local_grad, client)
 
-                for client in self.clients:
-                    if idx % (MAX_SIZE_DATASET // self.batch_size) == 0 and idx != 0:
-                        print("Regenerating ...")
-                        client.dataset.regenerate_dataset()
+            grad /= len(self.clients)
 
-                    local_grad = self.compute_gradient(
-                        client.w, client.dataset, idx % (MAX_SIZE_DATASET // self.batch_size),
-                        self.additive_stochastic_gradient)
-                    # Smart initialization
-                    # if it == 1:
-                    #     client.local_memory = local_grad
-                    grad += self.gradient_processing(local_grad, client)
+            self.update_approximative_hessian(grad, it)
+            it += 1
 
-                grad /= len(self.clients)
+            current_w = self.sgd_update(current_w, grad, gamma)
+            if it <= self.start_averaging:
+                avg_w = current_w
+            else:
+                avg_w = current_w / (it-self.start_averaging) \
+                        + avg_w * (it - self.start_averaging- 1) / (it - self.start_averaging)
 
-                self.update_approximative_hessian(grad, it)
-                it += 1
+            for client in self.clients:
+                client.update_model(current_w, avg_w)
 
-                current_w = self.sgd_update(current_w, grad, gamma)
-                if it <= self.start_averaging:
-                    avg_w = current_w
-                else:
-                    avg_w = current_w / (it-self.start_averaging) \
-                            + avg_w * (it - self.start_averaging- 1) / (it - self.start_averaging)
-
-                for client in self.clients:
-                    client.update_model(current_w, avg_w)
-
-                current_loss = self.compute_federated_true_risk(current_w, avg_w)
-                # if not self.sto and epoch in log_xaxis[1:]:
-                #     losses.append(current_loss[0])
-                #     avg_losses.append(current_loss[1])
-                if idx * self.batch_size in log_xaxis[1:]:
-                    losses.append(current_loss[0])
-                    avg_losses.append(current_loss[1])
+            current_loss = self.compute_federated_true_risk(current_w, avg_w)
+            # if not self.sto and epoch in log_xaxis[1:]:
+            #     losses.append(current_loss[0])
+            #     avg_losses.append(current_loss[1])
+            if idx * self.batch_size in log_xaxis[1:]:
+                losses.append(current_loss[0])
+                avg_losses.append(current_loss[1])
 
         print_mem_usage("End of sgd descent ...")
 
-        if self.use_ortho_matrix:
-            cov_matrix = self.ortho_matrix.T.dot(self.approx_hessian).dot(self.ortho_matrix)
+        if not self.clients[0].dataset.real_dataset:
+            if self.use_ortho_matrix:
+                cov_matrix = self.ortho_matrix.T.dot(self.approx_hessian).dot(self.ortho_matrix)
+            else:
+                cov_matrix = self.approx_hessian
         else:
             cov_matrix = self.approx_hessian
 

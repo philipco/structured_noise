@@ -22,6 +22,7 @@ class AbstractDataset:
     def __init__(self, name: str = None) -> None:
         super().__init__()
         self.name = name
+        self.real_dataset = False
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, noiseless: bool = None):
         hash = "{4}runs-N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity, nb_runs)

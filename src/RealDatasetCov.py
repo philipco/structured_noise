@@ -14,8 +14,6 @@ from tqdm import tqdm
 from src.CompressionModel import Quantization
 from src.utilities.PickleHandler import pickle_saver
 from src.RealDataset import RealLifeDataset
-from src.SyntheticDataset import SyntheticDataset
-from src.TheoreticalCov import get_theoretical_cov
 from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -34,7 +32,8 @@ sns.set(font='serif', style='white',
 
 FOLDER = "pictures/real_dataset"
 
-COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
+#"#c08551",
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple" "tab:brown", "tab:cyan"]
 
 NB_CLIENTS = 1
 # DATASET_NAME = "Flowers102" # TODO Food101 : 1h
@@ -66,9 +65,6 @@ def compute_diag(dataset, compressor):
     cov_matrix = np.cov(X_compressed.T)
     cov_matrix_pca = np.cov(X_compressed_pca.T)
 
-    # plt.imshow(cov_matrix)
-    # plt.show()
-
     trace = np.trace(cov_matrix.dot(dataset.upper_sigma_inv))
     print("Trace:", trace)
     trace_pca = np.trace(cov_matrix_pca.dot(dataset.upper_sigma_inv_pca))
@@ -76,6 +72,12 @@ def compute_diag(dataset, compressor):
     # print("Trace rd-k from formula:", np.trace(np.diag(np.diag(dataset.upper_sigma_pca)).dot(dataset.upper_sigma_inv_pca)) / dataset.rand1.level)
 
     return trace, trace_pca
+
+
+def compute_bound_qtzd(sigma, sigma_inv):
+    residual1 = np.diag(np.diag(sigma)) @ sigma_inv
+    residual2 = np.diag(np.sqrt(np.diag(sigma))) @ sigma_inv
+    return dataset.dim + np.sqrt(np.trace(sigma)) * np.trace(residual2) - np.trace(residual1)
 
 
 def compute_diag_matrices(dataset: RealLifeDataset, labels):
@@ -91,6 +93,9 @@ def compute_diag_matrices(dataset: RealLifeDataset, labels):
         trace, trace_pca = compute_diag(dataset, compressor)
         all_traces_pca.append(trace_pca)
         all_traces.append(trace)
+        # if compressor.get_name() == "Qtzd":
+        #     all_traces.append(compute_bound_qtzd(dataset.upper_sigma, dataset.upper_sigma_inv))
+        #     all_traces_pca.append(compute_bound_qtzd(dataset.upper_sigma_pca, dataset.upper_sigma_inv_pca))
 
     return all_traces, all_traces_pca
 
@@ -143,8 +148,8 @@ def plot_traces_by_dataset(all_traces, compressors):
 
 if __name__ == '__main__':
 
-    labels = ["no compr.", "s-quantiz.", "sparsif.", "sketching",
-              "rand-k", "partial part."]
+    labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching",
+              r"rand-$h$", "partial part."]
 
     if BAR_PLOT:
 
@@ -203,7 +208,7 @@ if __name__ == '__main__':
                 ax.set_xscale('log')
                 ax.tick_params(axis='both', labelsize=FONTSIZE)
                 ax.grid(True)
-                ax.set_ylim(top=traces_by_omega[labels[2]][-1]*1.2)
+                ax.set_ylim(top=traces_by_omega[labels[3]][-1]*1.2)
 
             legend_line = [Line2D([0], [0], color="black", lw=2, label='w.o. pca', marker="h"),
                            Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. pca', marker="P")]

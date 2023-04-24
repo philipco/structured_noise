@@ -1,7 +1,10 @@
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import multivariate_normal
 from sklearn import decomposition
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -32,6 +35,8 @@ class RealLifeDataset(AbstractDataset):
             self.load_data(dataset_name)
             self.define_compressors(s)
             self.define_constants()
+            self.compute_wstar()
+            self.real_dataset = True
             create_folder_if_not_existing("pickle/real_dataset/")
             pickle_saver(self, "pickle/real_dataset/{0}".format(dataset_name))
             print("Done dataset preparation.")
@@ -41,6 +46,17 @@ class RealLifeDataset(AbstractDataset):
             self.w0 = np.zeros(self.dim)
         else:
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
+
+    def compute_wstar(self):
+        reg = LinearRegression().fit(self.X_complete, self.Y)
+        if np.array_equal(np.unique(self.Y), np.array([-1, 1])):
+            correct = np.sum([np.sign(reg.predict(np.array([self.X_complete[i]]))[0]) == np.sign(self.Y[i]) for i in range(self.size_dataset)])
+
+        else:
+            correct = np.sum([int(np.round(reg.predict(np.array([self.X_complete[i]]))[0])) == self.Y[i] for i in
+                              range(self.size_dataset)])
+        print("Accuracy: {0}%".format(correct / self.size_dataset * 100))
+        self.w_star = reg.coef_.reshape(-1)
 
     def define_compressors(self, s=None):
         super().define_compressors(s=s)
@@ -153,11 +169,17 @@ class RealLifeDataset(AbstractDataset):
         train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
         flat_data = []
+        flat_Y = []
         # Iterate over the transformed MNIST training set and print the shape of each image
         for batch_idx, (data, target) in enumerate(train_loader):
             flat_data.append(np.reshape(data.numpy(), (len(data), -1)))
+            if len(target.numpy().shape) == 2:
+                flat_Y.append(np.concatenate(target.numpy()))
+            else:
+                flat_Y.append(target.numpy())
 
         flat_data = np.concatenate(flat_data)
+        self.Y = np.concatenate(flat_Y)
         self.dim = len(flat_data[0])
         self.size_dataset = len(flat_data)
 
@@ -184,9 +206,12 @@ class RealLifeDataset(AbstractDataset):
         self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
         self.upper_sigma_inv_pca = np.linalg.inv(self.upper_sigma_pca)
 
-        print("Trace H:", np.trace(self.upper_sigma))
-        # plt.imshow(self.upper_sigma)
-        # plt.show()
+        self.L = eig[0] # biggest eigenvalues
+        print("L=", self.L)
+
+        self.trace = np.trace(self.upper_sigma)
+        print("Trace H:", self.trace)
+
         print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
         print("Computed cov.")
 
