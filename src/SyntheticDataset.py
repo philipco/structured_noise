@@ -7,6 +7,7 @@ import math
 import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group, multivariate_t
+from sklearn.preprocessing import StandardScaler
 
 from src.CompressionModel import Quantization, RandomSparsification, Sketching, AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
     DifferentialPrivacy, IndependantDifferentialPrivacy
@@ -56,7 +57,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)#self.quantizator.nb_bits_by_iter() / (32 * self.dim)
+        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1) #self.quantizator.nb_bits_by_iter() / (32 * self.dim)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(int(self.dim * self.LEVEL_RDK) if self.dim * self.LEVEL_RDK > 1 else 1, dim=self.dim, biased=False)
 
@@ -199,4 +200,7 @@ class SyntheticDataset(AbstractDataset):
         self.Y += self.epsilon
         self.Z = self.X_complete.T @ self.Y / size_generator
 
+    def normalize(self):
+        standardize_data = StandardScaler().fit_transform(self.X_complete)
+        self.X_complete = standardize_data
 

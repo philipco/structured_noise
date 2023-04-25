@@ -43,7 +43,18 @@ if __name__ == '__main__':
 
     np.random.seed(10)
 
-    real_dataset = RealLifeDataset("cifar10", s=16)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dataset_name",
+        type=int,
+        help="Dataset name",
+        required=True,
+    )
+    args = parser.parse_args()
+    dataset_name = args.dataset_name
+    s = 16 if dataset_name == "cifar10" else 8
+
+    real_dataset = RealLifeDataset("dataset_name", s=s)
     clients = [ClientRealDataset(0, real_dataset.dim, real_dataset.size_dataset, real_dataset)]
 
     labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$k$", "partial part."]
