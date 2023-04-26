@@ -52,7 +52,10 @@ def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name:
         return dataset.dim**2 * formula / dataset.sketcher.sub_dim**2
 
     elif compression_name == "Rand1":
-        return diag_sigma * dataset.dim
+        sub_dim = dataset.rand1.sub_dim
+        p1 = sub_dim / dataset.dim
+        p2 = (sub_dim -1) / (dataset.dim - 1)
+        return (p2 * sigma + (1 - p2) * diag_sigma) / p1
 
     elif compression_name == "PartialParticipation":
         return sigma / dataset.LEVEL_RDK
@@ -65,29 +68,34 @@ def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name:
 
 def compute_theoretical_trace(dataset: SyntheticDataset, compression_name: str):
     sigma = dataset.upper_sigma
+    diag_sigma = np.diag(np.diag(sigma))
     sigma_inv = np.linalg.inv(dataset.upper_sigma)
 
     if compression_name == "No compression":
         return dataset.dim
 
     elif compression_name == "Qtzd":
-        residual1 = np.diag(np.diag(sigma)) @ sigma_inv
+        residual1 = diag_sigma @ sigma_inv
         residual2 = np.diag(np.sqrt(np.diag(sigma))) @ sigma_inv
         return dataset.dim + np.sqrt(np.trace(sigma)) * np.trace(residual2) - np.trace(residual1)
 
     elif compression_name == "Sparsification":
-        residual1 = np.diag(np.diag(sigma)) @ sigma_inv
+        residual1 = diag_sigma @ sigma_inv
         p = dataset.sparsificator.sub_dim / dataset.dim
         return dataset.dim + (p - p ** 2) * np.trace(residual1) / (p ** 2)
 
     elif compression_name == "Sketching":
-        trace_sketching = dataset.dim * (1 + 1 / dataset.sketcher.sub_dim)
-        sub_sum = [np.sum([eig1 / eig2 for eig2 in dataset.eigenvalues]) for eig1 in dataset.eigenvalues]
-        trace_sketching += np.sum(sub_sum) / dataset.sketcher.sub_dim
-        return trace_sketching
+        alpha = dataset.sketcher.sub_dim * (dataset.sketcher.sub_dim + 2) / (dataset.dim * (dataset.dim + 2))
+        beta = (dataset.dim - dataset.sketcher.sub_dim) * dataset.sketcher.sub_dim / (dataset.dim ** 2 * (dataset.dim))
+        formula = (sigma * (alpha - beta) + np.trace(sigma) * np.identity(dataset.dim) * beta)
+        print(dataset.sketcher.sub_dim ** 2)
+        return np.trace((dataset.dim ** 2 * formula / dataset.sketcher.sub_dim ** 2) @ sigma_inv)
 
     elif compression_name == "Rand1":
-        return np.trace(dataset.dim * np.diag(np.diag(sigma)) @ sigma_inv)
+        sub_dim = dataset.rand1.sub_dim
+        p1 = sub_dim / dataset.dim
+        p2 = (sub_dim -1) / (dataset.dim - 1)
+        return np.trace( ((p2 * sigma + (1 - p2) * diag_sigma) / p1) @ sigma_inv)
 
     elif compression_name == "PartialParticipation":
         return dataset.dim / dataset.LEVEL_RDK

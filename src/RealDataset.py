@@ -163,6 +163,7 @@ class RealLifeDataset(AbstractDataset):
         self.dim = len(flat_data[0])
         self.size_dataset = len(flat_data)
 
+        self.X_without_std = flat_data
         standardize_data = StandardScaler().fit_transform(flat_data)
         self.X_complete = standardize_data
         print("Mean:", np.mean(standardize_data))

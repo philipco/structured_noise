@@ -52,27 +52,28 @@ LINESIZE = 4
 
 def compute_diag(dataset, compressor):
 
-    X = dataset.X_complete
-    X_pca = dataset.X_pca
-
     X_compressed = dataset.X_complete.copy()
     X_compressed_pca = dataset.X_pca.copy()
+    X_compressed_no_std = dataset.X_pca.copy()
 
     print(compressor.get_name())
-    for i in tqdm(range(dataset.size_dataset), disable=DISABLE):
-        X_compressed[i] = compressor.compress(X[i])
-        X_compressed_pca[i] = compressor.compress(X_pca[i])
+    for i in tqdm(range(1000), disable=DISABLE):
+        X_compressed[i] = compressor.compress(dataset.X_complete[i])
+        X_compressed_pca[i] = compressor.compress(dataset.X_pca[i])
+        X_compressed_no_std[i] = compressor.compress(dataset.X_without_std[i])
 
     cov_matrix = np.cov(X_compressed.T)
     cov_matrix_pca = np.cov(X_compressed_pca.T)
+    X_compressed_no_std = np.cov(X_compressed_no_std.T)
 
     trace = np.trace(cov_matrix.dot(dataset.upper_sigma_inv))
     print("Trace:", trace)
     trace_pca = np.trace(cov_matrix_pca.dot(dataset.upper_sigma_inv_pca))
     print("Trace PCA:", trace_pca)
-    # print("Trace rd-k from formula:", np.trace(np.diag(np.diag(dataset.upper_sigma_pca)).dot(dataset.upper_sigma_inv_pca)) / dataset.rand1.level)
+    trace_no_std = np.trace(X_compressed_no_std.dot(dataset.upper_sigma_inv_pca))
+    print("Trace w.o. std:", trace_no_std)
 
-    return trace, trace_pca
+    return trace, trace_pca, trace_no_std
 
 
 def compute_bound_qtzd(sigma, sigma_inv):
@@ -81,7 +82,7 @@ def compute_bound_qtzd(sigma, sigma_inv):
     return dataset.dim + np.sqrt(np.trace(sigma)) * np.trace(residual2) - np.trace(residual1)
 
 
-def compute_diag_matrices(dataset: RealLifeDataset, labels):
+def compute_diag_matrices(dataset: RealLifeDataset):
 
 
     no_compressor = Quantization(0, dim=dataset.dim)
@@ -89,13 +90,14 @@ def compute_diag_matrices(dataset: RealLifeDataset, labels):
     my_compressors = [no_compressor, dataset.quantizator, dataset.sparsificator, dataset.sketcher,
                       dataset.rand1, dataset.all_or_nothinger]
 
-    all_traces_pca, all_traces = [], []
+    all_traces_pca, all_traces, all_traces_no_std = [], [], []
     for compressor in my_compressors:
-        trace, trace_pca = compute_diag(dataset, compressor)
+        trace, trace_pca, trace_no_std = compute_diag(dataset, compressor)
         all_traces_pca.append(trace_pca)
         all_traces.append(trace)
+        all_traces_no_std.append(trace_no_std)
 
-    return all_traces, all_traces_pca
+    return all_traces, all_traces_pca, all_traces_no_std
 
 
 
@@ -167,33 +169,42 @@ if __name__ == '__main__':
                     # "euroSAT"]
         for dataset_name in datasets:
             print(">>>>> {0}".format(dataset_name))
-            fig, axes = plt.subplots(2, 1, figsize=(8, 6))
+            fig, axes = plt.subplots(3, 1, figsize=(8, 9))
             traces_by_omega = dict(zip(labels, [[] for i in range(len(labels))]))
             traces_by_omega_pca = dict(zip(labels, [[] for i in range(len(labels))]))
+            traces_by_omega_no_std = dict(zip(labels, [[] for i in range(len(labels))]))
             squantization = [32, 16, 8, 6, 4, 2, 1]
             real_omegas = []
             for s in squantization:
                 dataset = RealLifeDataset(dataset_name, s)
                 real_omegas.append(dataset.quantizator.omega_c)
-                all_traces, all_traces_pca = compute_diag_matrices(dataset, labels=labels)
-                for label, value, value_pca in zip(labels, all_traces, all_traces_pca):
+                all_traces, all_traces_pca, all_traces_no_std = compute_diag_matrices(dataset)
+                for label, value, value_pca, value_no_std in zip(labels, all_traces, all_traces_pca, all_traces_no_std):
                     traces_by_omega[label].append(value)
                     traces_by_omega_pca[label].append(value_pca)
+                    traces_by_omega_no_std[label].append(value_no_std)
 
             for i in range(len(labels)):
-                axes[0].plot(real_omegas, traces_by_omega[labels[i]], label=labels[i], lw=LINESIZE,
+                axes[0].plot(real_omegas, traces_by_omega_no_std[labels[i]], lw=LINESIZE, linestyle="-", label=labels[i],
+                             color=COLORS[i], alpha=0.7, fillstyle='full')
+                axes[0].plot(real_omegas, traces_by_omega_no_std[labels[i]], marker="h", ms=8, linestyle="None",
+                             color=COLORS[i])
+                axes[1].plot(real_omegas, traces_by_omega[labels[i]], lw=LINESIZE, linestyle="-.",
                         color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[0].plot(real_omegas, traces_by_omega[labels[i]], marker="h", ms=8, linestyle="None",
+                axes[1].plot(real_omegas, traces_by_omega[labels[i]], marker="X", ms=8, linestyle="None",
                         color=COLORS[i])
-                axes[1].plot(real_omegas, traces_by_omega_pca[labels[i]], lw=LINESIZE, linestyle="--",
+                axes[2].plot(real_omegas, traces_by_omega_pca[labels[i]], lw=LINESIZE, linestyle="--",
                         color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[1].plot(real_omegas, traces_by_omega_pca[labels[i]], marker="P", ms=8, linestyle="None",
+                axes[2].plot(real_omegas, traces_by_omega_pca[labels[i]], marker="P", ms=8, linestyle="None",
                              color=COLORS[i])
 
 
+
             axes[0].get_xaxis().set_visible(False)
-            axes[1].set_xlabel(r"Value of $\omega$", fontsize=FONTSIZE)
-            axes[0].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
+            axes[1].get_xaxis().set_visible(False)
+            axes[2].set_xlabel(r"Value of $\omega$", fontsize=FONTSIZE)
+            # axes[0].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
+            # axes[1].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
             axes[1].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
 
             for ax in axes:
@@ -201,13 +212,15 @@ if __name__ == '__main__':
                 ax.set_xscale('log')
                 ax.tick_params(axis='both', labelsize=FONTSIZE)
                 ax.grid(True)
-                ax.set_ylim(top=traces_by_omega[labels[3]][-1]*1.2)
+            axes[1].set_ylim(top=traces_by_omega[labels[3]][-1]*1.2)
+            axes[2].set_ylim(top=traces_by_omega[labels[3]][-1] * 1.2)
 
-            legend_line = [Line2D([0], [0], color="black", lw=2, label='w.o. pca', marker="h"),
-                           Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. pca', marker="P")]
+            legend_line = [Line2D([0], [0], linestyle="-", color="black", lw=2, label='w.o. std/pca', marker="h", ms=8),
+                           Line2D([0], [0], linestyle="-.", color="black", lw=2, label='w.o pca', marker="X", ms=8),
+                           Line2D([0], [0], linestyle="--", color="black", lw=2, label='w.o std', marker="P", ms=8)]
 
-            l1 = axes[0].legend(loc="upper left", fontsize=FONTSIZE)
-            l2 = axes[1].legend(handles=legend_line, loc="upper left", fontsize=FONTSIZE)
+            l1 = axes[0].legend(loc="upper left", fontsize=FONTSIZE, framealpha=0.4)
+            l2 = axes[1].legend(handles=legend_line, loc="upper left", fontsize=FONTSIZE, framealpha=0.4)
             axes[0].add_artist(l1)
             axes[1].add_artist(l2)
 
