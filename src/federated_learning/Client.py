@@ -58,9 +58,15 @@ class ClientRealDataset:
         self.avg_w = avg_w
 
     def regenerate_dataset(self):
-        c = list(zip(self.dataset.X_complete, self.dataset.X_pca, self.dataset.Y))
-        random.shuffle(c)
-        self.dataset.X_complete, self.dataset.X_pca, self.dataset.Y = zip(*c)
+        # Concatenate X_complete and Y along the last axis
+        data = np.concatenate((self.dataset.X_complete, self.dataset.Y.reshape(-1, 1)), axis=-1)
+
+        # Shuffle the data
+        np.random.shuffle(data)
+
+        # Split X_complete and Y again
+        self.dataset.X_complete = data[:, :-1]
+        self.dataset.Y = data[:, -1].astype(np.int64)
 
 
 def check_clients(clients: List[Client], heterogeneity: str):

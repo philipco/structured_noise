@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib
 
 from src.RealDataset import RealLifeDataset
+from src.utilities.PickleHandler import pickle_saver
 from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD, plot_eigen_values
 from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client, check_clients, ClientRealDataset
@@ -20,24 +21,24 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed
+from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed, compute_wstar
 
 nb_clients = 1
 
-EPOCHS = 2
+EPOCHS = 20
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
 
-BATCH_SIZE = 1
+BATCH_SIZE = 16
 
 DO_LOGISTIC_REGRESSION = False
 
 STOCHASTIC = True
 
-NB_RUNS = 2
+NB_RUNS = 5
 
-step_size = lambda it, r2, omega: 1 / (10 * (omega + 1) * r2)
+step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
 
 if __name__ == '__main__':
 
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset_name",
-        type=int,
+        type=str,
         help="Dataset name",
         required=True,
     )
@@ -54,10 +55,14 @@ if __name__ == '__main__':
     dataset_name = args.dataset_name
     s = 16 if dataset_name == "cifar10" else 8
 
-    real_dataset = RealLifeDataset("dataset_name", s=s)
+    real_dataset = RealLifeDataset(dataset_name, s=s)
     clients = [ClientRealDataset(0, real_dataset.dim, real_dataset.size_dataset, real_dataset)]
 
     labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$k$", "partial part."]
+
+    if real_dataset.w_star is None:
+        compute_wstar(real_dataset)
+        pickle_saver(real_dataset, "pickle/real_dataset/{0}".format(dataset_name))
 
     sgd_series = SeriesOfSGD()
     for run_id in range(NB_RUNS):

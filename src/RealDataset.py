@@ -1,10 +1,6 @@
-import random
-
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import multivariate_normal
 from sklearn import decomposition
-from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -21,6 +17,7 @@ from src.utilities.Utilities import file_exist, create_folder_if_not_existing, g
 IMG_SIZE = 16
 resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
 
+
 class RealLifeDataset(AbstractDataset):
 
     def __init__(self, dataset_name: str, s=None):
@@ -35,7 +32,7 @@ class RealLifeDataset(AbstractDataset):
             self.load_data(dataset_name)
             self.define_compressors(s)
             self.define_constants()
-            self.compute_wstar()
+            self.w_star = None
             self.real_dataset = True
             create_folder_if_not_existing("pickle/real_dataset/")
             pickle_saver(self, "pickle/real_dataset/{0}".format(dataset_name))
@@ -47,21 +44,21 @@ class RealLifeDataset(AbstractDataset):
         else:
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
-    def compute_wstar(self):
-        reg = LinearRegression().fit(self.X_complete, self.Y)
-        if np.array_equal(np.unique(self.Y), np.array([-1, 1])):
-            correct = np.sum([np.sign(reg.predict(np.array([self.X_complete[i]]))[0]) == np.sign(self.Y[i]) for i in range(self.size_dataset)])
-
-        else:
-            correct = np.sum([int(np.round(reg.predict(np.array([self.X_complete[i]]))[0])) == self.Y[i] for i in
-                              range(self.size_dataset)])
-        print("Accuracy: {0}%".format(correct / self.size_dataset * 100))
-        self.w_star = reg.coef_.reshape(-1)
-
     def define_compressors(self, s=None):
         super().define_compressors(s=s)
         self.rand1 = RandK(self.sketcher.sub_dim, dim=self.dim, biased=False)
         print("New omega rand1:", self.rand1.omega_c)
+
+    def regenerate_dataset(self):
+        # Concatenate X_complete and Y along the last axis
+        data = np.concatenate((self.X_complete, self.Y.reshape(-1, 1)), axis=-1)
+
+        # Shuffle the data
+        np.random.shuffle(data)
+
+        # Split X_complete and Y again
+        self.X_complete = data[:, :-1]
+        self.Y = data[:, -1].astype(np.int64)
 
 
     def load_data(self, dataset_name):
@@ -72,9 +69,7 @@ class RealLifeDataset(AbstractDataset):
                                              std=[0.229, 0.224, 0.225])
 
             transform_train = transforms.Compose([
-                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                # normalize,
                 resize,
                 transforms.Grayscale(),
             ])
@@ -83,13 +78,8 @@ class RealLifeDataset(AbstractDataset):
 
         elif dataset_name == 'cifar100':
 
-            normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                             std=[0.229, 0.224, 0.225])
-
             transform_train = transforms.Compose([
-                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                # normalize,
                 resize,
                 transforms.Grayscale(),
             ])
@@ -123,11 +113,8 @@ class RealLifeDataset(AbstractDataset):
             train_data = PhishingDataset()
 
         elif dataset_name == "euroSAT":
-            # transform = transforms.Compose([
-            #     transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,), (0.5,))])
             transform_train = transforms.Compose([
                 transforms.ToTensor(),
-                # normalize,
                 resize,
                 transforms.Grayscale(),
             ])
@@ -147,16 +134,9 @@ class RealLifeDataset(AbstractDataset):
 
         elif dataset_name == "flowers102":
             imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            # transform_train = transforms.Compose([#transforms.Resize(crop),
-            #                                #transforms.Pad(8, padding_mode='reflect'),
-            #                                crop,
-            #                                transforms.ToTensor(),
-            #                                transforms.Normalize(*imagenet_stats)])
 
             transform_train = transforms.Compose([
-                # transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                # normalize,
                 resize,
                 transforms.Grayscale(),
             ])

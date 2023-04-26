@@ -16,7 +16,7 @@ from src.JITProduct import *
 from src.utilities.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
 from src.utilities.Utilities import print_mem_usage
-from src.federated_learning.Client import Client
+from src.federated_learning.Client import Client, ClientRealDataset
 
 ONLY_ADDITIVE_NOISE = False
 USE_MOMENTUM = False
@@ -55,6 +55,18 @@ class SeriesOfSGD:
 
     def save(self, filename: str):
         pickle_saver(self, filename)
+
+
+def compute_wstar(dataset: ClientRealDataset):
+    print(">>>>> Computing w_star.")
+    # We temporaly set w_star to zero in order to run the SGD.
+    dataset.w_star = np.zeros(dataset.dim)
+    clients = [ClientRealDataset(0, dataset.dim, dataset.size_dataset, dataset)]
+
+    vanilla_sgd = SGDVanilla(clients, lambda it, r2, omega: 1 / (10 * (omega + 1) * r2), sto=True, batch_size=16,
+                             nb_epoch=50)
+    sgd_nocompr = vanilla_sgd.gradient_descent(label="wstar")
+    dataset.w_star = sgd_nocompr.last_w
 
 
 class SGDRun:
@@ -121,13 +133,12 @@ class SGD(ABC):
     def compute_federated_true_risk(self, w, avg_w) -> [float, float]:
         true_federated_risk = [
             wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
-            # TODO !!!
-            # - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+            - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                for i in range(len(self.clients))
         ]
         true_federated_avg_risk = [
                     wAw_product(0.5, minus(avg_w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
-                    # - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
+                    - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
                                        for i in range(len(self.clients))
                 ]
         return np.mean(true_federated_risk, axis=0), np.mean(true_federated_avg_risk, axis=0)

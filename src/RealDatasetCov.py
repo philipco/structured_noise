@@ -31,9 +31,10 @@ sns.set(font='serif', style='white',
         rc={'text.usetex': True, 'pgf.rcfonts': False})
 
 FOLDER = "pictures/real_dataset"
+DISABLE = True
 
 #"#c08551",
-COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple" "tab:brown", "tab:cyan"]
+COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:cyan"]
 
 NB_CLIENTS = 1
 # DATASET_NAME = "Flowers102" # TODO Food101 : 1h
@@ -58,7 +59,7 @@ def compute_diag(dataset, compressor):
     X_compressed_pca = dataset.X_pca.copy()
 
     print(compressor.get_name())
-    for i in tqdm(range(10000)):
+    for i in tqdm(range(dataset.size_dataset), disable=DISABLE):
         X_compressed[i] = compressor.compress(X[i])
         X_compressed_pca[i] = compressor.compress(X_pca[i])
 
@@ -93,9 +94,6 @@ def compute_diag_matrices(dataset: RealLifeDataset, labels):
         trace, trace_pca = compute_diag(dataset, compressor)
         all_traces_pca.append(trace_pca)
         all_traces.append(trace)
-        # if compressor.get_name() == "Qtzd":
-        #     all_traces.append(compute_bound_qtzd(dataset.upper_sigma, dataset.upper_sigma_inv))
-        #     all_traces_pca.append(compute_bound_qtzd(dataset.upper_sigma_pca, dataset.upper_sigma_inv_pca))
 
     return all_traces, all_traces_pca
 
@@ -105,7 +103,6 @@ def compute_diag_matrices(dataset: RealLifeDataset, labels):
 def plot_eigenvalues_and_compute_trace(dataset_name, labels, omega: int = OMEGA):
     dataset = RealLifeDataset(dataset_name, omega)
     all_diagonals, all_traces, labels, dataset = compute_diag_matrices(dataset, labels=labels)
-    # all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, labels=labels)
 
     fig, axes = plt.subplots(1, 1, figsize=(6, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
@@ -183,10 +180,6 @@ if __name__ == '__main__':
                     traces_by_omega[label].append(value)
                     traces_by_omega_pca[label].append(value_pca)
 
-            # ax.plot(real_omegas, traces_by_omega[labels[0]], label=labels[0], lw=LINESIZE,
-            #         color=COLORS[0], alpha=0.7, fillstyle='full')
-            # ax.plot(real_omegas, traces_by_omega[labels[0]], marker="h", ms=8, linestyle="None",
-            #         color=COLORS[0])
             for i in range(len(labels)):
                 axes[0].plot(real_omegas, traces_by_omega[labels[i]], label=labels[i], lw=LINESIZE,
                         color=COLORS[i], alpha=0.7, fillstyle='full')
