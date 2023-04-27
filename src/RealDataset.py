@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import multivariate_normal
 from sklearn import decomposition
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, normalize
 from torch.utils.data import DataLoader
 from torchvision import datasets
 import torchvision.transforms as transforms
@@ -64,9 +64,6 @@ class RealLifeDataset(AbstractDataset):
     def load_data(self, dataset_name):
         path_to_dataset = get_path_to_datasets()
         if dataset_name == 'cifar10':
-
-            normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                             std=[0.229, 0.224, 0.225])
 
             transform_train = transforms.Compose([
                 transforms.ToTensor(),
@@ -163,13 +160,28 @@ class RealLifeDataset(AbstractDataset):
         self.dim = len(flat_data[0])
         self.size_dataset = len(flat_data)
 
-        self.X_without_std = flat_data
+        # RAW DATA
+        self.X_raw = flat_data
+        self.upper_sigma_raw = np.cov(self.X_raw.T)
+
+        # DATA WITH NORMALIZATION
+        normalize_data = normalize(flat_data)
+        self.X_normalized = normalize_data
+        print("Mean of the norm:", np.mean([np.linalg.norm(x) for x in self.X_normalized]))
+        self.upper_sigma_normalized = np.cov(self.X_normalized.T)
+
+        # DATA WITH STANDARDIZATION
         standardize_data = StandardScaler().fit_transform(flat_data)
         self.X_complete = standardize_data
         print("Mean:", np.mean(standardize_data))
         print("Standard deviation:", np.std(standardize_data))
+        self.upper_sigma = np.cov(self.X_complete.T)
 
-        self.upper_sigma = np.cov(standardize_data.T)
+        # DATA WITH PCA
+        pca = decomposition.PCA(self.dim)
+        self.X_pca = pca.fit_transform(standardize_data)
+        self.upper_sigma_pca = np.cov(self.X_pca.T)
+
         eig, eigvectors = np.linalg.eig(self.upper_sigma)
         big_eig = (eig.real > 10**-14).sum()
         eig = np.sort(eig)[::-1]
@@ -178,21 +190,20 @@ class RealLifeDataset(AbstractDataset):
         else:
             print("Eigenvalues - biggest: {0}, smallest: {1}".format(eig[0], eig[big_eig - 1]))
         print("Warning: there is {0} eigenvalues that are smaller than 10^-14".format(self.dim - big_eig))
-        pca = decomposition.PCA(self.dim)
-        self.X_pca = pca.fit_transform(standardize_data)
-        self.upper_sigma_pca = np.cov(self.X_pca.T)
 
         print("Effective dimension:", len(self.X_complete[0]))
 
+
+        self.upper_sigma_inv_raw = np.linalg.inv(self.upper_sigma_raw)
         self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
         self.upper_sigma_inv_pca = np.linalg.inv(self.upper_sigma_pca)
+        self.upper_sigma_inv_normalized = np.linalg.inv(self.upper_sigma_normalized)
 
         self.L = eig[0] # biggest eigenvalues
         print("L=", self.L)
 
         self.trace = np.trace(self.upper_sigma)
         print("Trace H:", self.trace)
-
         print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
         print("Computed cov.")
 

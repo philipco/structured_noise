@@ -58,7 +58,7 @@ if __name__ == '__main__':
     real_dataset = RealLifeDataset(dataset_name, s=s)
     clients = [ClientRealDataset(0, real_dataset.dim, real_dataset.size_dataset, real_dataset)]
 
-    labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$k$", "partial part."]
+    labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
     if real_dataset.w_star is None:
         compute_wstar(real_dataset)
