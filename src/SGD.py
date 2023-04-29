@@ -24,9 +24,6 @@ BETA = 0
 REGULARIZATION = 0
 
 DISABLE = False
-CORRECTION_SQUARE_COV = False
-CORRECTION_DIAG = False
-
 
 def log_sampling_xaxix(size_dataset, nb_epoch: int = 1):
     size_dataset *= nb_epoch
@@ -57,14 +54,14 @@ class SeriesOfSGD:
         pickle_saver(self, filename)
 
 
-def compute_wstar(dataset: ClientRealDataset):
+def compute_wstar(dataset: ClientRealDataset, step_size, batch_size):
     print(">>>>> Computing w_star.")
     # We temporaly set w_star to zero in order to run the SGD.
     dataset.w_star = np.zeros(dataset.dim)
     clients = [ClientRealDataset(0, dataset.dim, dataset.size_dataset, dataset)]
 
-    vanilla_sgd = SGDVanilla(clients, lambda it, r2, omega: 1 / (10 * (omega + 1) * r2), sto=True, batch_size=16,
-                             nb_epoch=50)
+    vanilla_sgd = SGDVanilla(clients, step_size, sto=True, batch_size=batch_size,
+                             nb_epoch=200)
     sgd_nocompr = vanilla_sgd.gradient_descent(label="wstar")
     dataset.w_star = sgd_nocompr.last_w
 
@@ -144,21 +141,11 @@ class SGD(ABC):
         return np.mean(true_federated_risk, axis=0), np.mean(true_federated_avg_risk, axis=0)
 
     def compute_empirical_risk(self, w, data, labels, sigma):
-        if CORRECTION_SQUARE_COV:
-            data = data @ self.inv_root_square_upper_sigma.T
-        if CORRECTION_DIAG:
-            data = data @ self.Q
         return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
 
     def compute_true_risk(self, w, data, labels, sigma):
         if data is None:
             return 0
-        if CORRECTION_SQUARE_COV:
-            w_star = self.inv_root_square_upper_sigma @ self.w_star
-            return constant_product(0.5, vectorial_norm(minus(w, w_star)))
-        elif CORRECTION_DIAG:
-            w_star = matrix_vector_product(self.Q.T, self.w_star)
-            return wAw_product(0.5, minus(w, w_star), self.D)
         return wAw_product(0.5, minus(w, self.w_star), sigma)
 
     def compute_stochastic_gradient(self, w, dataset, index, additive_stochastic_gradient):
@@ -170,10 +157,6 @@ class SGD(ABC):
         else:
             x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
 
-        if CORRECTION_SQUARE_COV:
-            x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
-        elif CORRECTION_DIAG:
-            x = matrix_vector_product(self.Q.T, x)
         return (x @ w - y) @ x / len(y)
 
     def compute_full_gradient(self, w, dataset):
@@ -181,10 +164,6 @@ class SGD(ABC):
 
     def compute_additive_stochastic_gradient(self, w, data, labels, index):
         x, y = data[index], labels[index]
-        if CORRECTION_SQUARE_COV:
-            x = matrix_vector_product(self.inv_root_square_upper_sigma, x)
-        elif CORRECTION_DIAG:
-            x = matrix_vector_product(self.Q.T, x)
         return self.D.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
@@ -213,7 +192,7 @@ class SGD(ABC):
         for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
             r2 = np.mean([c.dataset.trace for c in self.clients])
-            gamma = self.step_formula(it, r2, self.compressor.omega_c)
+            gamma = self.step_formula(it, r2, self.compressor.omega_c, len(indices))
             grad = np.zeros(self.dim)
 
             for client in self.clients:

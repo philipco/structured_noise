@@ -1,3 +1,6 @@
+import copy
+import random
+
 import numpy as np
 from numpy.random import multivariate_normal
 from sklearn import decomposition
@@ -16,6 +19,7 @@ from src.utilities.Utilities import file_exist, create_folder_if_not_existing, g
 
 IMG_SIZE = 16
 resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
+
 
 
 class RealLifeDataset(AbstractDataset):
@@ -162,50 +166,68 @@ class RealLifeDataset(AbstractDataset):
 
         # RAW DATA
         self.X_raw = flat_data
-        self.upper_sigma_raw = np.cov(self.X_raw.T)
 
         # DATA WITH NORMALIZATION
         normalize_data = normalize(flat_data)
         self.X_normalized = normalize_data
         print("Mean of the norm:", np.mean([np.linalg.norm(x) for x in self.X_normalized]))
-        self.upper_sigma_normalized = np.cov(self.X_normalized.T)
 
         # DATA WITH STANDARDIZATION
         standardize_data = StandardScaler().fit_transform(flat_data)
         self.X_complete = standardize_data
         print("Mean:", np.mean(standardize_data))
         print("Standard deviation:", np.std(standardize_data))
-        self.upper_sigma = np.cov(self.X_complete.T)
 
         # DATA WITH PCA
         pca = decomposition.PCA(self.dim)
         self.X_pca = pca.fit_transform(standardize_data)
-        self.upper_sigma_pca = np.cov(self.X_pca.T)
 
+        self.upper_sigma = np.cov(self.X_complete.T)
         eig, eigvectors = np.linalg.eig(self.upper_sigma)
-        big_eig = (eig.real > 10**-14).sum()
+        big_eig = (eig.real > 10 ** -14).sum()
         eig = np.sort(eig)[::-1]
         if self.dim >= 64:
-            print("Eigenvalues - biggest: {0}, 32: {1}, 64: {2}, smallest: {3}".format(eig[0], eig[31], eig[63], eig[big_eig-1]))
+            print("Eigenvalues - biggest: {0}, 32: {1}, 64: {2}, smallest: {3}".format(eig[0], eig[31], eig[63],
+                                                                                       eig[big_eig - 1]))
         else:
             print("Eigenvalues - biggest: {0}, smallest: {1}".format(eig[0], eig[big_eig - 1]))
         print("Warning: there is {0} eigenvalues that are smaller than 10^-14".format(self.dim - big_eig))
 
         print("Effective dimension:", len(self.X_complete[0]))
 
+        self.trace = np.trace(self.upper_sigma)
+        print("Trace H:", self.trace)
+        print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
+        print("Computed cov.")
 
+        self.L = eig[0]  # biggest eigenvalues
+        print("L=", self.L)
+
+        self.compute_sigma()
+        self.compute_sigma_inv()
+
+    def compute_sigma(self):
+
+        self.upper_sigma = np.cov(self.X_complete.T)
+        self.upper_sigma_pca = np.cov(self.X_pca.T)
+        self.upper_sigma_normalized = np.cov(self.X_normalized.T)
+        self.upper_sigma_raw = np.cov(self.X_raw.T)
+
+
+
+    def compute_sigma_inv(self):
         self.upper_sigma_inv_raw = np.linalg.inv(self.upper_sigma_raw)
         self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
         self.upper_sigma_inv_pca = np.linalg.inv(self.upper_sigma_pca)
         self.upper_sigma_inv_normalized = np.linalg.inv(self.upper_sigma_normalized)
 
-        self.L = eig[0] # biggest eigenvalues
-        print("L=", self.L)
 
-        self.trace = np.trace(self.upper_sigma)
-        print("Trace H:", self.trace)
-        print("Trace H^{-1}:", np.trace(self.upper_sigma_inv))
-        print("Computed cov.")
+    def keep_sub_set(self, indices):
+        self.size_dataset = len(indices)
+        self.X_complete, self.X_pca, self.X_normalized, self.X_raw = self.X_complete[indices], self.X_pca[indices], self.X_normalized[indices], self.X_raw[indices]
+        self.Y = self.Y[indices]
+        self.compute_sigma()
+        self.compute_sigma_inv()
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1):
         hash = "{0}runs-N{1}-D{2}".format(nb_runs, self.size_dataset, self.dim)
@@ -217,3 +239,12 @@ class RealLifeDataset(AbstractDataset):
             hash = "{0}-b{1}".format(hash, batch_size)
         return hash
 
+def split_across_clients(dataset: RealLifeDataset, nb_clients: int):
+
+    indices = np.arange(dataset.size_dataset)
+    random.shuffle(indices)
+    random_indices = [indices[i::nb_clients] for i in range(nb_clients)]
+    datasets = [copy.deepcopy(dataset) for i in range(nb_clients)]
+    for i in range(nb_clients):
+        datasets[i].keep_sub_set(random_indices[i])
+    return datasets
