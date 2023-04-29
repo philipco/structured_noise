@@ -230,7 +230,8 @@ class RealLifeDataset(AbstractDataset):
         self.compute_sigma()
         self.compute_sigma_inv()
 
-    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None, step: str = None):
+    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None,
+                        step: str = None, heterogeneity: str = None):
         hash = "{0}runs-N{1}-D{2}".format(nb_runs, self.size_dataset, self.dim)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -242,6 +243,8 @@ class RealLifeDataset(AbstractDataset):
             hash = "{0}-reg{1}".format(hash, reg)
         if step:
             hash = "{0}-{1}".format(hash, step)
+        if heterogeneity:
+            hash = "{0}-{1}".format(hash, heterogeneity)
         return hash
 
 
@@ -279,9 +282,12 @@ def random_split(X, Y, nb_clients):
     return [indices[i::nb_clients] for i in range(nb_clients)]
 
 
-def split_across_clients(dataset: RealLifeDataset, nb_clients: int):
+def split_across_clients(dataset: RealLifeDataset, nb_clients: int, heterogeneity: str):
 
-    random_indices = diriclet_split(dataset.X_complete, dataset.Y, nb_clients, dirichlet_coef=0.2)
+    if heterogeneity == "dirichlet":
+        random_indices = diriclet_split(dataset.X_complete, dataset.Y, nb_clients, dirichlet_coef=0.2)
+    if None:
+        random_indices = random_split(dataset.X_complete, dataset.Y, nb_clients)
     datasets = [copy.deepcopy(dataset) for i in range(nb_clients)]
     for i in range(nb_clients):
         datasets[i].keep_sub_set(random_indices[i])

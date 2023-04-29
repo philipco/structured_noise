@@ -25,7 +25,7 @@ from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed, compute_wstar
 
 nb_clients = 1
 
-EPOCHS = 100
+EPOCHS = 20
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
@@ -72,11 +72,19 @@ if __name__ == '__main__':
         required=False,
         default=0,
     )
+    parser.add_argument(
+        "--heterogeneity",
+        type=str,
+        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        required=False,
+        default=None,
+    )
     args = parser.parse_args()
     dataset_name = args.dataset_name
     nb_clients = args.nb_clients
     gamma_horizon = True if args.gamma_horizon == "True" else False
     reg = args.reg if args.reg == 0 else 10**-args.reg
+    heterogeneity = args.heterogeneity
     s = 16 if dataset_name == "cifar10" else 8
 
     if gamma_horizon:
@@ -87,7 +95,7 @@ if __name__ == '__main__':
     real_datasets = [RealLifeDataset(dataset_name, s=s)]
 
     if nb_clients > 1:
-        real_datasets = split_across_clients(real_datasets[0], nb_clients)
+        real_datasets = split_across_clients(real_datasets[0], nb_clients, heterogeneity)
     clients = [ClientRealDataset(i, real_datasets[i].dim, real_datasets[i].size_dataset, real_datasets[i])
                for i in range(nb_clients)]
     if not file_exist("pickle/real_dataset/C{0}-{1}_wstar.pkl".format(nb_clients, dataset_name)):
@@ -101,7 +109,7 @@ if __name__ == '__main__':
     sgd_series = SeriesOfSGD()
     for run_id in range(NB_RUNS):
         gamma = "horizon" if gamma_horizon else None
-        hash_string = real_datasets[0].string_for_hash(NB_RUNS, STOCHASTIC, step=gamma, reg=args.reg)
+        hash_string = real_datasets[0].string_for_hash(NB_RUNS, STOCHASTIC, step=gamma, reg=args.reg, heterogeneity=heterogeneity)
 
         vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, reg=reg)
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
