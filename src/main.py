@@ -36,8 +36,6 @@ STOCHASTIC = True
 
 NB_RUNS = 5
 
-step_size = lambda it, r2, omega: 1 / (2 * (omega + 1) * r2)
-
 
 if __name__ == '__main__':
 
@@ -53,7 +51,7 @@ if __name__ == '__main__':
         type=int,
         help="Size of the dataset.",
         required=False,
-        default=10**5,
+        default=5*10**4,
     )
     parser.add_argument(
         "--use_ortho_matrix",
@@ -69,11 +67,32 @@ if __name__ == '__main__':
         required=False,
         default="homog",
     )
+    parser.add_argument(
+        "--gamma_horizon",
+        type=str,
+        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        required=False,
+        default=True,
+    )
+    parser.add_argument(
+        "--reg",
+        type=int,
+        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        required=False,
+        default=0,
+    )
     args = parser.parse_args()
     dataset_size = args.dataset_size
-    nb_clients = int(args.nb_clients)
+    nb_clients = args.nb_clients
+    reg = args.reg if args.reg == 0 else 10**-args.reg
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
+    gamma_horizon = True if args.gamma_horizon == "True" else False
     heterogeneity = args.heterogeneity
+
+    if gamma_horizon:
+        step_size = lambda it, r2, omega, K: K ** (-2 / 5)
+    else:
+        step_size = lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2)
 
     np.random.seed(10)
     clients = [Client(i, DIM, dataset_size // nb_clients, POWER_COV, nb_clients, use_ortho_matrix, heterogeneity)
@@ -83,13 +102,15 @@ if __name__ == '__main__':
     for run_id in range(NB_RUNS):
         check_clients(clients, heterogeneity)
         synthetic_dataset = clients[0].dataset
-        hash_string = synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC)
+        gamma = "horizon" if gamma_horizon else None
+        hash_string="C{0}-{1}".format(nb_clients, synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC, step=gamma,
+                                                                                    reg=args.reg))
 
         labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 
-        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE)
+        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, reg=reg)
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
@@ -100,7 +121,7 @@ if __name__ == '__main__':
             compressor = my_compressors[i]
             print("Compressor: {0}".format(compressor.get_name()))
             all_sgd.append(
-                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE).gradient_descent(
+                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, reg=reg).gradient_descent(
                 label=labels[i+1]))
 
         optimal_loss = 0

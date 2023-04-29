@@ -54,16 +54,16 @@ class SeriesOfSGD:
         pickle_saver(self, filename)
 
 
-def compute_wstar(dataset: ClientRealDataset, step_size, batch_size):
+def compute_wstar(clients: ClientRealDataset, step_size, batch_size):
     print(">>>>> Computing w_star.")
     # We temporaly set w_star to zero in order to run the SGD.
-    dataset.w_star = np.zeros(dataset.dim)
-    clients = [ClientRealDataset(0, dataset.dim, dataset.size_dataset, dataset)]
+    for c in clients:
+        c.dataset.w_star = np.zeros(c.dataset.dim)
 
     vanilla_sgd = SGDVanilla(clients, step_size, sto=True, batch_size=batch_size,
                              nb_epoch=200)
     sgd_nocompr = vanilla_sgd.gradient_descent(label="wstar")
-    dataset.w_star = sgd_nocompr.last_w
+    return sgd_nocompr.last_w
 
 
 class SGDRun:
@@ -89,7 +89,7 @@ class SGDRun:
 class SGD(ABC):
 
     def __init__(self, clients: List[Client], step_formula, nb_epoch: int = 1, sto: bool = True, batch_size: int = 1,
-                 start_averaging: int = 0, reg: int = REGULARIZATION) -> None:
+                 start_averaging: int = 0, reg: int = 0) -> None:
         super().__init__()
         self.clients = clients
         self.sto = sto
@@ -167,7 +167,7 @@ class SGD(ABC):
         return self.D.dot(w) - y * x
 
     def sgd_update(self, w, gradient, gamma):
-        return w - gamma * gradient #TODO : - self.reg * (w - self.synthetic_dataset.w0)
+        return w - gamma * (gradient + self.reg * (w - self.w0))
 
     def update_approximative_hessian(self, grad, it):
         if it == 0:
@@ -192,7 +192,7 @@ class SGD(ABC):
         for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
             r2 = np.mean([c.dataset.trace for c in self.clients])
-            gamma = self.step_formula(it, r2, self.compressor.omega_c, len(indices))
+            gamma = self.step_formula(it, r2, self.compressor.omega_c, len(indices)*self.batch_size)
             grad = np.zeros(self.dim)
 
             for client in self.clients:
@@ -289,8 +289,8 @@ class SGDNoised(SGD):
 class SGDCompressed(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, start_averaging: int = 0,) -> None:
-        super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
+                 batch_size: int = 1, reg: int = None, start_averaging: int = 0,) -> None:
+        super().__init__(clients, step_formula, nb_epoch, sto, batch_size, start_averaging, reg)
         self.compressor = compressor
 
     def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):

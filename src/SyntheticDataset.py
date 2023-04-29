@@ -25,7 +25,8 @@ class AbstractDataset:
         self.name = name
         self.real_dataset = False
 
-    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, noiseless: bool = None):
+    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, noiseless: bool = None,
+                        reg: int = None, step: str = None):
         hash = "{4}runs-N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity, nb_runs)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -37,6 +38,10 @@ class AbstractDataset:
             hash = "{0}-b{1}".format(hash, batch_size)
         if noiseless:
             hash = "{0}-noiseless".format(hash)
+        if reg:
+            hash = "{0}-reg{1}".format(hash, reg)
+        if step:
+            hash = "{0}-{1}".format(hash, step)
         return hash
 
     def define_compressors(self, s=None):
@@ -127,7 +132,7 @@ class SyntheticDataset(AbstractDataset):
         else:
             self.lower_sigma = lower_sigma
         if heterogeneity == "sigma":
-            self.power_cov = np.random.choice([3,4,5,6]) # for sigma
+            self.power_cov = np.random.choice([1,2,3,4]) #3,4,5,6]) # for sigma
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -164,8 +169,9 @@ class SyntheticDataset(AbstractDataset):
                 self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             else:
                 if self.heterogeneity == "sigma":
-                    self.ortho_matrix = ortho_group.rvs(dim=self.dim)
+                    self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
                 else:
+                    # Warning : if I print the eigenvalues, I need to have the same orthogonal matrix for all clients!
                     self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
             self.upper_sigma = self.ortho_matrix @ self.upper_sigma @ self.ortho_matrix.T
             self.Q, self.D = diagonalization(self.upper_sigma)

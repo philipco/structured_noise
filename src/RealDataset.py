@@ -2,7 +2,7 @@ import copy
 import random
 
 import numpy as np
-from numpy.random import multivariate_normal
+from numpy.random import multivariate_normal, dirichlet
 from sklearn import decomposition
 from sklearn.preprocessing import StandardScaler, normalize
 from torch.utils.data import DataLoader
@@ -183,6 +183,7 @@ class RealLifeDataset(AbstractDataset):
         self.X_pca = pca.fit_transform(standardize_data)
 
         self.upper_sigma = np.cov(self.X_complete.T)
+        self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
         eig, eigvectors = np.linalg.eig(self.upper_sigma)
         big_eig = (eig.real > 10 ** -14).sum()
         eig = np.sort(eig)[::-1]
@@ -229,7 +230,7 @@ class RealLifeDataset(AbstractDataset):
         self.compute_sigma()
         self.compute_sigma_inv()
 
-    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1):
+    def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None, step: str = None):
         hash = "{0}runs-N{1}-D{2}".format(nb_runs, self.size_dataset, self.dim)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -237,13 +238,50 @@ class RealLifeDataset(AbstractDataset):
             hash = "{0}-full".format(hash)
         elif batch_size != 1:
             hash = "{0}-b{1}".format(hash, batch_size)
+        if reg:
+            hash = "{0}-reg{1}".format(hash, reg)
+        if step:
+            hash = "{0}-{1}".format(hash, step)
         return hash
+
+
+def diriclet_split(X, Y, nb_clients, dirichlet_coef=1):
+    """Splits the training data by target values (leads to a highly non-iid data distribution) using a Dirichlet
+        distribution."""
+    unique_values = {}
+    targets = Y
+    n = len(targets)
+
+    for i in range(n):
+        if targets[i] in unique_values:
+            unique_values[targets[i]] = np.append(unique_values[targets[i]], [i])
+        else:
+            unique_values[targets[i]] = np.array([i])
+    nb_labels = len(unique_values)
+
+    nb_points_by_clients = n // nb_clients
+    matrix = (dirichlet([dirichlet_coef] * nb_labels, size=nb_clients)  * (nb_points_by_clients+2)).astype(int)# 1 line = 1 worker
+    ordered_indices = sorted(unique_values.values(), key=len)
+    split = []
+    for i in range(nb_clients):
+        indices_for_client_i = []
+        for j in range(nb_labels):
+            indices_by_label = ordered_indices[j]
+            indices_for_client_i += random.sample(list(indices_by_label), matrix[i][j]) # Join lists
+        split.append(np.array(indices_for_client_i))
+
+    return split
+
+
+def random_split(X, Y, nb_clients):
+    indices = np.arange(len(Y))
+    random.shuffle(indices)
+    return [indices[i::nb_clients] for i in range(nb_clients)]
+
 
 def split_across_clients(dataset: RealLifeDataset, nb_clients: int):
 
-    indices = np.arange(dataset.size_dataset)
-    random.shuffle(indices)
-    random_indices = [indices[i::nb_clients] for i in range(nb_clients)]
+    random_indices = diriclet_split(dataset.X_complete, dataset.Y, nb_clients, dirichlet_coef=0.2)
     datasets = [copy.deepcopy(dataset) for i in range(nb_clients)]
     for i in range(nb_clients):
         datasets[i].keep_sub_set(random_indices[i])

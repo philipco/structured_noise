@@ -10,7 +10,7 @@ import matplotlib
 from src.RealDataset import RealLifeDataset, split_across_clients
 from src.utilities.PickleHandler import pickle_saver
 from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD, plot_eigen_values
-from src.utilities.Utilities import create_folder_if_not_existing
+from src.utilities.Utilities import create_folder_if_not_existing, file_exist
 from src.federated_learning.Client import Client, check_clients, ClientRealDataset
 
 matplotlib.rcParams.update({
@@ -25,22 +25,20 @@ from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed, compute_wstar
 
 nb_clients = 1
 
-EPOCHS = 20
+EPOCHS = 100
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
 
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 
 DO_LOGISTIC_REGRESSION = False
 
 STOCHASTIC = True
 
-NB_RUNS = 2
+NB_RUNS = 5
 
 NB_CLIENTS = 10
-
-step_size = lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2)
 
 if __name__ == '__main__':
 
@@ -60,40 +58,64 @@ if __name__ == '__main__':
         help="Number of clients",
         required=False,
     )
+    parser.add_argument(
+        "--gamma_horizon",
+        type=str,
+        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        required=False,
+        default=True,
+    )
+    parser.add_argument(
+        "--reg",
+        type=int,
+        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        required=False,
+        default=0,
+    )
     args = parser.parse_args()
     dataset_name = args.dataset_name
     nb_clients = args.nb_clients
+    gamma_horizon = True if args.gamma_horizon == "True" else False
+    reg = args.reg if args.reg == 0 else 10**-args.reg
     s = 16 if dataset_name == "cifar10" else 8
 
+    if gamma_horizon:
+        step_size = lambda it, r2, omega, K: K ** (-2 / 5)
+    else:
+        step_size = lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2)
+
     real_datasets = [RealLifeDataset(dataset_name, s=s)]
-    if real_datasets[0].w_star is None:
-        compute_wstar(real_datasets[0], step_size, BATCH_SIZE)
-        pickle_saver(real_datasets[0], "pickle/real_dataset/{0}".format(dataset_name))
 
     if nb_clients > 1:
         real_datasets = split_across_clients(real_datasets[0], nb_clients)
     clients = [ClientRealDataset(i, real_datasets[i].dim, real_datasets[i].size_dataset, real_datasets[i])
                for i in range(nb_clients)]
+    if not file_exist("pickle/real_dataset/C{0}-{1}_wstar.pkl".format(nb_clients, dataset_name)):
+        w_star = compute_wstar(clients, lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2), BATCH_SIZE)
+        for c in clients:
+            c.dataset.w_star = w_star
+        pickle_saver(w_star, "pickle/real_dataset/C{0}-{1}_wstar".format(nb_clients, dataset_name))
 
     labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
     sgd_series = SeriesOfSGD()
     for run_id in range(NB_RUNS):
-        hash_string = real_datasets[0].string_for_hash(NB_RUNS, STOCHASTIC)
+        gamma = "horizon" if gamma_horizon else None
+        hash_string = real_datasets[0].string_for_hash(NB_RUNS, STOCHASTIC, step=gamma, reg=args.reg)
 
-        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS)
+        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, reg=reg)
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
-        my_compressors = [real_datasets[0].quantizator, real_datasets[0].sparsificator, real_datasets[0].sketcher,
+        my_compressors = [real_datasets[0].quantizator, real_datasets[0].sparsificator, real_datasets[0].sparsificator,
                           real_datasets[0].rand1, real_datasets[0].all_or_nothinger]
 
         for i in range(len(my_compressors)):
             compressor = my_compressors[i]
             print("Compressor: {0}".format(compressor.get_name()))
             all_sgd.append(
-                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS).gradient_descent(
-                    label=labels[i + 1]))
+                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
+                              reg=reg).gradient_descent(label=labels[i + 1]))
 
         optimal_loss = 0
         print("Optimal loss:", optimal_loss)
