@@ -64,12 +64,12 @@ def compute_diag(dataset, compressor):
         X_compressed[i] = compressor.compress(dataset.X_complete[i])
         X_compressed_pca[i] = compressor.compress(dataset.X_pca[i])
         X_compressed_raw[i] = compressor.compress(dataset.X_raw[i])
-        X_compressed_normalized[i] = compressor.compress(dataset.X_normalized[i])
+        # X_compressed_normalized[i] = compressor.compress(dataset.X_normalized[i])
 
     cov_matrix = np.cov(X_compressed.T)
     cov_matrix_pca = np.cov(X_compressed_pca.T)
     cov_matrix_raw = np.cov(X_compressed_raw.T)
-    cov_matrix_normalized = np.cov(X_compressed_normalized.T)
+    # cov_matrix_normalized = np.cov(X_compressed_normalized.T)
 
     trace = np.trace(cov_matrix.dot(dataset.upper_sigma_inv))
     print("Trace:", trace)
@@ -77,8 +77,8 @@ def compute_diag(dataset, compressor):
     print("Trace PCA:", trace_pca)
     trace_raw = np.trace(cov_matrix_raw.dot(dataset.upper_sigma_inv_raw))
     print("Trace raw:", trace_raw)
-    trace_normalized = np.trace(cov_matrix_normalized.dot(dataset.upper_sigma_inv_normalized))
-    print("Trace normalized:", trace_normalized)
+    trace_normalized = None # np.trace(cov_matrix_normalized.dot(dataset.upper_sigma_inv_normalized))
+    # print("Trace normalized:", trace_normalized)
 
     return trace, trace_pca, trace_raw, trace_normalized
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
                     # "euroSAT"]
         for dataset_name in datasets:
             print(">>>>> {0}".format(dataset_name))
-            fig, axes = plt.subplots(4, 1, figsize=(8, 12))
+            fig, axes = plt.subplots(3, 1, figsize=(8, 9))
             traces_by_omega = dict(zip(labels, [[] for i in range(len(labels))]))
             traces_by_omega_pca = dict(zip(labels, [[] for i in range(len(labels))]))
             traces_by_omega_raw = dict(zip(labels, [[] for i in range(len(labels))]))
@@ -196,45 +196,47 @@ if __name__ == '__main__':
                     traces_by_omega_raw[label].append(value_no_std)
                     traces_by_omega_normalized[label].append(value_normalized)
 
+            linestyle = ["-", "-.", "--", densely_dotted]
+            markers = ["h", "X", "P", "*"]
+            lines_labels = ["w. std", "w. pca", "raw data"]
+            traces =  [traces_by_omega, traces_by_omega_pca, traces_by_omega_raw]
+
             for i in range(len(labels)):
-                axes[0].plot(real_omegas, traces_by_omega_raw[labels[i]], lw=LINESIZE, linestyle="-", label=labels[i],
-                             color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[0].plot(real_omegas, traces_by_omega_raw[labels[i]], marker="h", ms=8, linestyle="None",
-                             color=COLORS[i])
-                axes[1].plot(real_omegas, traces_by_omega[labels[i]], lw=LINESIZE, linestyle="-.",
-                        color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[1].plot(real_omegas, traces_by_omega[labels[i]], marker="X", ms=8, linestyle="None",
-                        color=COLORS[i])
-                axes[2].plot(real_omegas, traces_by_omega_pca[labels[i]], lw=LINESIZE, linestyle="--",
-                        color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[2].plot(real_omegas, traces_by_omega_pca[labels[i]], marker="P", ms=8, linestyle="None",
-                             color=COLORS[i])
-                axes[3].plot(real_omegas, traces_by_omega_normalized[labels[i]], lw=LINESIZE, linestyle=densely_dotted,
-                             color=COLORS[i], alpha=0.7, fillstyle='full')
-                axes[3].plot(real_omegas, traces_by_omega_normalized[labels[i]], marker="*", ms=10, linestyle="None",
-                             color=COLORS[i])
+                for j in range(len(axes)):
+                    axes[j].plot(real_omegas, traces[j][labels[i]], lw=LINESIZE, linestyle=linestyle[j], label=labels[i],
+                                 color=COLORS[i], alpha=0.7, fillstyle='full')
+                    axes[j].plot(real_omegas, traces[j][labels[i]], marker=markers[j], ms=8, linestyle="None",
+                                 color=COLORS[i])
+                # axes[0].plot(real_omegas, traces_by_omega[labels[i]], lw=LINESIZE, linestyle="-.",
+                #         color=COLORS[i], alpha=0.7, fillstyle='full')
+                # axes[0].plot(real_omegas, traces_by_omega[labels[i]], marker="X", ms=8, linestyle="None",
+                #         color=COLORS[i])
+                # axes[1].plot(real_omegas, traces_by_omega_pca[labels[i]], lw=LINESIZE, linestyle="--",
+                #         color=COLORS[i], alpha=0.7, fillstyle='full')
+                # axes[1].plot(real_omegas, traces_by_omega_pca[labels[i]], marker="P", ms=8, linestyle="None",
+                #              color=COLORS[i])
+                # axes[3].plot(real_omegas, traces_by_omega_normalized[labels[i]], lw=LINESIZE, linestyle=densely_dotted,
+                #              color=COLORS[i], alpha=0.7, fillstyle='full')
+                # axes[3].plot(real_omegas, traces_by_omega_normalized[labels[i]], marker="*", ms=10, linestyle="None",
+                #              color=COLORS[i])
 
 
 
             axes[0].get_xaxis().set_visible(False)
             axes[1].get_xaxis().set_visible(False)
+            axes[1].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
             axes[2].set_xlabel(r"Value of $\omega$", fontsize=FONTSIZE)
-            # axes[0].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
-            # axes[1].set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
 
             for ax in axes:
                 ax.set_yscale('log')
                 ax.set_xscale('log')
                 ax.tick_params(axis='both', labelsize=FONTSIZE)
                 ax.grid(True)
-                ax.set_ylabel(r"$\log(\mathrm{Tr}(\mathfrak{C}^{\mathrm{ania}} H^{-1}))$", fontsize=FONTSIZE)
-            axes[1].set_ylim(top=traces_by_omega[labels[3]][-1]*1.2)
-            axes[2].set_ylim(top=traces_by_omega[labels[3]][-1] * 1.2)
+            axes[0].set_ylim(top=traces_by_omega[labels[3]][-1]*1.2)
+            axes[1].set_ylim(top=traces_by_omega[labels[3]][-1] * 1.2)
 
-            legend_line = [Line2D([0], [0], linestyle="-", color="black", lw=2, label='raw data', marker="h", ms=8),
-                           Line2D([0], [0], linestyle="-.", color="black", lw=2, label='w. std', marker="X", ms=8),
-                           Line2D([0], [0], linestyle="--", color="black", lw=2, label='w. pca', marker="P", ms=8),
-                           Line2D([0], [0], linestyle=densely_dotted, color="black", lw=2, label='w. normalization', marker="*", ms=10)]
+            legend_line = [Line2D([0], [0], linestyle=linestyle[i], color="black", lw=2, label=lines_labels[i],
+                                  marker=markers[i], ms=8) for i in range(len(axes))]
 
             l1 = axes[0].legend(loc="upper left", fontsize=FONTSIZE, framealpha=0.4)
             l2 = axes[1].legend(handles=legend_line, loc="upper left", fontsize=FONTSIZE, framealpha=0.4)
