@@ -9,7 +9,7 @@ import matplotlib
 from matplotlib.lines import Line2D
 
 from src.RealDataset import RealLifeDataset, split_across_clients
-from src.utilities.PickleHandler import pickle_saver
+from src.utilities.PickleHandler import pickle_saver, pickle_loader
 from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD, plot_eigen_values
 from src.utilities.Utilities import create_folder_if_not_existing, file_exist
 from src.federated_learning.Client import Client, check_clients, ClientRealDataset
@@ -103,14 +103,16 @@ if __name__ == '__main__':
     real_datasets = [RealLifeDataset(dataset_name, s=s)]
 
     if nb_clients > 1:
-        real_datasets = split_across_clients(real_datasets[0], nb_clients, heterogeneity)
+        real_datasets = split_across_clients(real_datasets[0], nb_clients, heterogeneity, dataset_name)
     clients = [ClientRealDataset(i, real_datasets[i].dim, real_datasets[i].size_dataset, real_datasets[i])
                for i in range(nb_clients)]
     if not file_exist("pickle/real_dataset/C{0}-{1}-{2}_wstar.pkl".format(nb_clients, dataset_name, heterogeneity)):
         w_star = compute_wstar(clients, lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2), BATCH_SIZE)
-        for c in clients:
-            c.dataset.w_star = w_star
-        pickle_saver(w_star, "pickle/real_dataset/C{0}-{1}-{2}_wstar".format(nb_clients, dataset_name, heterogeneity))
+    else:
+        w_star = pickle_loader("pickle/real_dataset/C{0}-{1}-{2}_wstar".format(nb_clients, dataset_name, heterogeneity))
+    for c in clients:
+        c.dataset.w_star = w_star
+    pickle_saver(w_star, "pickle/real_dataset/C{0}-{1}-{2}_wstar".format(nb_clients, dataset_name, heterogeneity))
 
     labels = ["no compr.", r"$s$-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
@@ -124,7 +126,7 @@ if __name__ == '__main__':
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
-        my_compressors = [real_datasets[0].quantizator, real_datasets[0].sparsificator, real_datasets[0].sparsificator,
+        my_compressors = [real_datasets[0].quantizator, real_datasets[0].sparsificator, real_datasets[0].sketcher,
                           real_datasets[0].rand1, real_datasets[0].all_or_nothinger]
 
         for i in range(len(my_compressors)):

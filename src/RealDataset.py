@@ -2,8 +2,12 @@ import copy
 import random
 
 import numpy as np
+from k_means_constrained import KMeansConstrained
 from numpy.random import multivariate_normal, dirichlet
 from sklearn import decomposition
+from sklearn.cluster import KMeans
+from sklearn.manifold import TSNE
+from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler, normalize
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -228,7 +232,7 @@ class RealLifeDataset(AbstractDataset):
         self.X_complete, self.X_pca, self.X_normalized, self.X_raw = self.X_complete[indices], self.X_pca[indices], self.X_normalized[indices], self.X_raw[indices]
         self.Y = self.Y[indices]
         self.compute_sigma()
-        self.compute_sigma_inv()
+        # self.compute_sigma_inv()
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None,
                         step: str = None, heterogeneity: str = None, memory: bool = False):
@@ -284,10 +288,48 @@ def random_split(X, Y, nb_clients):
     return [indices[i::nb_clients] for i in range(nb_clients)]
 
 
-def split_across_clients(dataset: RealLifeDataset, nb_clients: int, heterogeneity: str):
+def tsne(data):
+    """Compute the TSNE representation of a dataset."""
+    np.random.seed(25)
+    tsne = TSNE()
+    X_embedded = tsne.fit_transform(data)
+    return X_embedded
+
+
+def find_cluster(embedded_data, nb_cluster: int = 10):
+    """Find cluster in a dataset."""
+    np.random.seed(25)
+    # initialize the weights for each cluster
+    weights_init = [1 / nb_cluster] * nb_cluster
+
+    # fit the GMM model and assign the clusters to the data points
+    clustering = KMeansConstrained(n_clusters=nb_cluster, size_min=len(embedded_data) // nb_cluster, random_state=0).fit(embedded_data)
+
+    predicted_cluster = clustering.predict(embedded_data)
+    split = [np.where(predicted_cluster == i)[0] for i in range(nb_cluster)]
+
+    return split
+
+def tsne_split(X, Y, nb_clients, dataset_name: str):
+
+    if not file_exist("pickle/real_dataset/{0}-tsne-split.pkl".format(dataset_name)):
+
+        embedded_data = tsne(X)
+        split = find_cluster(embedded_data, nb_clients)
+        pickle_saver(split, "pickle/real_dataset/{0}-tsne-split".format(dataset_name))
+
+    else:
+        split = pickle_loader("pickle/real_dataset/{0}-tsne-split".format(dataset_name))
+    # With the found clusters, splitting data.
+    return split
+
+
+def split_across_clients(dataset: RealLifeDataset, nb_clients: int, heterogeneity: str, dataset_name: str):
 
     if heterogeneity == "dirichlet":
         random_indices = diriclet_split(dataset.X_complete, dataset.Y, nb_clients, dirichlet_coef=0.2)
+    if heterogeneity == "tsne":
+        random_indices = tsne_split(dataset.X_complete[:1000], dataset.Y, nb_clients, dataset_name)
     if None:
         random_indices = random_split(dataset.X_complete, dataset.Y, nb_clients)
     datasets = [copy.deepcopy(dataset) for i in range(nb_clients)]

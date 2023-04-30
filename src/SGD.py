@@ -111,10 +111,6 @@ class SGD(ABC):
 
         self.w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
 
-
-        self.root_square_upper_sigma = sqrtm(self.sigma)
-        self.inv_root_square_upper_sigma = inv(self.root_square_upper_sigma)
-
         self.Q, self.D = np.identity(self.dim), np.identity(self.dim)
         self.approx_hessian = np.identity(self.dim)
         self.debiased_hessian = np.identity(self.dim)
