@@ -60,8 +60,8 @@ def compute_wstar(clients: ClientRealDataset, step_size, batch_size):
     for c in clients:
         c.dataset.w_star = np.zeros(c.dataset.dim)
 
-    vanilla_sgd = SGDVanilla(clients, step_size, sto=True, batch_size=batch_size,
-                             nb_epoch=200)
+    vanilla_sgd = SGDVanilla(clients, lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2), sto=True, batch_size=batch_size,
+                             nb_epoch=200*len(clients))
     sgd_nocompr = vanilla_sgd.gradient_descent(label="wstar")
     return sgd_nocompr.last_w
 
@@ -201,7 +201,7 @@ class SGD(ABC):
                     client.dataset.regenerate_dataset()
 
                 local_grad = self.compute_gradient(
-                    client.w, client.dataset, idx % (self.size_dataset // self.batch_size),
+                    client.w, client.dataset, idx % (min(MAX_SIZE_DATASET, self.size_dataset) // self.batch_size),
                     self.additive_stochastic_gradient)
                 # Smart initialization
                 # if it == 1:
@@ -306,8 +306,8 @@ class SGDCompressed(SGD):
 class SGDArtemis(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, start_averaging: int = 0,) -> None:
-        super().__init__(clients, step_formula, nb_epoch, sto, batch_size)
+                 batch_size: int = 1, reg: int = None, start_averaging: int = 0,) -> None:
+        super().__init__(clients, step_formula, nb_epoch, sto, batch_size, reg)
         self.compressor = compressor
 
     def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):

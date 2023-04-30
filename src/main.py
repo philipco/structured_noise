@@ -131,12 +131,12 @@ if __name__ == '__main__':
         sgd_series.save("pickle/C{0}-{1}".format(nb_clients, hash_string))
 
         plot_only_avg(sgd_series, optimal_loss=optimal_loss,
-                      hash_string="C{0}-{1}".format(nb_clients, hash_string))
+                      hash_string=hash_string)
 
         for client in clients:
             client.regenerate_dataset()
 
     setup_plot_with_SGD(sgd_series, optimal_loss=optimal_loss,
-                        hash_string="C{0}-{1}_both".format(nb_clients, hash_string))
+                        hash_string="{0}_both".format(hash_string))
 
-    plot_eigen_values(sgd_series, hash_string="C{0}-{1}".format(nb_clients, hash_string))
+    plot_eigen_values(sgd_series, hash_string=hash_string)

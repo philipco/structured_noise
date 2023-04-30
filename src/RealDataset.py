@@ -231,7 +231,7 @@ class RealLifeDataset(AbstractDataset):
         self.compute_sigma_inv()
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None,
-                        step: str = None, heterogeneity: str = None):
+                        step: str = None, heterogeneity: str = None, memory: bool = False):
         hash = "{0}runs-N{1}-D{2}".format(nb_runs, self.size_dataset, self.dim)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -245,6 +245,8 @@ class RealLifeDataset(AbstractDataset):
             hash = "{0}-{1}".format(hash, step)
         if heterogeneity:
             hash = "{0}-{1}".format(hash, heterogeneity)
+        if memory:
+            hash = "{0}-mem".format(hash)
         return hash
 
 
