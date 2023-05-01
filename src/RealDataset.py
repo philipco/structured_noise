@@ -329,7 +329,7 @@ def split_across_clients(dataset: RealLifeDataset, nb_clients: int, heterogeneit
     if heterogeneity == "dirichlet":
         random_indices = diriclet_split(dataset.X_complete, dataset.Y, nb_clients, dirichlet_coef=0.2)
     if heterogeneity == "tsne":
-        random_indices = tsne_split(dataset.X_complete[:1000], dataset.Y, nb_clients, dataset_name)
+        random_indices = tsne_split(dataset.X_complete, dataset.Y, nb_clients, dataset_name)
     if None:
         random_indices = random_split(dataset.X_complete, dataset.Y, nb_clients)
     datasets = [copy.deepcopy(dataset) for i in range(nb_clients)]

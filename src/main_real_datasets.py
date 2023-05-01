@@ -24,7 +24,7 @@ matplotlib.rcParams.update({
 
 from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed, compute_wstar, SGDArtemis
 
-EPOCHS = 50
+nb_epochs = 50
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
@@ -52,6 +52,13 @@ if __name__ == '__main__':
         required=False,
     )
     parser.add_argument(
+        "--nb_epochs",
+        type=int,
+        default=100,
+        help="Number of epochs",
+        required=False,
+    )
+    parser.add_argument(
         "--gamma_horizon",
         type=str,
         help="If True, step size set to K^{-2/5}",
@@ -61,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--reg",
         type=int,
-        help="Regularization. Parameters a leads to a reg coefficient of 10^-a",
+        help="Regularization - parameters 'a' leads to a reg coefficient of 10^-a",
         required=False,
         default=0,
     )
@@ -82,7 +89,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     dataset_name = args.dataset_name
     nb_clients = args.nb_clients
-    EPOCHS *= nb_clients
+    nb_epochs = args.nb_epochs * nb_clients
     gamma_horizon = True if args.gamma_horizon == "True" else False
     reg = args.reg if args.reg == 0 else 10**-args.reg
     heterogeneity = args.heterogeneity
@@ -122,7 +129,7 @@ if __name__ == '__main__':
         hash_string = real_datasets[0].string_for_hash(NB_RUNS, STOCHASTIC, step=gamma, reg=args.reg,
                                                        heterogeneity=heterogeneity, memory=use_memory)
 
-        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, reg=reg)
+        vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=nb_epochs, reg=reg)
         sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
         all_sgd = [sgd_nocompr]
 
@@ -133,12 +140,12 @@ if __name__ == '__main__':
             compressor = my_compressors[i]
             print("Compressor: {0}".format(compressor.get_name()))
             all_sgd.append(
-                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
+                SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=nb_epochs,
                               reg=reg).gradient_descent(label=labels[i + 1]))
             if use_memory:
                 all_sgd.append(
-                    SGDArtemis(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
-                              reg=reg, start_averaging=0).gradient_descent(label=labels[i + 1] + "-art"))
+                    SGDArtemis(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE, nb_epoch=nb_epochs,
+                               reg=reg, start_averaging=0).gradient_descent(label=labels[i + 1] + "-art"))
 
         optimal_loss = 0
         print("Optimal loss:", optimal_loss)

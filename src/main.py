@@ -22,7 +22,6 @@ matplotlib.rcParams.update({
 from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed
 
 DIM = 100
-POWER_COV = 4
 R_SIGMA=0
 
 DECR_STEP_SIZE = False
@@ -34,7 +33,7 @@ DO_LOGISTIC_REGRESSION = False
 
 STOCHASTIC = True
 
-NB_RUNS = 5
+NB_RUNS = 1
 
 
 if __name__ == '__main__':
@@ -54,6 +53,13 @@ if __name__ == '__main__':
         default=5*10**4,
     )
     parser.add_argument(
+        "--power_cov",
+        type=int,
+        help="Eigenvalues' decay of the covariance.",
+        required=False,
+        default=4,
+    )
+    parser.add_argument(
         "--use_ortho_matrix",
         type=str,
         help="Use an orthogonal matrix.",
@@ -70,19 +76,20 @@ if __name__ == '__main__':
     parser.add_argument(
         "--gamma_horizon",
         type=str,
-        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        help="If True, step size set to K^{-2/5}",
         required=False,
         default=True,
     )
     parser.add_argument(
         "--reg",
         type=int,
-        help="Only when two clients or more. Possible values: 'wstar', 'sigma', 'homog'",
+        help="Regularization - parameters 'a' leads to a reg coefficient of 10^-a",
         required=False,
         default=0,
     )
     args = parser.parse_args()
     dataset_size = args.dataset_size
+    power_cov = args.power_cov
     nb_clients = args.nb_clients
     reg = args.reg if args.reg == 0 else 10**-args.reg
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
@@ -95,7 +102,7 @@ if __name__ == '__main__':
         step_size = lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2)
 
     np.random.seed(10)
-    clients = [Client(i, DIM, dataset_size // nb_clients, POWER_COV, nb_clients, use_ortho_matrix, heterogeneity)
+    clients = [Client(i, DIM, dataset_size // nb_clients, power_cov, nb_clients, use_ortho_matrix, heterogeneity)
                for i in range(nb_clients)]
 
     sgd_series = SeriesOfSGD()
