@@ -320,6 +320,8 @@ class Sketching(CompressionModel):
         super().__init__(level, dim, norm, constant)
         self.biased = False
         self.sub_dim = int(dim * level) if dim * level > 1 else 1
+        self.level = self.sub_dim / dim
+        self.omega_c = self.__compute_omega_c__(dim=dim)
         self.randomized = randomized
         self.type_proj = type_proj
         self.PHI = self.random_projector()

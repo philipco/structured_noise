@@ -160,6 +160,7 @@ class SyntheticDataset(AbstractDataset):
                 self.eigenvalues = np.array([1 / (i ** self.power_cov) for i in range(1, self.dim + 1)])
         else:
             self.eigenvalues = eigenvalues
+
         self.upper_sigma = np.diag(self.eigenvalues, k=0) #toeplitz(0.6 ** np.arange(0, self.dim)) #
 
         if self.use_ortho_matrix:
@@ -178,6 +179,11 @@ class SyntheticDataset(AbstractDataset):
         else:
             self.ortho_matrix = np.identity(self.dim)
 
+        self.center = np.zeros(self.dim)  # self.eigenvalues if self.power_cov > 0 else self.eigenvalues * 0.05
+        # self.center[1] = 10
+        m_carre = np.kron(self.center, self.center).reshape((self.dim, self.dim))
+        self.second_moment_cov = self.upper_sigma + m_carre
+
     def regenerate_dataset(self):
         self.generate_X()
         self.generate_Y()
@@ -190,10 +196,7 @@ class SyntheticDataset(AbstractDataset):
         elif features_distribution == "cauchy":
             self.X = multivariate_t.rvs(np.zeros(self.dim), self.upper_sigma, size=size_generator, df=2)
         elif features_distribution == "normal":
-            m = np.zeros(self.dim) #self.eigenvalues if self.power_cov > 0 else self.eigenvalues * 0.05
-            m_carre = np.kron(m,m).reshape((m.shape[0], m.shape[0]))
-            self.second_moment_cov = self.upper_sigma + m_carre
-            self.X = multivariate_normal(m, self.upper_sigma, size=size_generator)
+            self.X = multivariate_normal(self.center, self.upper_sigma, size=size_generator)
         else:
             raise ValueError("Unknow features distribution.")
         self.X_complete = copy.deepcopy(self.X)
