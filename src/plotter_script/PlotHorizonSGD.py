@@ -21,7 +21,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-folder = "../pictures/sgd_horizon/"
+folder = "pictures/sgd_horizon/"
 create_folder_if_not_existing(folder)
 
 from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed
@@ -62,7 +62,7 @@ def plot_sgd(dict_sgd, x_log_scale, hash_string):
         plt.fill_between(x_log_scale, avg_losses - avg_losses_var, avg_losses + avg_losses_var, alpha=0.2, color=color)
         i += 1
 
-    l1 = ax.legend(loc='lower left', fontsize=FONTSIZE)
+    l1 = ax.legend(loc='best', fontsize=FONTSIZE)
     ax.add_artist(l1)
 
     ax.grid(True)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         type=int,
         help="Size of the dataset.",
         required=False,
-        default=5*10**4,
+        default=10**6,
     )
     parser.add_argument(
         "--power_cov",
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     np.random.seed(10)
 
-    x_log_scale = [ i for i in range(int(np.log10(dataset_size)))]
+    x_log_scale = [ i for i in range(1, int(np.log10(dataset_size))+1)]
 
     labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
     dict_sgd = {}
@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
             vanilla_sgd = SGDVanilla(clients, step_size, sto=STOCHASTIC, batch_size=BATCH_SIZE, reg=reg)
             sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
-            dict_sgd[labels[0]][-1].append(sgd_nocompr.losses[-1])
+            dict_sgd[labels[0]][-1].append(sgd_nocompr.avg_losses[-1])
 
             my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator, synthetic_dataset.sketcher,
                               synthetic_dataset.rand1, synthetic_dataset.all_or_nothinger]
