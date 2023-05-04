@@ -132,7 +132,7 @@ class SyntheticDataset(AbstractDataset):
         else:
             self.lower_sigma = lower_sigma
         if heterogeneity == "sigma":
-            self.power_cov = np.random.choice([1,2,3,4]) #3,4,5,6]) # for sigma
+            self.power_cov = np.random.choice([3,4,5,6]) # for sigma
         else:
             self.power_cov = power_cov
         self.r_sigma = r_sigma
@@ -146,7 +146,7 @@ class SyntheticDataset(AbstractDataset):
             self.w0 = multivariate_normal(np.zeros(self.dim), np.identity(self.dim) /self.dim)
 
         if self.heterogeneity == "wstar":
-            self.w_star = np.random.normal(client_id, 1, size=self.dim)
+            self.w_star = np.random.normal(0, 10, size=self.dim)
         else:
             self.w_star = np.ones(self.dim)
 
@@ -170,7 +170,7 @@ class SyntheticDataset(AbstractDataset):
                 self.ortho_matrix = np.array([[np.cos(theta), - np.sin(theta)], [np.sin(theta), np.cos(theta)]])
             else:
                 if self.heterogeneity == "sigma":
-                    self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)
+                    self.ortho_matrix = ortho_group.rvs(dim=self.dim)
                 else:
                     # Warning : if I print the eigenvalues, I need to have the same orthogonal matrix for all clients!
                     self.ortho_matrix = ortho_group.rvs(dim=self.dim, random_state=5)

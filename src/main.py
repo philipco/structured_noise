@@ -88,7 +88,7 @@ if __name__ == '__main__':
         default=0,
     )
     args = parser.parse_args()
-    dataset_size = args.dataset_size
+    size_dataset = args.dataset_size
     power_cov = args.power_cov
     nb_clients = args.nb_clients
     reg = args.reg if args.reg == 0 else 10**-args.reg
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         step_size = lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2)
 
     np.random.seed(10)
-    clients = [Client(i, DIM, dataset_size // nb_clients, power_cov, nb_clients, use_ortho_matrix, heterogeneity)
+    clients = [Client(i, DIM, size_dataset // nb_clients, power_cov, nb_clients, use_ortho_matrix, heterogeneity)
                for i in range(nb_clients)]
 
     sgd_series = SeriesOfSGD()
@@ -113,7 +113,8 @@ if __name__ == '__main__':
         hash_string="C{0}-{1}".format(nb_clients, synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC, step=gamma,
                                                                                     reg=args.reg))
 
-        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
+        labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching",
+                  r"rand-$h$", "partial part."]
 
         w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 

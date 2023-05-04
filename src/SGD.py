@@ -148,7 +148,7 @@ class SGD(ABC):
         if additive_stochastic_gradient:
             return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
         if self.batch_size > 1:
-            indices = np.random.choice(min(dataset.size_dataset,MAX_SIZE_DATASET), self.batch_size)
+            indices = np.random.choice(min(dataset.size_dataset, MAX_SIZE_DATASET), self.batch_size)
             x, y = dataset.X_complete[indices], dataset.Y[indices]
         else:
             x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
@@ -285,7 +285,7 @@ class SGDNoised(SGD):
 class SGDCompressed(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, reg: int = None, start_averaging: int = 0,) -> None:
+                 batch_size: int = 1, reg: int = 0, start_averaging: int = 0,) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size, start_averaging, reg)
         self.compressor = compressor
 
@@ -302,7 +302,7 @@ class SGDCompressed(SGD):
 class SGDArtemis(SGD):
 
     def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, reg: int = None, start_averaging: int = 0,) -> None:
+                 batch_size: int = 1, reg: int = 0, start_averaging: int = 0,) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size, reg)
         self.compressor = compressor
 
