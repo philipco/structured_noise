@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 from matplotlib import transforms, pyplot as plt
 from matplotlib.patches import Ellipse
+from matplotlib.ticker import FormatStrFormatter
 
 FONTSIZE = 15
 LINESIZE = 3
@@ -128,8 +129,8 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         plt.show()
 
 
-def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
-                               ax_max):
+def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max):
+
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]
     ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
@@ -151,12 +152,12 @@ def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_cov
     ax.axis('equal')
     if ax_max is not None:
         print("Ax max:", ax_max)
-        # ax.set_xlim(-ax_max, ax_max)
-        # ax.set_ylim(-ax_max, ax_max)
-        # x_ticks = np.array([-0.8, -0.4, 0, 0.4, 0.8]) * ax_max #[i for i in np.arange(-ax_max,0,ax_max/3)] + [i for i in np.arange(0,ax_max,ax_max/3)]
-        # ax.set_xticks(list(x_ticks))
-        # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        # ax.set_yticks([])
+        ax.set_xlim(-ax_max, ax_max)
+        ax.set_ylim(-ax_max, ax_max)
+        x_ticks = np.array([-0.8, -0.4, 0, 0.4, 0.8]) * ax_max
+        ax.set_xticks(list(x_ticks))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax.set_yticks([]) # We remove the yticks for all subplots.
 
     ax.axvline(x=0, color="black")
     ax.axhline(y=0, color="black")
@@ -168,7 +169,7 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
 
     Q, D, _ = np.linalg.svd(cov)
 
-    size = 1000
+    size = 5000
     x = np.linspace(-math.sqrt(n_std * D[0]), math.sqrt(n_std * D[0]), size)
     y1 = np.sqrt(D[1] * (n_std - x**2/D[0]))
     y2 = - np.sqrt(D[1] * (n_std - x**2/D[0]))
