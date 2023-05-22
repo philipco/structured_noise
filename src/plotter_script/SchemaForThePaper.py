@@ -54,15 +54,10 @@ def plot_ellipse(covariances, law, text_position):
     plt.text(text_position[3][0], text_position[3][1], s=r'$\frac{1}{2}(\mathrm{Cov}(a) + \mathrm{Cov}(b)$', horizontalalignment='center',
              verticalalignment='center', transform=ax.transAxes, fontsize=FONTSIZE, color="tab:green")
 
-
-    # confidence_ellipse(0.5*(covariances[0] + covariances[1]), "labels[i]", ax, edgecolor="green", zorder=0, lw=5)
-
     ax.scatter(0, 0, c='black', s=5)
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-    # plt.show()
 
-    # fig.subplots_adjust(hspace=0.25)
     filename = FOLDER + "ellipse_average_" + law
     plt.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
 

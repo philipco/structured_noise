@@ -1,18 +1,13 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
 """
-import copy
 
 import matplotlib
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
-from matplotlib.lines import Line2D
 from tqdm import tqdm
 
-from src.CompressionModel import Quantization
-from src.utilities.PickleHandler import pickle_saver
 from src.RealDataset import RealLifeDataset
 from src.utilities.Utilities import create_folder_if_not_existing, get_project_root
 
@@ -24,7 +19,6 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
 
-
 sns.set(font='serif', style='white',
         palette="tab10",
         font_scale=1.2,
@@ -33,12 +27,6 @@ sns.set(font='serif', style='white',
 FOLDER = "{0}/pictures/real_dataset".format(get_project_root())
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
-
-NB_CLIENTS = 1
-# DATASET_NAME = "Flowers102" # TODO Food101 : 1h
-OMEGA = 2
-
-BAR_PLOT = False
 
 # In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
 USE_ORTHO_MATRIX = False
@@ -49,18 +37,15 @@ LINESIZE = 4
 
 
 def compute_cov(dataset: RealLifeDataset, compressor, squantization):
-
-
     all_cov = []
     for s in squantization:
 
         if compressor.get_name() == "Qtzd":
             compressor.reset_level(s)
         if compressor.get_name() == "Sparsification":
-            compressor.reset_level(1/ (np.sqrt(dataset.dim) / s + 1))
+            compressor.reset_level(1 / (np.sqrt(dataset.dim) / s + 1))
         X = dataset.X_complete
         X_compressed = dataset.X_complete.copy()
-
 
         print("\n>>>>>>> {0}\t omega: {1}".format(compressor.get_name(), compressor.omega_c))
         for i in tqdm(range(dataset.size_dataset)):
@@ -71,6 +56,8 @@ def compute_cov(dataset: RealLifeDataset, compressor, squantization):
     return all_cov
 
 
+cmap = "coolwarm"
+
 if __name__ == '__main__':
 
     datasets = ["quantum", "cifar10"]
@@ -79,6 +66,19 @@ if __name__ == '__main__':
         print(">>>>> {0}".format(dataset_name))
 
         dataset = RealLifeDataset(dataset_name)
+
+        fig, axes = plt.subplots(1, 2, figsize=(4 * 2, 4))
+        axes[0].imshow(dataset.upper_sigma_raw, cmap=cmap)
+        axes[1].imshow(dataset.upper_sigma, cmap=cmap)
+        for i in range(len(axes)):
+            axes[i].get_xaxis().set_visible(False)
+            axes[i].get_yaxis().set_visible(False)
+        plt.show()
+        folder = "{0}/cov_matrix".format(FOLDER)
+        create_folder_if_not_existing(folder)
+        plt.savefig("{0}/{1}_no_compr_cov.pdf".format(folder, dataset_name),
+                    bbox_inches='tight', dpi=600)
+
         my_compressors = [dataset.quantizator, dataset.sparsificator]
 
         squantization = [16, 2] if dataset_name == "cifar10" else [6, 1]
@@ -86,14 +86,12 @@ if __name__ == '__main__':
         for compressor in my_compressors:
             list_of_cov = compute_cov(dataset, compressor, squantization)
 
-            fig, axes = plt.subplots(1, len(list_of_cov), figsize=(4*len(list_of_cov), 4))
+            fig, axes = plt.subplots(1, len(list_of_cov), figsize=(4 * len(list_of_cov), 4))
             for i in range(len(axes)):
                 axes[i].get_xaxis().set_visible(False)
                 axes[i].get_yaxis().set_visible(False)
-                axes[i].imshow(list_of_cov[i])
+                axes[i].imshow(list_of_cov[i], cmap=cmap)
             folder = "{0}/cov_matrix".format(FOLDER)
             create_folder_if_not_existing(folder)
             plt.savefig("{0}/{1}_{2}_cov.pdf".format(folder, dataset_name, compressor.get_name()),
                         bbox_inches='tight', dpi=600)
-
-

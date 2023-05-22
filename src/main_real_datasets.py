@@ -153,8 +153,8 @@ if __name__ == '__main__':
         create_folder_if_not_existing("pickle")
         sgd_series.save("pickle/C{0}-{1}".format(nb_clients, hash_string))
 
-        plot_only_avg(sgd_series, optimal_loss=optimal_loss,
-                      custom_legend=legend_line, with_artemis=True, hash_string="C{0}-{1}".format(nb_clients, hash_string))
+        plot_only_avg(sgd_series, optimal_loss=optimal_loss, custom_legend=legend_line, with_artemis=use_memory,
+                      hash_string="C{0}-{1}".format(nb_clients, hash_string))
 
         for client in clients:
             client.regenerate_dataset()

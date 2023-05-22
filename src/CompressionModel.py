@@ -127,7 +127,6 @@ class RandomSparsification(CompressionModel):
         :param biased: set to True to used to biased version of this operators
         """
         self.biased = biased
-        self.sub_dim = int(dim * level)
         super().__init__(level, dim, norm, constant)
         assert 0 <= level <= 1, "The level must be expressed in percent."
 

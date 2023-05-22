@@ -14,3 +14,7 @@ tensorflow
 numba
 sympy
 psutil
+seaborn
+scikit-learn
+torchvision
+pytorch

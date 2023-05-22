@@ -5,10 +5,7 @@ from typing import List
 import numpy as np
 from PIL import Image
 from matplotlib import transforms, pyplot as plt
-from matplotlib.legend import Legend
 from matplotlib.patches import Ellipse
-
-from src.SGD import SGDRun
 
 FONTSIZE = 15
 LINESIZE = 3
@@ -16,6 +13,7 @@ LINESIZE = 3
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
 COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green", "tab:red", "tab:red",
           "tab:purple", "tab:purple", "tab:brown", "tab:brown"]
+
 
 def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
     images = [Image.open(fn) for fn in file_names]
@@ -82,7 +80,6 @@ def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_l
             l2 = ax.legend(handles=custom_legend, loc="upper right")
             ax.add_artist(l2)
         ax.add_artist(l1)
-        # ax.set_ylim(top=0.5)
         ax.grid(True)
     axes[0].set_ylabel(r"$\log_{10}(F(w_k) - F(w_*))$", fontsize=15)
     axes[1].set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=15)
@@ -120,14 +117,9 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         ax.add_artist(l2)
     ax.add_artist(l1)
 
-    # ax.set_ylim(top=0.5)
     ax.grid(True)
     ax.set_ylabel(r"$\log_{10}(F(\overline{w}_k) - F(w_*))$", fontsize=FONTSIZE)
-    # if not stochastic:
-    #     ax.set_xlabel(r"$\log_{10}(\#epoch)$", fontsize=FONTSIZE)
-    # else:
     ax.set_xlabel(r"$\log_{10}(k)$", fontsize=FONTSIZE)
-    # ax.set_title("Avg SGD")
 
     if hash_string:
         plt.savefig('{0}.pdf'.format("./pictures/" + hash_string), bbox_inches='tight', dpi=600)
@@ -137,15 +129,15 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
 
 
 def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
-                               theoretical_cov, ax_max):
+                               ax_max):
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]
-    ax.scatter(result[:min(200, len(result)), 0], result[:min(200, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
+    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
                label="No compression", zorder=2)
 
     mask = (np.abs(all_compressed_point[:, 0]) <= ax_max) & (np.abs(all_compressed_point[:, 1]) <= ax_max)
     result = all_compressed_point[mask]
-    ax.scatter(result[:min(200, len(result)), 0], result[:min(200, len(result)), 1], color=COLORS[1],
+    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[1],
                alpha=0.5, s=15, label="Compression", zorder=1)
 
     plot_ellipse(data_covariance, r"$\mathcal{E}_{\mathrm{Cov}[{x_k}}]$", ax, color=COLORS[0], linestyle="-", zorder=3,
@@ -154,21 +146,18 @@ def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_cov
     plot_ellipse(covariance, r"$\mathcal{E}_{\mathrm{Cov}[{\mathcal{C} (x_k)}}]$", ax, color=COLORS[1],
                  linestyle="-", zorder=3, lw=LINESIZE, n_std=2, plot_eig=True)
 
-    # if theoretical_cov is not None:
-    #     plot_ellipse(theoretical_cov, r"$\mathfrak{C}(H_{\mathrm{th.})}$", ax, plot_eig=True,
-    #                  color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
-
     ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
     ax.axis('equal')
     if ax_max is not None:
         print("Ax max:", ax_max)
-        ax.set_xlim(-ax_max, ax_max)
-        ax.set_ylim(-ax_max, ax_max)
-        x_ticks = [i for i in range(0, -math.floor(ax_max), -2)][::-1] + [i for i in range(0, math.floor(ax_max), 2)]
-        y_ticks = [i for i in range(0,-7,-2)][::-1] + [i for i in range(0,7,2)]
-        ax.set_xticks(x_ticks)
-        ax.set_yticks(y_ticks)
+        # ax.set_xlim(-ax_max, ax_max)
+        # ax.set_ylim(-ax_max, ax_max)
+        # x_ticks = np.array([-0.8, -0.4, 0, 0.4, 0.8]) * ax_max #[i for i in np.arange(-ax_max,0,ax_max/3)] + [i for i in np.arange(0,ax_max,ax_max/3)]
+        # ax.set_xticks(list(x_ticks))
+        # ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        # ax.set_yticks([])
+
     ax.axvline(x=0, color="black")
     ax.axhline(y=0, color="black")
 
@@ -179,7 +168,7 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
 
     Q, D, _ = np.linalg.svd(cov)
 
-    size = 5000
+    size = 1000
     x = np.linspace(-math.sqrt(n_std * D[0]), math.sqrt(n_std * D[0]), size)
     y1 = np.sqrt(D[1] * (n_std - x**2/D[0]))
     y2 = - np.sqrt(D[1] * (n_std - x**2/D[0]))
@@ -198,8 +187,8 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
     if plot_eig:
         V1 = 0.9 * Q @ np.array([math.sqrt(n_std * D[0]), 0])
         V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])
-        ax.arrow(0, 0, V1[0], V1[1], head_width=0.5, **kwargs)
-        ax.arrow(0, 0, V2[0], V2[1], head_width=0.5, **kwargs)
+        ax.arrow(0, 0, V1[0], V1[1], head_width=0.3, **kwargs)
+        ax.arrow(0, 0, V2[0], V2[1], head_width=0.3, **kwargs)
 
     return
 

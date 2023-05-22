@@ -6,6 +6,7 @@ from typing import List
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 from tqdm import tqdm
 
 from src.CompressionModel import Quantization
@@ -24,7 +25,7 @@ matplotlib.rcParams.update({
 
 SIZE_DATASET = 10**4
 DIM = 100
-POWER_COV = 1
+POWER_COV = 4
 R_SIGMA=0
 
 NB_CLIENTS = 1
@@ -32,6 +33,7 @@ EIGENVALUES = None #np.array([1,0.001]) #np.array([0.1,0.1, 0.00001,0.00001,0.00
 
 # In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
 USE_ORTHO_MATRIX = True
+
 HETEROGENEITY = "homog"
 
 FONTSIZE = 20
@@ -95,7 +97,7 @@ def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
                       get_theoretical_cov(dataset, nb_clients, "Qtzd"),
                       get_theoretical_cov(dataset, nb_clients, "Sparsification"),
                       get_theoretical_cov(dataset, nb_clients, "Sketching"),
-                      get_theoretical_cov(dataset, nb_clients, "Rand1"),
+                      get_theoretical_cov(dataset, nb_clients, "Randh"),
                       get_theoretical_cov(dataset, nb_clients, "PartialParticipation")]
 
     if USE_ORTHO_MATRIX:
@@ -108,7 +110,7 @@ def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
 
 if __name__ == '__main__':
 
-    labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", "rand-1", "partial part."]
+    labels = ["no compr.", r"$1$-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 
     clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
                       eigenvalues=EIGENVALUES)
@@ -117,7 +119,7 @@ if __name__ == '__main__':
     all_diagonals, labels, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
     all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, len(clients), labels=labels)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
         axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE)
     for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
@@ -125,16 +127,27 @@ if __name__ == '__main__':
 
     for ax in axes:
         ax.tick_params(axis='both', labelsize=FONTSIZE)
-        ax.legend(loc='lower left', fontsize=FONTSIZE)
         ax.set_xlabel(r"$\log(i), \forall i \in \{1, ..., d\}$", fontsize=FONTSIZE)
+
+
+    legend_line = [Line2D([0], [0], color="black", lw=LINESIZE, label='empirical'),
+                   Line2D([0], [0], linestyle="--", color="black", lw=LINESIZE, label='theoretical')]
+
+    l1 = axes[0].legend(loc='lower left', fontsize=FONTSIZE)
+    l2 = axes[1].legend(handles=legend_line, loc="lower left", fontsize=FONTSIZE)
+    axes[0].add_artist(l1)
+    axes[1].add_artist(l2)
+
+
+    axes[1].set_yticks([])
     axes[0].set_title('Empirical eigenvalues', fontsize=FONTSIZE)
     axes[1].set_title('Theoretical eigenvalues', fontsize=FONTSIZE)
     axes[0].set_ylabel(r"$\log(\mathrm{eig}(\mathfrak{C}^{\mathrm{ania}})_i)$", fontsize=FONTSIZE)
-    plt.legend(loc='lower left', fontsize=FONTSIZE)
-    folder = "pictures/epsilon_eigenvalues/"
+    folder = "../pictures/epsilon_eigenvalues"
     create_folder_if_not_existing(folder)
 
     hash = dataset.string_for_hash(nb_runs=1)
+    plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)
 
     plt.show()

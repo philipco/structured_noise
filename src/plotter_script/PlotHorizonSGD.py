@@ -29,11 +29,10 @@ from src.SGD import SeriesOfSGD, SGDVanilla, SGDCompressed
 FONTSIZE = 15
 LINESIZE = 3
 
-
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
 
 DIM = 100
-R_SIGMA=0
+R_SIGMA = 0
 
 DECR_STEP_SIZE = False
 EIGENVALUES = None
@@ -121,7 +120,7 @@ if __name__ == '__main__':
         default=0,
     )
     args = parser.parse_args()
-    dataset_size = args.dataset_size
+    size_dataset = args.dataset_size
     power_cov = args.power_cov
     nb_clients = args.nb_clients
     reg = args.reg if args.reg == 0 else 10**-args.reg
@@ -132,13 +131,12 @@ if __name__ == '__main__':
 
     np.random.seed(10)
 
-    x_log_scale = [ i for i in range(1, int(np.log10(dataset_size))+1)]
+    x_log_scale = [i for i in range(1, int(np.log10(size_dataset)) + 1)]
 
     labels = ["no compr.", "1-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
     dict_sgd = {}
     sgd_series = SeriesOfSGD()
     for l in labels: dict_sgd[l] = []
-    # Code here several runs.
     for run_id in range(NB_RUNS):
 
         for l in labels: dict_sgd[l].append([])
@@ -149,9 +147,9 @@ if __name__ == '__main__':
             sgd_series = SeriesOfSGD()
             check_clients(clients, heterogeneity)
             synthetic_dataset = clients[0].dataset
-            hash_string="C{0}-{1}".format(nb_clients, synthetic_dataset.string_for_hash(NB_RUNS, STOCHASTIC, step="horizon",
-                                                                                        reg=args.reg))
-
+            hash_string = "C{0}-{1}".format(nb_clients, synthetic_dataset.string_for_hash(NB_RUNS,
+                                                                                          STOCHASTIC, step="horizon",
+                                                                                          reg=args.reg))
 
             w_star = np.mean([client.dataset.w_star for client in clients], axis=0)
 
@@ -159,22 +157,20 @@ if __name__ == '__main__':
             sgd_nocompr = vanilla_sgd.gradient_descent(label=labels[0])
             dict_sgd[labels[0]][-1].append(sgd_nocompr.avg_losses[-1])
 
-            my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator, synthetic_dataset.sketcher,
+            my_compressors = [synthetic_dataset.quantizator, synthetic_dataset.sparsificator,
+                              synthetic_dataset.sketcher,
                               synthetic_dataset.rand1, synthetic_dataset.all_or_nothinger]
 
             for i in range(len(my_compressors)):
                 compressor = my_compressors[i]
                 print("Compressor: {0}".format(compressor.get_name()))
                 sgd = SGDCompressed(clients, step_size, compressor, sto=STOCHASTIC, batch_size=BATCH_SIZE,
-                                     reg=reg).gradient_descent(label=labels[i+1])
+                                    reg=reg).gradient_descent(label=labels[i + 1])
 
-                dict_sgd[labels[i+1]][-1].append(sgd.losses[-1])
+                dict_sgd[labels[i + 1]][-1].append(sgd.avg_losses[-1])
 
             create_folder_if_not_existing("pickle")
             pickle_saver(dict_sgd, "pickle/C{0}-{1}-dict_sgd.pkl".format(nb_clients, hash_string))
-
-
-
 
             for client in clients:
                 client.regenerate_dataset()
