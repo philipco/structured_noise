@@ -8,15 +8,14 @@ from abc import abstractmethod, ABC
 from typing import List
 
 from numpy.linalg import inv
-from scipy.linalg import sqrtm
 from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel, Quantization
 from src.JITProduct import *
-from src.utilities.PickleHandler import pickle_saver
 from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
-from src.utilities.Utilities import print_mem_usage
 from src.federated_learning.Client import Client, ClientRealDataset
+from src.utilities.PickleHandler import pickle_saver
+from src.utilities.Utilities import print_mem_usage
 
 ONLY_ADDITIVE_NOISE = False
 USE_MOMENTUM = False

@@ -1,7 +1,6 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
 """
-import copy
 
 import matplotlib
 import numpy as np
@@ -12,8 +11,8 @@ from matplotlib.lines import Line2D
 from tqdm import tqdm
 
 from src.CompressionModel import Quantization
-from src.utilities.PickleHandler import pickle_saver
 from src.RealDataset import RealLifeDataset
+from src.utilities.PickleHandler import pickle_saver
 from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({

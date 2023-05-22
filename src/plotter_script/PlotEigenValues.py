@@ -12,8 +12,8 @@ from tqdm import tqdm
 from src.CompressionModel import Quantization
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov
-from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",

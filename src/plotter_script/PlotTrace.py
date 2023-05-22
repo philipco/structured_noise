@@ -3,15 +3,15 @@ Created by Constantin Philippenko, 17th January 2022.
 """
 from typing import List
 
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 
 from src.CompressionModel import Quantization
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
-from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",

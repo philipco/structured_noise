@@ -4,10 +4,9 @@ Created by Constantin Philippenko, 29th December 2021.
 This python file provide facilities to quantize tensors.
 """
 from abc import ABC, abstractmethod
-
-import numpy as np
 from math import sqrt
 
+import numpy as np
 from scipy.stats import bernoulli, ortho_group, poisson
 
 

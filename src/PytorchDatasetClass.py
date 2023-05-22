@@ -1,11 +1,9 @@
-import random
-
 import numpy as np
 import pandas as pd
 import torch
 from sklearn.datasets import load_svmlight_file
 from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.feature_selection import SelectKBest, f_classif, SelectFromModel
+from sklearn.feature_selection import SelectFromModel
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 

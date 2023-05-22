@@ -1,7 +1,6 @@
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
-
 from scipy.stats import multivariate_t, multivariate_normal
 
 from src.utilities.PlotUtils import confidence_ellipse

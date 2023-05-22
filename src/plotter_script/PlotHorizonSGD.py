@@ -3,15 +3,13 @@ Created by Constantin Philippenko, 20th December 2021.
 """
 import argparse
 
-import numpy as np
-
 import matplotlib
+import numpy as np
 from matplotlib import pyplot as plt
 
-from src.utilities.PickleHandler import pickle_saver
-from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD, plot_eigen_values
-from src.utilities.Utilities import create_folder_if_not_existing
 from src.federated_learning.Client import Client, check_clients
+from src.utilities.PickleHandler import pickle_saver
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",

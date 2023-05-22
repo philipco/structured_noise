@@ -2,19 +2,18 @@
 Created by Constantin Philippenko, 10th January 2022.
 """
 import copy
-import math
 
 import numpy as np
 from numpy.random import multivariate_normal
 from scipy.stats import ortho_group, multivariate_t
 from sklearn.preprocessing import StandardScaler
 
-from src.CompressionModel import Quantization, RandomSparsification, Sketching, AllOrNothing, StabilizedQuantization, RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
+from src.CompressionModel import Quantization, RandomSparsification, Sketching, AllOrNothing, StabilizedQuantization, \
+    RandK, CorrelatedQuantization, AntiCorrelatedQuantization, \
     DifferentialPrivacy, IndependantDifferentialPrivacy
 from src.CustomDistribution import diamond_distribution
 from src.JITProduct import diagonalization
 from src.utilities.Utilities import print_mem_usage
-
 
 MAX_SIZE_DATASET = 10**6
 

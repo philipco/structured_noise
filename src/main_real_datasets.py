@@ -3,16 +3,15 @@ Created by Constantin Philippenko, 20th December 2021.
 """
 import argparse
 
-import numpy as np
-
 import matplotlib
+import numpy as np
 from matplotlib.lines import Line2D
 
 from src.RealDataset import RealLifeDataset, split_across_clients
+from src.federated_learning.Client import ClientRealDataset
 from src.utilities.PickleHandler import pickle_saver, pickle_loader
 from src.utilities.PlotUtils import plot_only_avg, setup_plot_with_SGD, plot_eigen_values
 from src.utilities.Utilities import create_folder_if_not_existing, file_exist
-from src.federated_learning.Client import Client, check_clients, ClientRealDataset
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",

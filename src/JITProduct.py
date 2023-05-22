@@ -3,7 +3,6 @@ Created by Constantin Philippenko, 7th February 2022.
 """
 import numpy as np
 from numba import jit
-from sympy import Matrix, matrix2numpy
 
 
 @jit(nopython=True)

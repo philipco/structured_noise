@@ -2,24 +2,21 @@ import copy
 import random
 
 import numpy as np
+import torchvision.transforms as transforms
 from k_means_constrained import KMeansConstrained
 from numpy.random import multivariate_normal, dirichlet
 from sklearn import decomposition
-from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
-from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler, normalize
 from torch.utils.data import DataLoader
 from torchvision import datasets
-import torchvision.transforms as transforms
 from torchvision.datasets import EMNIST, Food101, Places365, Flowers102, EuroSAT
 
 from src.CompressionModel import RandK
 from src.PytorchDatasetClass import QuantumDataset, A9ADataset, PhishingDataset
-from src.utilities.PickleHandler import pickle_loader, pickle_saver
 from src.SyntheticDataset import AbstractDataset
+from src.utilities.PickleHandler import pickle_loader, pickle_saver
 from src.utilities.Utilities import file_exist, create_folder_if_not_existing, get_path_to_datasets
-
 
 IMG_SIZE = 16
 resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
