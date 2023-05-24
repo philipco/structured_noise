@@ -4,10 +4,9 @@ Created by Constantin Philippenko, 29th December 2021.
 This python file provide facilities to quantize tensors.
 """
 from abc import ABC, abstractmethod
-
-import numpy as np
 from math import sqrt
 
+import numpy as np
 from scipy.stats import bernoulli, ortho_group, poisson
 
 
@@ -27,6 +26,10 @@ class CompressionModel(ABC):
             self.omega_c = self.__compute_omega_c__(dim=dim)
         else:
             self.omega_c = None
+
+    def reset_level(self, level: int):
+        self.level = level
+        self.omega_c = self.__compute_omega_c__(dim=self.dim)
 
     @abstractmethod
     def __compress__(self, vector: np.ndarray) -> np.ndarray:
@@ -52,7 +55,7 @@ class CompressionModel(ABC):
         This formula is unique for each operator of compression."""
         pass
 
-    def __compute_omega_c__(self, vector: np.ndarray = None, dim: int = None):
+    def __compute_omega_c__(self,  dim: int = None):
         """Compute the value of omega_c."""
         # If s==0, it means that there is no compression.
         # But for the need of experiments, we may need to compute the quantization constant associated with s=1.
@@ -123,7 +126,6 @@ class RandomSparsification(CompressionModel):
         :param biased: set to True to used to biased version of this operators
         """
         self.biased = biased
-        self.sub_dim = int(dim * level)
         super().__init__(level, dim, norm, constant)
         assert 0 <= level <= 1, "The level must be expressed in percent."
 
@@ -316,6 +318,8 @@ class Sketching(CompressionModel):
         super().__init__(level, dim, norm, constant)
         self.biased = False
         self.sub_dim = int(dim * level) if dim * level > 1 else 1
+        self.level = self.sub_dim / dim
+        self.omega_c = self.__compute_omega_c__(dim=dim)
         self.randomized = randomized
         self.type_proj = type_proj
         self.PHI = self.random_projector()

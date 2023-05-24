@@ -1,9 +1,12 @@
 """
 Created by Constantin Philippenko, 29th April 2022.
 """
+import random
 from typing import List
 
 import numpy as np
+
+from src import RealDataset
 from src.SyntheticDataset import SyntheticDataset
 
 
@@ -35,6 +38,36 @@ class Client:
     def update_model(self, w: np.ndarray, avg_w: np.ndarray) -> None:
         self.w = w
         self.avg_w = avg_w
+
+
+class ClientRealDataset:
+
+    def __init__(self, client_id: int, dim: int, local_size: int, dataset: RealDataset) -> None:
+        super().__init__()
+        self.client_id = client_id
+        self.dim = dim
+        self.local_size = local_size
+        self.dataset = dataset
+        self.w = self.dataset.w0
+        self.avg_w = self.w
+        self.local_memory = np.zeros(dim)
+        self.regenerate_dataset()  # We shuffle data also at initialisation.
+
+    def update_model(self, w: np.ndarray, avg_w: np.ndarray) -> None:
+        self.w = w
+        self.avg_w = avg_w
+
+    def regenerate_dataset(self):
+        # Concatenate X_complete and Y along the last axis
+        data = np.concatenate((self.dataset.X_complete, self.dataset.Y.reshape(-1, 1)), axis=-1)
+
+        # Shuffle the data
+        np.random.shuffle(data)
+
+        # Split X_complete and Y again
+        self.dataset.X_complete = data[:, :-1]
+        self.dataset.Y = data[:, -1].astype(np.int64)
+
 
 def check_clients(clients: List[Client], heterogeneity: str):
     for c in clients[1:]:

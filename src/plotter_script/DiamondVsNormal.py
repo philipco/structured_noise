@@ -7,10 +7,10 @@ from matplotlib.lines import Line2D
 from sympy.physics.control.control_plots import np
 from tqdm import tqdm
 
-from src.PlotUtils import add_scatter_plot_to_figure, COLORS
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_empirical_covariance, compress_and_compute_covariance
-from src.Utilities import create_folder_if_not_existing
+from src.utilities.PlotUtils import add_scatter_plot_to_figure, COLORS
+from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
     "pgf.texsystem": "pdflatex",
