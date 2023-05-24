@@ -153,11 +153,11 @@ def plot_theory_TCL(sigma, lower_sigma, nb_clients, all_covariances, labels):
 
 def compute_covariance_of_compressors(clients, compressor):
     empirical_cov = []
-    X_compressed = clients[0].dataset.X_complete.copy()
+    X_compressed = clients[0].dataset.X.copy()
     for i in range(X_compressed.shape[0]):
         sum = 0
         for client in clients:
-            sum += client.dataset.X_complete[i] * client.dataset.epsilon[i]
+            sum += client.dataset.X[i] * client.dataset.epsilon[i]
         X_compressed[i] = compressor.compress(sum / len(clients))
     return compute_empirical_covariance(X_compressed)
 

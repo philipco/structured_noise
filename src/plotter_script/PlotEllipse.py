@@ -93,7 +93,7 @@ def compute_quadratic_error(x, all_compression):
 
 def plot_compression_process_by_compressor(dataset, compressor, data_covariance, covariance_compr, compressed_points, ax):
 
-    X = dataset.X_complete
+    X = dataset.X
     eigenvalues, eigenvectors = np.linalg.eig(data_covariance)
     if dataset.use_ortho_matrix:
         ax_max = max(eigenvalues) * (1.5 if WITH_STANDARDISATION else 0.7) #1.5 #* 0.61
@@ -164,7 +164,7 @@ def plot_ellipse_simple(dataset, covariances, labels):
         ax.axhline(c='grey', lw=1)
         confidence_ellipse(covariances[i], labels[i], ax, edgecolor=COLORS[i], zorder=0)
 
-    ax.scatter(dataset.X_complete[:,0], dataset.X_complete[:,1], s=0.5)
+    ax.scatter(dataset.X[:, 0], dataset.X[:, 1], s=0.5)
     ax.scatter(0, 0, c='red', s=3)
     ax.set_title("Ellipse")
     ax.legend(fancybox=True, framealpha=0.5, fontsize=FONTSIZE)

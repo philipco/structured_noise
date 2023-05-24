@@ -41,7 +41,7 @@ HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
 
 def compute_diag(dataset, compressor):
 
-    X = dataset.X_complete
+    X = dataset.X
 
     X_compressed = X.copy()
     for i in range(SIZE_DATASET):

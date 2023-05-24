@@ -53,14 +53,14 @@ densely_dotted = (0, (1, 1))
 
 def compute_diag(dataset, compressor):
 
-    X_compressed = dataset.X_complete.copy()
+    X_compressed = dataset.X.copy()
     X_compressed_pca = dataset.X_pca.copy()
     X_compressed_raw = dataset.X_pca.copy()
     X_compressed_normalized = dataset.X_normalized.copy()
 
     print(compressor.get_name())
     for i in tqdm(range(dataset.size_dataset), disable=DISABLE):
-        X_compressed[i] = compressor.compress(dataset.X_complete[i])
+        X_compressed[i] = compressor.compress(dataset.X[i])
         X_compressed_pca[i] = compressor.compress(dataset.X_pca[i])
         X_compressed_raw[i] = compressor.compress(dataset.X_raw[i])
         # X_compressed_normalized[i] = compressor.compress(dataset.X_normalized[i])

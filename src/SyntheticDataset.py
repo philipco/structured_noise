@@ -45,15 +45,10 @@ class AbstractDataset:
 
     def define_compressors(self, s=None):
 
-        # if omega is None:
-        #     self.LEVEL_QTZ = 1
-        # elif omega == 0:
-        #     self.LEVEL_QTZ = 0
-        # else:
         if s is None:
             self.LEVEL_QTZ = 1
         else:
-            self.LEVEL_QTZ = s #round(max(math.sqrt(self.dim/omega**2), math.sqrt(self.dim) / omega))
+            self.LEVEL_QTZ = s
         self.quantizator = Quantization(self.LEVEL_QTZ, dim=self.dim)
 
         self.correlated_quantizator = CorrelatedQuantization(level=self.LEVEL_QTZ, dim=self.dim)
@@ -61,7 +56,7 @@ class AbstractDataset:
 
         self.stabilized_quantizator = StabilizedQuantization(self.LEVEL_QTZ, dim=self.dim)
 
-        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1) #self.quantizator.nb_bits_by_iter() / (32 * self.dim)
+        self.LEVEL_RDK = 1/ (self.quantizator.omega_c + 1)
         self.sparsificator = RandomSparsification(self.LEVEL_RDK, dim=self.dim, biased=False)
         self.rand1 = RandK(int(self.dim * self.LEVEL_RDK) if self.dim * self.LEVEL_RDK > 1 else 1, dim=self.dim, biased=False)
 
@@ -178,8 +173,8 @@ class SyntheticDataset(AbstractDataset):
         else:
             self.ortho_matrix = np.identity(self.dim)
 
-        self.center = np.zeros(self.dim)  # self.eigenvalues if self.power_cov > 0 else self.eigenvalues * 0.05
-        # self.center[1] = 10
+        # In case, one need a non-centered features' distribution.
+        self.center = np.zeros(self.dim)
         m_carre = np.kron(self.center, self.center).reshape((self.dim, self.dim))
         self.second_moment_cov = self.upper_sigma + m_carre
 
@@ -198,17 +193,17 @@ class SyntheticDataset(AbstractDataset):
             self.X = multivariate_normal(self.center, self.upper_sigma, size=size_generator)
         else:
             raise ValueError("Unknow features distribution.")
-        self.X_complete = copy.deepcopy(self.X)
-        self.Xcarre = self.X_complete.T @ self.X_complete / size_generator
+        self.Xcarre = self.X.T @ self.X / size_generator
 
     def generate_Y(self):
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
-        self.Y = self.X_complete @ self.w_star
+        self.Y = self.X @ self.w_star
         self.epsilon = np.random.normal(0, np.sqrt(self.lower_sigma), size=size_generator)
         self.Y += self.epsilon
-        self.Z = self.X_complete.T @ self.Y / size_generator
+        self.Z = self.X.T @ self.Y / size_generator
 
     def normalize(self):
-        standardize_data = StandardScaler().fit_transform(self.X_complete)
-        self.X_complete = standardize_data
+        """Normalize the features."""
+        standardize_data = StandardScaler().fit_transform(self.X)
+        self.X = standardize_data
 

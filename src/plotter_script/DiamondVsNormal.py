@@ -37,7 +37,7 @@ NB_RANDOM_COMPRESSION = 5
 NB_COMPRESSED_POINT = 200
 
 EIGENVALUES = np.array([0.5,0.5])
-FOLDER = "pictures/schema/"
+FOLDER = "../pictures/schema/"
 create_folder_if_not_existing(FOLDER)
 
 
@@ -45,13 +45,13 @@ def plot_distribution_and_ellipse(dataset: SyntheticDataset, compressor, ax):
 
     all_compressed_point = []
     covariance_compr, compressed_points = compress_and_compute_covariance(dataset, compressor)
-    data_covariance = compute_empirical_covariance(dataset.X_complete)
+    data_covariance = compute_empirical_covariance(dataset.X)
     for i in tqdm(range(min(SIZE_DATASET, NB_COMPRESSED_POINT))):
-        all_compressed_point.append(np.array([compressor.compress(dataset.X_complete[i]) for j in range(NB_RANDOM_COMPRESSION)]))
+        all_compressed_point.append(np.array([compressor.compress(dataset.X[i]) for j in range(NB_RANDOM_COMPRESSION)]))
     all_compressed_point = np.concatenate(all_compressed_point)
 
-    add_scatter_plot_to_figure(ax, dataset.X_complete, all_compressed_point, compressor, data_covariance, covariance_compr,
-                               None, 1.75)
+    add_scatter_plot_to_figure(ax, dataset.X, all_compressed_point, compressor, data_covariance, covariance_compr,
+                               ax_max=1.75, plot_eig=False, nb_pts_to_plot=300, taille_pts=25)
 
 if __name__ == '__main__':
 
@@ -65,12 +65,16 @@ if __name__ == '__main__':
     synthetic_dataset.define_compressors()
 
     synthetic_dataset.generate_X("normal")
-    plot_distribution_and_ellipse(synthetic_dataset, synthetic_dataset.quantizator, axes[0])
     axes[0].set_title("Normal distribution", fontsize=FONTSIZE)
+    plot_distribution_and_ellipse(synthetic_dataset, synthetic_dataset.quantizator, axes[0])
+    axes[0].set_yticks(list([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]))
+    axes[0].set_aspect('equal', 'box')
 
     synthetic_dataset.generate_X("diamond")
-    plot_distribution_and_ellipse(synthetic_dataset, synthetic_dataset.quantizator, axes[1])
     axes[1].set_title("Diamond distribution", fontsize=FONTSIZE)
+    plot_distribution_and_ellipse(synthetic_dataset, synthetic_dataset.quantizator, axes[1])
+    axes[1].set_yticks(list([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]))
+    axes[1].set_aspect('equal', 'box')
 
     points_legend = [Line2D([], [], color=COLORS[0], alpha=0.5, marker=".", linestyle='None', markersize=10,
                             label='No compression'),
@@ -78,8 +82,8 @@ if __name__ == '__main__':
                             label='Compression')]
     l1 = axes[1].legend(handles=points_legend, loc='upper left', fontsize=10)
 
-    ellipse_legend = [Line2D([0], [0], color=COLORS[0], lw=2, label=r"$\mathfrak{C}(\mathcal{C}_{\emptyset}, p_{I_2/2})$"),
-                     Line2D([0], [0], color=COLORS[1], lw=2, label=r"$\mathfrak{C}(\mathcal{C}_{\mathrm{qtzt}}, p_{I_2/2})$")]
+    ellipse_legend = [Line2D([0], [0], color=COLORS[0], lw=2, label=r"$\mathfrak{C}(\mathcal{C}_{\emptyset}, p_{\mathrm{I}_2/2})$"),
+                     Line2D([0], [0], color=COLORS[1], lw=2, label=r"$\mathfrak{C}(\mathcal{C}_{\mathrm{qtzt}}, p_{\mathrm{I}_2/2})$")]
     l2 = axes[1].legend(handles=ellipse_legend, loc="lower right", fontsize=10)
     axes[1].add_artist(l2)
     axes[1].add_artist(l1)

@@ -68,7 +68,7 @@ def compute_wstar(clients: ClientRealDataset, step_size, batch_size):
 class SGDRun:
 
     def __init__(self, size_dataset, nb_epoch: int, sto: bool, batch_size: int, dim:int, last_w, losses, avg_losses,
-                 diag_cov_gradients, label=None) -> None:
+                 label=None) -> None:
         super().__init__()
         self.size_dataset = size_dataset
         self.batch_size = batch_size
@@ -81,7 +81,6 @@ class SGDRun:
         self.log_xaxis = log_sampling_xaxix((size_dataset) // self.batch_size,  self.nb_epoch) * self.batch_size
         # else:
         #     self.log_xaxis = np.arange(nb_epoch)
-        self.diag_cov_gradients = diag_cov_gradients
         self.label = label
 
 
@@ -97,7 +96,7 @@ class SGD(ABC):
 
         self.nb_epoch = nb_epoch
 
-        self.start_averaging = start_averaging  # 50 for wstar, 0 otherwise.
+        self.start_averaging = start_averaging
         self.L, self.dim, self.gamma = np.mean([c.dataset.L for c in clients]), clients[0].dim, 0.1
         self.size_dataset, self.w0 = clients[0].local_size, clients[0].dataset.w0
         self.sigma = clients[0].dataset.upper_sigma
@@ -111,15 +110,13 @@ class SGD(ABC):
         self.w_star = np.mean([client.dataset.w_star for client in self.clients], axis=0)
 
         self.Q, self.D = np.identity(self.dim), np.identity(self.dim)
-        self.approx_hessian = np.identity(self.dim)
-        self.debiased_hessian = np.identity(self.dim)
         self.reg = reg
         self.compressor = Quantization(0, dim=self.dim)
 
     def compute_federated_empirical_risk(self, w, avg_w) -> [float, float]:
         # Bien réfléchir au calcul de la loss dans le cas fédéré !!!
-        loss = np.mean([self.compute_empirical_risk(w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
-        avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X_complete, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
+        loss = np.mean([self.compute_empirical_risk(w, c.dataset.X, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
+        avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
         return loss, avg_loss
 
     def compute_federated_true_risk(self, w, avg_w) -> [float, float]:
@@ -145,12 +142,12 @@ class SGD(ABC):
 
     def compute_stochastic_gradient(self, w, dataset, index, additive_stochastic_gradient):
         if additive_stochastic_gradient:
-            return self.compute_additive_stochastic_gradient(w, dataset.X_complete, dataset.Y, index)
+            return self.compute_additive_stochastic_gradient(w, dataset.X, dataset.Y, index)
         if self.batch_size > 1:
             indices = np.random.choice(min(dataset.size_dataset, MAX_SIZE_DATASET), self.batch_size)
-            x, y = dataset.X_complete[indices], dataset.Y[indices]
+            x, y = dataset.X[indices], dataset.Y[indices]
         else:
-            x, y = np.array([dataset.X_complete[index]]), np.array([dataset.Y[index]])
+            x, y = np.array([dataset.X[index]]), np.array([dataset.Y[index]])
 
         return (x @ w - y) @ x / len(y)
 
@@ -163,13 +160,6 @@ class SGD(ABC):
 
     def sgd_update(self, w, gradient, gamma):
         return w - gamma * (gradient + self.reg * (w - self.w0))
-
-    def update_approximative_hessian(self, grad, it):
-        if it == 0:
-            self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim))
-        else:
-            self.approx_hessian = np.kron(grad, grad).reshape((self.dim, self.dim)) / it + self.approx_hessian * (
-                        it - 1) / it
 
     def gradient_descent(self, label: str = None) -> SGDRun:
         # if self.sto:
@@ -198,14 +188,10 @@ class SGD(ABC):
                 local_grad = self.compute_gradient(
                     client.w, client.dataset, idx % (min(MAX_SIZE_DATASET, self.size_dataset) // self.batch_size),
                     self.additive_stochastic_gradient)
-                # Smart initialization
-                # if it == 1:
-                #     client.local_memory = local_grad
                 grad += self.gradient_processing(local_grad, client)
 
             grad /= len(self.clients)
 
-            self.update_approximative_hessian(grad, it)
             it += 1
 
             current_w = self.sgd_update(current_w, grad, gamma)
@@ -219,28 +205,13 @@ class SGD(ABC):
                 client.update_model(current_w, avg_w)
 
             current_loss = self.compute_federated_true_risk(current_w, avg_w)
-            # if not self.sto and epoch in log_xaxis[1:]:
-            #     losses.append(current_loss[0])
-            #     avg_losses.append(current_loss[1])
             if idx * self.batch_size in log_xaxis[1:]:
                 losses.append(current_loss[0])
                 avg_losses.append(current_loss[1])
 
         print_mem_usage("End of sgd descent ...")
-
-        if not self.clients[0].dataset.real_dataset:
-            if self.use_ortho_matrix:
-                cov_matrix = self.ortho_matrix.T.dot(self.approx_hessian).dot(self.ortho_matrix)
-            else:
-                cov_matrix = self.approx_hessian
-        else:
-            cov_matrix = self.approx_hessian
-
-        print("Local gradient at optimal point:")
-        optimal_grad = [np.linalg.norm(self.compute_full_gradient(avg_w, c.dataset)) for c in self.clients]
-        print("B^2 = ", np.mean(optimal_grad))
         return SGDRun(self.size_dataset, self.nb_epoch, self.sto, self.batch_size, self.dim, avg_w, losses, avg_losses,
-                      np.diag(cov_matrix), label=label)
+                      label=label)
 
     @abstractmethod
     def gradient_processing(self, grad, client: Client):
@@ -270,15 +241,6 @@ class SGDVanilla(SGD):
 
     def gradient_processing(self, grad, client: Client):
         return grad
-
-
-class SGDNoised(SGD):
-
-    def compute_gradient(self, w, dataset: SyntheticDataset, idx):
-        return self.compute_stochastic_gradient(w, dataset, idx, self.additive_stochastic_gradient)
-
-    def gradient_processing(self, grad, client: Client):
-        return grad + np.random.normal(0, 1, size=self.dim)
 
 
 class SGDCompressed(SGD):
@@ -317,36 +279,4 @@ class SGDArtemis(SGD):
         alpha = 1 / (2*(self.compressor.omega_c + 1))
         client.local_memory += alpha * compressed
         return compressed_grad
-
-
-class SGDSportisse(SGD):
-
-    def __init__(self, synthetic_dataset, compressor: CompressionModel) -> None:
-        super().__init__(synthetic_dataset)
-        self.compressor = compressor
-
-    def gradient_processing(self, grad, client: Client):
-        return grad
-
-    def compute_stochastic_gradient(self, w, data, labels, index):
-        """Can be used only in the MISSING VALUE MODE."""
-        x, y = self.synthetic_dataset.X[index], self.synthetic_dataset.Y[index]
-        p = self.synthetic_dataset.estimated_p
-        g = x * (w @ x - y) - (1 - p) * np.diag(x ** 2) @ w
-        return g
-
-
-class SGDNaiveSparsification(SGDCompressed):
-
-    def gradient_processing(self, grad):
-        return self.compressor.compress(grad)
-
-    def gradient_processing(self, grad, client: Client):
-        return grad
-
-    def compute_stochastic_gradient(self, w, data, labels, index):
-        x, y = data[index], labels[index]
-        x = self.synthetic_dataset.sparsificator.compress(x)
-        g = x * (w @ x - y)
-        return g
 

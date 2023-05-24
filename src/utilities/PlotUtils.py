@@ -129,29 +129,29 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         plt.show()
 
 
-def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max):
+def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max,
+                               plot_eig: bool = True, nb_pts_to_plot: int = 250, taille_pts: int = 10):
 
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]
-    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
-               label="No compression", zorder=2)
+    ax.scatter(result[:min(nb_pts_to_plot, len(result)), 0], result[:min(nb_pts_to_plot, len(result)), 1],
+               color=COLORS[0], alpha=0.5, s=taille_pts, label="No compression", zorder=2)
 
     mask = (np.abs(all_compressed_point[:, 0]) <= ax_max) & (np.abs(all_compressed_point[:, 1]) <= ax_max)
     result = all_compressed_point[mask]
-    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[1],
-               alpha=0.5, s=15, label="Compression", zorder=1)
+    ax.scatter(result[:min(nb_pts_to_plot, len(result)), 0], result[:min(nb_pts_to_plot, len(result)), 1],
+               color=COLORS[1], alpha=0.5, s=taille_pts + 5, label="Compression", zorder=1)
 
     plot_ellipse(data_covariance, r"$\mathcal{E}_{\mathrm{Cov}[{x_k}}]$", ax, color=COLORS[0], linestyle="-", zorder=3,
-                 lw=LINESIZE, n_std=2, plot_eig=True)
+                 lw=LINESIZE, n_std=4, plot_eig=plot_eig)
 
     plot_ellipse(covariance, r"$\mathcal{E}_{\mathrm{Cov}[{\mathcal{C} (x_k)}}]$", ax, color=COLORS[1],
-                 linestyle="-", zorder=3, lw=LINESIZE, n_std=2, plot_eig=True)
+                 linestyle="-", zorder=3, lw=LINESIZE, n_std=4, plot_eig=plot_eig)
 
     ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
     ax.axis('equal')
     if ax_max is not None:
-        print("Ax max:", ax_max)
         ax.set_xlim(-ax_max, ax_max)
         ax.set_ylim(-ax_max, ax_max)
         x_ticks = np.array([-0.8, -0.4, 0, 0.4, 0.8]) * ax_max
@@ -190,8 +190,6 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
         V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])
         ax.arrow(0, 0, V1[0], V1[1], head_width=0.3, **kwargs)
         ax.arrow(0, 0, V2[0], V2[1], head_width=0.3, **kwargs)
-
-    return
 
 
 def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):

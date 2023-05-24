@@ -18,7 +18,7 @@ def compute_empirical_covariance(random_vector):
 
 
 def compress_and_compute_covariance(dataset, compressor):
-    X = dataset.X_complete
+    X = dataset.X
     X_compressed = X.copy()
     for i in range(len(X)):
         X_compressed[i] = compressor.compress(X[i])

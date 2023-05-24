@@ -59,13 +59,13 @@ class ClientRealDataset:
 
     def regenerate_dataset(self):
         # Concatenate X_complete and Y along the last axis
-        data = np.concatenate((self.dataset.X_complete, self.dataset.Y.reshape(-1, 1)), axis=-1)
+        data = np.concatenate((self.dataset.X, self.dataset.Y.reshape(-1, 1)), axis=-1)
 
         # Shuffle the data
         np.random.shuffle(data)
 
         # Split X_complete and Y again
-        self.dataset.X_complete = data[:, :-1]
+        self.dataset.X = data[:, :-1]
         self.dataset.Y = data[:, -1].astype(np.int64)
 
 

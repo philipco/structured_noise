@@ -48,7 +48,7 @@ def prepare_sparsification(x, p):
 
 def compute_diag(dataset, compressor):
 
-    X = dataset.X_complete
+    X = dataset.X
 
     X_compressed = X.copy()
     for i in tqdm(range(SIZE_DATASET)):
