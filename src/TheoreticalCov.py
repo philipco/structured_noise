@@ -38,6 +38,9 @@ def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name:
     elif compression_name in ["Qtzd", "StabilizedQtz"]:
         return sigma - diag_sigma + np.sqrt(np.trace(sigma)) * np.sqrt(diag_sigma)
 
+    # elif compression_name in ["StabQtzd"]:
+    #     return sigma + (np.trace(sigma) - np.min(np.linalg.eig(sigma)[0])) * np.identity(dataset.dim)
+
     elif compression_name == "Sparsification":
         return sigma + diag_sigma * (1 - dataset.LEVEL_RDK) / dataset.LEVEL_RDK
 
@@ -56,9 +59,6 @@ def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name:
 
     elif compression_name == "DP":
         return sigma * (1 + np.trace(sigma) / dataset.LEVEL_RDK)
-
-    # elif compression_name == "Ind DP":
-    #     return sigma * 1 + np.trace(sigma) / dataset.LEVEL_RDK)
 
     return None
 

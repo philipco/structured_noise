@@ -1,4 +1,5 @@
 """Created by Constantin Philippenko, 7th April 2022."""
+import math
 from typing import List
 
 import numpy as np
@@ -137,53 +138,55 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
 
 def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance,
                                theoretical_cov, ax_max):
-    ax.scatter(X[:min(150, len(X)), 0], X[:min(150, len(X)), 1], color=COLORS[0], alpha=0.5,
-               label="No compression", zorder=3)
-    ax.scatter(all_compressed_point[:, 0], all_compressed_point[:, 1], color=COLORS[1], alpha=0.5, s=25,
-               label="Compression", zorder=1)
-    # (covariance, "", ax, edgecolor=COLORS[1], zorder=2, lw = LINESIZE)
-    # confidence_ellipse(data_covariance, "", ax, edgecolor=COLORS[0], zorder=2, lw=LINESIZE)
+
+    ax.scatter(X[:min(150, len(X)), 0], X[:min(150, len(X)), 1], color=COLORS[0], alpha=0.5, s=15,
+               label="No compression", zorder=2)
+    ax.scatter(all_compressed_point[:min(150, len(X)), 0], all_compressed_point[:min(150, len(X)), 1], color=COLORS[1],
+               alpha=0.5, s=15, label="Compression", zorder=1)
+
     if ax_max is not None:
         ax.set_xlim(-ax_max, ax_max)
         ax.set_ylim(-ax_max, ax_max)
     ax.axvline(x=0, color="black")
     ax.axhline(y=0, color="black")
 
-    plot_ellipse(data_covariance, r"$H_{\mathrm{emp.}}$", ax, color=COLORS[0], linestyle="-", zorder=0,
-                 lw=LINESIZE, n_std=2, plot_eig=False)
+    plot_ellipse(data_covariance, r"$\mathcal{E}_{\mathrm{Cov}[{x_k}}]$", ax, color=COLORS[0], linestyle="-", zorder=3,
+                 lw=LINESIZE, n_std=2, plot_eig=True)
 
-    print(covariance)
-    plot_ellipse(covariance, r"$\mathfrak{C}(H_{\mathrm{emp.})}$", ax, color=COLORS[1],
-                 linestyle="-", zorder=0, lw=LINESIZE, n_std=2, plot_eig=False)
+    plot_ellipse(covariance, r"$\mathcal{E}_{\mathrm{Cov}[{\mathcal{C} (x_k)}}]$", ax, color=COLORS[1],
+                 linestyle="-", zorder=3, lw=LINESIZE, n_std=2, plot_eig=True)
 
-    if theoretical_cov is not None:
-        plot_ellipse(theoretical_cov, r"$\mathfrak{C}(H_{\mathrm{th.})}$", ax, plot_eig=False,
-                     color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
+    # if theoretical_cov is not None:
+    #     plot_ellipse(theoretical_cov, r"$\mathfrak{C}(H_{\mathrm{th.})}$", ax, plot_eig=True,
+    #                  color=COLORS[1], linestyle="--", zorder=0, lw=LINESIZE, n_std=2, marker="x", markevery=100)
 
     ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
 
 def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
     """ Plot an ellipse centered on zero given a 2D-covariance matrix."""
-    eigenvalues, eigenvectors = np.linalg.eig(cov)
-    length_axis = np.sqrt(eigenvalues)
 
-    size = 1000
-    theta = np.linspace(0, 2 * np.pi, size)
+    Q, D, _ = np.linalg.svd(cov)
 
-    ellipse = np.array([n_std * length_axis[0] * np.cos(theta), n_std * length_axis[1] * np.sin(theta)])
-    rotated_ellipse = np.zeros((2, size))
-    for i in range(size):
-        rotated_ellipse[:, i] = eigenvectors @ ellipse[:, i]
+    size = 5000
+    x = np.linspace(-math.sqrt(n_std * D[0]), math.sqrt(n_std * D[0]), size)
+    y1 = np.sqrt(D[1] * (n_std - x**2/D[0]))
+    y2 = - np.sqrt(D[1] * (n_std - x**2/D[0]))
+    y = np.concatenate([y1, np.flip(y2)])
+    x = np.concatenate([x, np.flip(x)])
+    X = Q[0,0] * x + Q[0,1] * y
+    Y = Q[1,0] * x + Q[1,1] * y
 
-    ax.plot(rotated_ellipse[0, :], rotated_ellipse[1, :], label = label, **kwargs)
+    ax.plot(X, Y, label = label, **kwargs)
+
 
     if plot_eig:
-        origin = np.array([[0, 0], [0, 0]])
-        ax.quiver(*origin, length_axis * eigenvectors[0, :], length_axis * eigenvectors[1, :],
-                  angles='xy', scale_units='xy', scale=1, **kwargs)
+        V1 = 0.9 * Q @ np.array([math.sqrt(n_std * D[0]), 0])
+        V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])
+        ax.arrow(0, 0, V1[0], V1[1], head_width=0.5, **kwargs)
+        ax.arrow(0, 0, V2[0], V2[1], head_width=0.5, **kwargs)
 
-    return np.max(rotated_ellipse)
+    return
 
 
 def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
