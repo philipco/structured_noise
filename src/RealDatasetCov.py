@@ -1,5 +1,8 @@
 """
-Created by Constantin Philippenko, 17th January 2022.
+Created by Constantin Philippenko, 1st April 2023.
+
+Used to generate the figure in the paper which gives the trace w.r.t. the level of compression for both quantum and
+cifar10, considering different pre-processing.
 """
 
 import matplotlib

@@ -1,5 +1,6 @@
-"""Created by Constantin Philippenko, 11th April 2022."""
-# axmax = max ellipse ! Sinon, outliners !
+"""Created by Constantin Philippenko, 09th August 2022.
+
+Useless code kept in case of."""
 from typing import List
 
 import sympy as sy
@@ -28,8 +29,6 @@ matplotlib.rcParams.update({
     'pgf.rcfonts': False,
     'text.latex.preamble': r'\usepackage{amsfonts}'
 })
-
-# TOOOODOOOOO : plt.axis('equal') pour que les axes aient la même taile !!!!!
 
 SIZE_DATASET = 10**6
 POWER_COV = 4
@@ -171,55 +170,6 @@ def get_all_covariances_of_compressors(clients: List[Client], my_compressors):
     return all_covariances
 
 
-def compute_theory_TCL():
-    A = EIGENVALUES[0]
-    B = EIGENVALUES[1]
-    a, b, theta = sy.symbols('a b theta')
-    D = sy.Matrix([[a, 0], [0, b]])
-    Q = sy.Matrix([[sy.cos(theta), -sy.sin(theta)], [sy.sin(theta), sy.cos(theta)]])
-    Sigma = Q @ D @ Q.T
-    inv_Sigma = Sigma ** -1
-
-    # Create covariance matrix for sparsification
-    p = sy.symbols('p')
-    P = sy.Matrix([[1 / p, 1], [1, 1 / p]])
-    C_s = Sigma.multiply_elementwise(P)
-
-    # Create covariance matrix for quantization
-    diagonalizer = sy.Matrix([[1, 0], [0, 1]])
-    C_q = Sigma + sy.sqrt(sy.Trace(Sigma)) * sy.sqrt(
-        Sigma.multiply_elementwise(diagonalizer)) - Sigma.multiply_elementwise(diagonalizer)
-
-    TCL_q = inv_Sigma @ C_q @ inv_Sigma
-    TCL_s = inv_Sigma @ C_s @ inv_Sigma
-
-    print("TCL covariances:")
-    print("Inverse of sigma")
-    print(inv_Sigma.subs([(theta, sy.pi / 4)]))
-    print(inv_Sigma.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
-    print(inv_Sigma.subs([(a, A), (b, B)])) # Theta is still formal.
-    print("Quantization")
-    print(TCL_q.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
-    print(TCL_q.subs([(a, A), (b, B)])) # Theta is still formal.
-    print("Sparsification")
-    print(TCL_s.subs([(a, A), (b, B), (theta, sy.pi / 4)]))
-    print(TCL_s.subs([(a, A), (b, B), (theta, sy.pi / 4), (p, 0.72)]))
-
-    print("Eigenvalues:")
-    inv_Sigma_eigenvalues = inv_Sigma.eigenvects()
-    print("Inverse of sigma")
-    for eig in inv_Sigma_eigenvalues:
-        print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4)]))
-    # TCL_eigenvalues_q = TCL_q.eigenvects()
-    # print("Quantization")
-    # for eig in TCL_eigenvalues_q:
-    #     print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4)]))
-    # TCL_eigenvalues_s = TCL_s.eigenvects()
-    # print("Sparsification")
-    # for eig in TCL_eigenvalues_s:
-    #     print(eig[2][0].subs([(a, 1), (b, 10), (theta, sy.pi / 4), (p, 0.72)]))
-
-
 if __name__ == '__main__':
 
     clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY,
@@ -238,7 +188,6 @@ if __name__ == '__main__':
     all_covariances = get_all_covariances_of_compressors(clients, my_compressors)
 
     plot_theory_TCL(synthetic_dataset.upper_sigma, len(clients), synthetic_dataset.lower_sigma, all_covariances, labels)
-    # compute_theory_TCL()
 
     all_avg_sgd = [[] for idx_compressor in range(len(my_compressors))]
     all_sgd_descent = []

@@ -1,5 +1,7 @@
 """
 Created by Constantin Philippenko, 17th January 2022.
+
+Used to generate the figure in the paper which gives the trace of the compressors's covariances.
 """
 from typing import List
 
@@ -7,7 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.CompressionModel import Quantization
+from src.CompressionModel import Quantization, CompressionModel
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_theoretical_trace
 from src.federated_learning.Client import Client
@@ -39,7 +41,8 @@ COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:b
 HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
 
 
-def compute_diag(dataset, compressor):
+def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel):
+    """Compute the diagonal of the given compressor's covariance."""
 
     X = dataset.X
 
@@ -52,7 +55,9 @@ def compute_diag(dataset, compressor):
     return cov_matrix
 
 
-def compute_trace(clients, dataset: SyntheticDataset, dim: int, use_ortho: bool, power_cov) -> [List[float], SyntheticDataset]:
+def compute_trace(clients: List[Client], dataset: SyntheticDataset, dim: int, use_ortho: bool, power_cov: int)\
+        -> [List[float], SyntheticDataset]:
+    """Compute the trace of all compressors' covariances."""
 
     upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
 
@@ -79,8 +84,6 @@ def compute_trace(clients, dataset: SyntheticDataset, dim: int, use_ortho: bool,
 
 
 if __name__ == '__main__':
-
-    print("Starting the script.")
 
     labels = ["no compr.", r"$1$-quantiz.", "sparsif.", "sketching", r"rand-$h$", "partial part."]
 

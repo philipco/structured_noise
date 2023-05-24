@@ -1,5 +1,8 @@
 """
-Created by Constantin Philippenko, 20th December 2021.
+Created by Constantin Philippenko, 20th December 2022.
+
+Used to generate the figure in the paper which emphasise that the compressor' covariance depends on the features'
+distribution.
 """
 import matplotlib
 from matplotlib import pyplot as plt
@@ -7,6 +10,7 @@ from matplotlib.lines import Line2D
 from sympy.physics.control.control_plots import np
 from tqdm import tqdm
 
+from src.CompressionModel import CompressionModel
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import compute_empirical_covariance, compress_and_compute_covariance
 from src.utilities.PlotUtils import add_scatter_plot_to_figure, COLORS
@@ -41,7 +45,8 @@ FOLDER = "../pictures/schema/"
 create_folder_if_not_existing(FOLDER)
 
 
-def plot_distribution_and_ellipse(dataset: SyntheticDataset, compressor, ax):
+def plot_distribution_and_ellipse(dataset: SyntheticDataset, compressor: CompressionModel, ax: plt.Axes):
+    """Plot the distribution and its corresponding ellipse."""
 
     all_compressed_point = []
     covariance_compr, compressed_points = compress_and_compute_covariance(dataset, compressor)

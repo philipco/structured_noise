@@ -1,3 +1,7 @@
+"""Created by Constantin Philippenko, 09th August 2022.
+
+Useless code kept in case of."""
+
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt

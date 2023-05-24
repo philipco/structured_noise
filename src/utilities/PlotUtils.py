@@ -188,8 +188,8 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
     if plot_eig:
         V1 = 0.9 * Q @ np.array([math.sqrt(n_std * D[0]), 0])
         V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])
-        ax.arrow(0, 0, V1[0], V1[1], head_width=0.3, **kwargs)
-        ax.arrow(0, 0, V2[0], V2[1], head_width=0.3, **kwargs)
+        ax.arrow(0, 0, V1[0], V1[1], head_width=0.5, **kwargs)
+        ax.arrow(0, 0, V2[0], V2[1], head_width=0.5, **kwargs)
 
 
 def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
