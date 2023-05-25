@@ -1,6 +1,10 @@
 """
-Created by Constantin Philippenko, 17th January 2022.
+Created by Constantin Philippenko, 1st April 2023.
+
+Used to generate the figure in the appendix of the paper which plots the covariance for both quantum and
+cifar10, w.o. compression, w. quantization/sparsification uisng two different levels.
 """
+from typing import List
 
 import matplotlib
 import numpy as np
@@ -8,6 +12,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+from src.CompressionModel import CompressionModel
 from src.RealDataset import RealLifeDataset
 from src.utilities.Utilities import create_folder_if_not_existing, get_project_root
 
@@ -28,15 +33,13 @@ FOLDER = "{0}/pictures/real_dataset".format(get_project_root())
 
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:brown", "tab:purple", "tab:cyan"]
 
-# In the case of heterogeneoux sigma and with non-diag H, check that random state of the orthogonal matrix is set to 5.
-USE_ORTHO_MATRIX = False
-HETEROGENEITY = "homog"
-
 FONTSIZE = 16
 LINESIZE = 4
 
 
-def compute_cov(dataset: RealLifeDataset, compressor, squantization):
+def compute_cov(dataset: RealLifeDataset, compressor: CompressionModel, squantization: List[int]) -> List[np.ndarray]:
+    """Compute the covariances of the dataset for quantization and sparsification for different level of compression."""
+
     all_cov = []
     for s in squantization:
 
@@ -44,8 +47,8 @@ def compute_cov(dataset: RealLifeDataset, compressor, squantization):
             compressor.reset_level(s)
         if compressor.get_name() == "Sparsification":
             compressor.reset_level(1 / (np.sqrt(dataset.dim) / s + 1))
-        X = dataset.X_complete
-        X_compressed = dataset.X_complete.copy()
+        X = dataset.X
+        X_compressed = dataset.X.copy()
 
         print("\n>>>>>>> {0}\t omega: {1}".format(compressor.get_name(), compressor.omega_c))
         for i in tqdm(range(dataset.size_dataset)):

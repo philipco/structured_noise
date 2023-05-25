@@ -16,7 +16,7 @@ def get_project_root() -> str:
     return split[0] + "/" + root_dir
 
 
-def create_folder_if_not_existing(folder):
+def create_folder_if_not_existing(folder: str):
     print("<<<", folder)
     if not os.path.exists(folder):
         os.makedirs(folder)

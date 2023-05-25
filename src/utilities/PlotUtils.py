@@ -8,6 +8,9 @@ from matplotlib import transforms, pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import FormatStrFormatter
 
+from src.CompressionModel import CompressionModel
+from src.SGD import SeriesOfSGD
+
 FONTSIZE = 15
 LINESIZE = 3
 
@@ -16,13 +19,15 @@ COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green
           "tab:purple", "tab:purple", "tab:brown", "tab:brown"]
 
 
-def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
+def create_gif(file_names: List[str], gif_name: str, duration: int = 400, loop: int = 0):
+    """Create a gif file from a list of pictures."""
     images = [Image.open(fn) for fn in file_names]
     images[0].save(gif_name, format="GIF", append_images=images,
                    save_all=True, duration=duration, loop=loop)
 
 
-def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = None):
+def plot_eigen_values(all_sgd: SeriesOfSGD, hash_string: str = None, custom_legend: List = None):
+    """Plot the eigenvalues of the gradients' covariance after a SGD run."""
     fig, ax = plt.subplots(figsize=(6.5, 6))
 
     i = 0
@@ -49,7 +54,9 @@ def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = No
         plt.show()
 
 
-def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
+def setup_plot_with_SGD(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
+                        with_artemis: bool = False):
+    """Plot SGD losses and the Polyak-Ruppert iterate losses."""
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
     i = 0
@@ -93,8 +100,9 @@ def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_l
         plt.show()
 
 
-def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False,
-                  stochastic: bool = True):
+def plot_only_avg(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
+                  with_artemis: bool = False):
+    """Plot the losses of the Polyak-Ruppert iterate."""
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0
@@ -129,29 +137,31 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         plt.show()
 
 
-def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max):
+def add_scatter_plot_to_figure(ax: plt.Axes, X: np.ndarray, all_compressed_point: np.ndarray,
+                               compressor: CompressionModel, data_covariance:np.ndarray, covariance: np.ndarray,
+                               ax_max: int, plot_eig: bool = True, nb_pts_to_plot: int = 250, taille_pts: int = 10):
+    """Add a scatter plot to an axis with the corresponding ellipse."""
 
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]
-    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[0], alpha=0.5, s=10,
-               label="No compression", zorder=2)
+    ax.scatter(result[:min(nb_pts_to_plot, len(result)), 0], result[:min(nb_pts_to_plot, len(result)), 1],
+               color=COLORS[0], alpha=0.5, s=taille_pts, label="No compression", zorder=2)
 
     mask = (np.abs(all_compressed_point[:, 0]) <= ax_max) & (np.abs(all_compressed_point[:, 1]) <= ax_max)
     result = all_compressed_point[mask]
-    ax.scatter(result[:min(250, len(result)), 0], result[:min(250, len(result)), 1], color=COLORS[1],
-               alpha=0.5, s=15, label="Compression", zorder=1)
+    ax.scatter(result[:min(nb_pts_to_plot, len(result)), 0], result[:min(nb_pts_to_plot, len(result)), 1],
+               color=COLORS[1], alpha=0.5, s=taille_pts + 5, label="Compression", zorder=1)
 
     plot_ellipse(data_covariance, r"$\mathcal{E}_{\mathrm{Cov}[{x_k}}]$", ax, color=COLORS[0], linestyle="-", zorder=3,
-                 lw=LINESIZE, n_std=2, plot_eig=True)
+                 lw=LINESIZE, n_std=4, plot_eig=plot_eig)
 
     plot_ellipse(covariance, r"$\mathcal{E}_{\mathrm{Cov}[{\mathcal{C} (x_k)}}]$", ax, color=COLORS[1],
-                 linestyle="-", zorder=3, lw=LINESIZE, n_std=2, plot_eig=True)
+                 linestyle="-", zorder=3, lw=LINESIZE, n_std=4, plot_eig=plot_eig)
 
     ax.set_title(compressor.get_name(), fontsize=FONTSIZE)
 
     ax.axis('equal')
     if ax_max is not None:
-        print("Ax max:", ax_max)
         ax.set_xlim(-ax_max, ax_max)
         ax.set_ylim(-ax_max, ax_max)
         x_ticks = np.array([-0.8, -0.4, 0, 0.4, 0.8]) * ax_max
@@ -164,7 +174,7 @@ def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_cov
 
 
 
-def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
+def plot_ellipse(cov: np.ndarray, label: str, ax: plt.Axes, n_std: float = 1.0, plot_eig: bool = False, **kwargs):
     """ Plot an ellipse centered on zero given a 2D-covariance matrix."""
 
     Q, D, _ = np.linalg.svd(cov)
@@ -188,13 +198,12 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
     if plot_eig:
         V1 = 0.9 * Q @ np.array([math.sqrt(n_std * D[0]), 0])
         V2 = 0.9 * Q @ np.array([0, math.sqrt(n_std * D[1])])
-        ax.arrow(0, 0, V1[0], V1[1], head_width=0.3, **kwargs)
-        ax.arrow(0, 0, V2[0], V2[1], head_width=0.3, **kwargs)
-
-    return
+        ax.arrow(0, 0, V1[0], V1[1], head_width=0.5, **kwargs)
+        ax.arrow(0, 0, V2[0], V2[1], head_width=0.5, **kwargs)
 
 
-def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
+def confidence_ellipse(cov: np.ndarray, label: str, ax: plt.Axes, n_std: float = 1.0, facecolor: str = 'none',
+                       **kwargs):
     """
     Plot an ellipse centered on zero given a 2D-covariance matrix.
 
@@ -217,15 +226,13 @@ def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
     matplotlib.patches.Ellipse
     """
     pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
-    # Using a special case to obtain the eigenvalues of this
-    # two-dimensionl dataset.
+    # Using a special case to obtain the eigenvalues of this two-dimensionl dataset.
     ell_radius_x = np.sqrt(1 + pearson)
     ell_radius_y = np.sqrt(1 - pearson)
     ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
                       facecolor=facecolor, **kwargs)
 
-    # Calculating the stdandard deviation of x from
-    # the squareroot of the variance and multiplying
+    # Calculating the stdandard deviation of x from the squareroot of the variance and multiplying
     # with the given number of standard deviations.
     scale_x = np.sqrt(cov[0, 0]) * n_std
 

@@ -113,7 +113,7 @@ if __name__ == '__main__':
     clients = [ClientRealDataset(i, real_datasets[i].dim, real_datasets[i].size_dataset, real_datasets[i])
                for i in range(nb_clients)]
     if not file_exist("pickle/real_dataset/C{0}-{1}-{2}_wstar.pkl".format(nb_clients, dataset_name, heterogeneity)):
-        w_star = compute_wstar(clients, lambda it, r2, omega, K: 1 / (2 * (omega + 1) * r2), BATCH_SIZE)
+        w_star = compute_wstar(clients, BATCH_SIZE)
     else:
         w_star = pickle_loader("pickle/real_dataset/C{0}-{1}-{2}_wstar".format(nb_clients, dataset_name, heterogeneity))
     for c in clients:

@@ -1,7 +1,11 @@
 """
-Created by Constantin Philippenko, 20th December 2021.
+Created by Constantin Philippenko, 1st May 2023.
+
+Used to generate the figure in the paper which uses a horizon-dependent step_size. It runs SGD for K iterations, then
+restarts with K*10 iterations and so on.
 """
 import argparse
+from typing import Dict
 
 import matplotlib
 import numpy as np
@@ -31,20 +35,13 @@ COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:b
 
 DIM = 100
 R_SIGMA = 0
-
-DECR_STEP_SIZE = False
-EIGENVALUES = None
-
 BATCH_SIZE = 1
-
-DO_LOGISTIC_REGRESSION = False
-
 STOCHASTIC = True
 
 NB_RUNS = 5
 
 
-def plot_sgd(dict_sgd, x_log_scale, hash_string):
+def plot_sgd(dict_sgd: Dict[int], x_log_scale: np.ndarray, hash_string: str) -> None:
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0
@@ -125,7 +122,7 @@ if __name__ == '__main__':
     use_ortho_matrix = True if args.use_ortho_matrix == "True" else False
     heterogeneity = args.heterogeneity
 
-    step_size = lambda it, r2, omega, K: K ** (-2 / 5)
+    step_size = lambda it, r2, omega, K: K ** (-2 / 5) # Optimal step-size according to our theorems.
 
     np.random.seed(10)
 

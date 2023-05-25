@@ -1,7 +1,14 @@
-"""Created by Constantin Philippenko, 7th April 2022."""
+"""
+Created by Constantin Philippenko, 7th April 2022.
+
+Used to generate the figure in the paper which gives: (1) the scatter plot of the features w./w.o. compression (2) their
+corresponding ellipses.
+"""
 import random
+from typing import List
 
 import matplotlib
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from tqdm import tqdm
@@ -9,7 +16,7 @@ from tqdm import tqdm
 from src.CompressionModel import *
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov, compress_and_compute_covariance
-from src.utilities.PlotUtils import confidence_ellipse, create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
+from src.utilities.PlotUtils import create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
 from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -30,7 +37,7 @@ NB_CLIENTS = 1
 USE_ORTHO_MATRIX = True
 HETEROGENEITY = "homog"
 
-WITH_STANDARDISATION = False
+WITH_STANDARDISATION = True
 
 NB_RANDOM_COMPRESSION = 1
 NB_COMPRESSED_POINT = SIZE_DATASET
@@ -38,16 +45,29 @@ NB_COMPRESSED_POINT = SIZE_DATASET
 FEATURES_DISTRIBUTION = "normal" # cauchy, diamond or normal
 EIGENVALUES = np.array([1,10])
 if FEATURES_DISTRIBUTION in ["cauchy", "normal"]:
-    FOLDER = "pictures/ellipse/{0}/muL={1}/".format(FEATURES_DISTRIBUTION, min(EIGENVALUES)/max(EIGENVALUES))
+    FOLDER = "../pictures/ellipse/{0}/muL={1}/".format(FEATURES_DISTRIBUTION, min(EIGENVALUES)/max(EIGENVALUES))
 else:
-    FOLDER = "pictures/ellipse/diamond/"
+    FOLDER = "../pictures/ellipse/diamond/"
 create_folder_if_not_existing(FOLDER)
 
 
+def get_all_covariances(dataset: SyntheticDataset, my_compressors: List[CompressionModel]) \
+        -> [List[np.ndarray], List[np.ndarray]]:
+    """Return all compressors' covariances and compressed points."""
 
-# TO REFACTOR !!
+    all_covariances = []
+    all_compressed_points = []
+    for compressor in tqdm(my_compressors):
+        cov_matrix, compressed_points = compress_and_compute_covariance(dataset, compressor)
+        all_covariances.append(cov_matrix)
+        all_compressed_points.append(compressed_points)
 
-def plot_compressed_points(compressor, X, i, folder, ax_max):
+    return all_covariances, all_compressed_points
+
+
+def plot_compressed_points(compressor: CompressionModel, X: np.ndarray, i: int, folder: str, ax_max: plt.Axes) \
+        -> np.ndarray:
+    """Plot the compressed points on the given axis."""
     compressed_point_i = np.array([compressor.compress(X[i]) for j in range(NB_RANDOM_COMPRESSION)])
 
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -65,7 +85,9 @@ def plot_compressed_points(compressor, X, i, folder, ax_max):
     return compressed_point_i
 
 
-def plot_some_random_compressed_points(X, all_compressed_point, filename, ax_max):
+def plot_some_random_compressed_points(X: np.ndarray, all_compressed_point: np.ndarray, filename: str,
+                                       ax_max: plt.Axes) -> None:
+    """Plot a 3x3 grid with the features and one random point that is compressed for each subplot."""
     fig, axis = plt.subplots(3, 3, figsize=(10, 8))
     axis_flat = axis.flat
     sampled_indices = random.sample(range(len(all_compressed_point)), 9)
@@ -87,18 +109,18 @@ def plot_some_random_compressed_points(X, all_compressed_point, filename, ax_max
     plt.close()
 
 
-def compute_quadratic_error(x, all_compression):
-    return np.mean([(c - x)**2 for c in all_compression])
+def plot_compression_process_by_compressor(dataset: SyntheticDataset, compressor: CompressionModel,
+                                           data_covariance: np.ndarray, covariance_compr: np.ndarray,
+                                           compressed_points: np.ndarray, ax: plt.Axes) -> float:
+    """For the given compressor: (1) plot a 3x3 grid with one random compressed point, (2) create a gif showing how
+    features are compressed, and (3) add the points scatter plot with their corresponding ellipse to the axis. """
 
-
-def plot_compression_process_by_compressor(dataset, compressor, data_covariance, covariance_compr, compressed_points, ax):
-
-    X = dataset.X_complete
+    X = dataset.X
     eigenvalues, eigenvectors = np.linalg.eig(data_covariance)
     if dataset.use_ortho_matrix:
-        ax_max = max(eigenvalues) * (1.5 if WITH_STANDARDISATION else 0.7) #1.5 #* 0.61
+        ax_max = max(eigenvalues) * (2 if WITH_STANDARDISATION else 0.95) #1.5 #* 0.61
     else:
-        ax_max = max(eigenvalues) * (2.25 if WITH_STANDARDISATION else 0.7) #2.25 #* 0.61
+        ax_max = max(eigenvalues) * (2.25 if WITH_STANDARDISATION else 1) #2.25 #* 0.61
 
     folder = FOLDER + "/" + compressor.get_name()
     create_folder_if_not_existing(folder)
@@ -118,20 +140,11 @@ def plot_compression_process_by_compressor(dataset, compressor, data_covariance,
     return ax_max
 
 
-def get_all_covariances(dataset: SyntheticDataset, my_compressors):
-
-    all_covariances = []
-    all_compressed_points = []
-    for compressor in tqdm(my_compressors):
-        cov_matrix, compressed_points = compress_and_compute_covariance(dataset, compressor)
-        all_covariances.append(cov_matrix)
-        all_compressed_points.append(compressed_points)
-
-    return all_covariances, all_compressed_points
-
-
-def plot_compression_process(dataset, my_compressors, covariances, compressed_points, labels):
-
+def plot_compression_process(dataset: SyntheticDataset, my_compressors: List[CompressionModel],
+                             covariances: List[np.ndarray], compressed_points: List[np.ndarray],
+                             labels: List[str]) -> None:
+    """For all compressors, build the scatter plot with their corresponding ellipse, create a 3x3 grid with random
+    compressed points and a gif."""
     nb_of_columns = len(labels) - 1
     fig_distrib, axes_distrib = plt.subplots(1, nb_of_columns, figsize=(4*nb_of_columns, 4))
     axes_distrib = axes_distrib.flatten()
@@ -155,28 +168,6 @@ def plot_compression_process(dataset, my_compressors, covariances, compressed_po
 
     fig_distrib.subplots_adjust(wspace=0, hspace=0)
     fig_distrib.savefig("{0}.pdf".format(filename), bbox_inches='tight', dpi=600)
-
-
-def plot_ellipse_simple(dataset, covariances, labels):
-    fig, ax = plt.subplots(figsize=(6, 6))
-    for i in range(len(covariances)):
-        ax.axvline(c='grey', lw=1)
-        ax.axhline(c='grey', lw=1)
-        confidence_ellipse(covariances[i], labels[i], ax, edgecolor=COLORS[i], zorder=0)
-
-    ax.scatter(dataset.X_complete[:,0], dataset.X_complete[:,1], s=0.5)
-    ax.scatter(0, 0, c='red', s=3)
-    ax.set_title("Ellipse")
-    ax.legend(fancybox=True, framealpha=0.5, fontsize=FONTSIZE)
-    ax.axis('equal')
-
-    # fig.subplots_adjust(hspace=0.25)
-    filename = FOLDER + "ellipse"
-    if USE_ORTHO_MATRIX:
-        filename = "{0}-ortho".format(filename)
-    if WITH_STANDARDISATION:
-        filename = "{0}-std".format(filename)
-    plt.savefig("{0}.pdf".format(filename), bbox_inches='tight',dpi=600)
 
 
 if __name__ == '__main__':
