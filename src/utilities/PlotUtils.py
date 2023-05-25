@@ -20,12 +20,14 @@ COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green
 
 
 def create_gif(file_names: List[str], gif_name: str, duration: int = 400, loop: int = 0):
+    """Create a gif file from a list of pictures."""
     images = [Image.open(fn) for fn in file_names]
     images[0].save(gif_name, format="GIF", append_images=images,
                    save_all=True, duration=duration, loop=loop)
 
 
 def plot_eigen_values(all_sgd: SeriesOfSGD, hash_string: str = None, custom_legend: List = None):
+    """Plot the eigenvalues of the gradients' covariance after a SGD run."""
     fig, ax = plt.subplots(figsize=(6.5, 6))
 
     i = 0
@@ -54,6 +56,7 @@ def plot_eigen_values(all_sgd: SeriesOfSGD, hash_string: str = None, custom_lege
 
 def setup_plot_with_SGD(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
                         with_artemis: bool = False):
+    """Plot SGD losses and the Polyak-Ruppert iterate losses."""
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
     i = 0
@@ -99,6 +102,7 @@ def setup_plot_with_SGD(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: 
 
 def plot_only_avg(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
                   with_artemis: bool = False):
+    """Plot the losses of the Polyak-Ruppert iterate."""
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0
@@ -136,6 +140,7 @@ def plot_only_avg(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = 
 def add_scatter_plot_to_figure(ax: plt.Axes, X: np.ndarray, all_compressed_point: np.ndarray,
                                compressor: CompressionModel, data_covariance:np.ndarray, covariance: np.ndarray,
                                ax_max: int, plot_eig: bool = True, nb_pts_to_plot: int = 250, taille_pts: int = 10):
+    """Add a scatter plot to an axis with the corresponding ellipse."""
 
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]

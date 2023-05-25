@@ -7,13 +7,11 @@ import math
 from abc import abstractmethod, ABC
 from typing import List
 
-import numpy as np
-from numpy.linalg import inv
 from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel, Quantization
 from src.JITProduct import *
-from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset, AbstractDataset
+from src.SyntheticDataset import MAX_SIZE_DATASET, AbstractDataset
 from src.federated_learning.Client import Client, ClientRealDataset
 from src.utilities.PickleHandler import pickle_saver
 from src.utilities.Utilities import print_mem_usage
@@ -26,6 +24,7 @@ REGULARIZATION = 0
 DISABLE = False
 
 def log_sampling_xaxix(size_dataset: int, nb_epoch: int = 1) -> np.ndarray:
+    """Sample x-axis range uniformly in log scale."""
     size_dataset *= nb_epoch
     log_len = np.int(math.log10(size_dataset))
     residual_len = math.log10(size_dataset) - log_len
@@ -37,6 +36,7 @@ def log_sampling_xaxix(size_dataset: int, nb_epoch: int = 1) -> np.ndarray:
 
 
 def compute_wstar(clients: ClientRealDataset, batch_size: int) -> float:
+    """Compute the optimal points for all clients (run vanilla SGD with constant step-size)."""
     print(">>>>> Computing w_star.")
     # We temporaly set w_star to zero in order to run the SGD.
     for c in clients:
@@ -60,10 +60,7 @@ class SGDRun:
         self.losses = np.array(losses)
         self.avg_losses = np.array(avg_losses)
         self.nb_epoch = nb_epoch
-        # if sto:
         self.log_xaxis = log_sampling_xaxix((size_dataset) // self.batch_size,  self.nb_epoch) * self.batch_size
-        # else:
-        #     self.log_xaxis = np.arange(nb_epoch)
         self.label = label
 
 
@@ -97,6 +94,8 @@ class SGD(ABC):
         self.compressor = Quantization(0, dim=self.dim)
 
     def compute_federated_true_risk(self, w: np.ndarray, avg_w: np.ndarray) -> [float, float]:
+        """Compute the true risk adapted to federated learning (taking into consideration the
+        covariate/concept-shift)."""
         true_federated_risk = [
             wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
             - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
@@ -111,6 +110,7 @@ class SGD(ABC):
 
     def compute_stochastic_gradient(self, w: np.ndarray, dataset: AbstractDataset, index: int,
                                     additive_stochastic_gradient: bool) -> np.ndarray:
+        """Compute the stochastic gradient (additive_stochastic_gradient==True, then computed without additive noise). """
         if additive_stochastic_gradient:
             return self.compute_additive_stochastic_gradient(w, dataset.X, dataset.Y, index)
         if self.batch_size > 1:
@@ -122,21 +122,22 @@ class SGD(ABC):
         return (x @ w - y) @ x / len(y)
 
     def compute_full_gradient(self, w: np.ndarray, dataset: AbstractDataset) -> np.ndarray:
+        """Compute full gradient."""
         return dataset.upper_sigma @ (w - dataset.w_star)
 
     def compute_additive_stochastic_gradient(self, w: np.ndarray, data: np.ndarray, labels: np.ndarray, index: int) \
             -> np.ndarray:
+        """Compute the stochastic gradient without additive noise."""
         x, y = data[index], labels[index]
         return self.D.dot(w) - y * x
 
     def sgd_update(self, w: np.ndarray, gradient: np.ndarray, gamma: float) -> np.ndarray:
+        """Update the model using the gradient descent procedure."""
         return w - gamma * (gradient + self.reg * (w - self.w0))
 
     def gradient_descent(self, label: str = None) -> SGDRun:
-        # if self.sto:
+        """Run the gradient descent procedure."""
         log_xaxis = log_sampling_xaxix(self.size_dataset // self.batch_size, self.nb_epoch) * self.batch_size
-        # else:
-        #     log_xaxis = np.arange(self.nb_epoch)
 
         current_w = self.w0
         avg_w = copy.deepcopy(current_w)
@@ -144,7 +145,7 @@ class SGD(ABC):
         current_loss = self.compute_federated_true_risk(current_w, avg_w)
         losses, avg_losses = [current_loss[0]], [current_loss[1]]
 
-        indices = np.arange((self.size_dataset * self.nb_epoch) // self.batch_size) #if self.sto else np.array([1])
+        indices = np.arange((self.size_dataset * self.nb_epoch) // self.batch_size)
         for idx in tqdm(indices, disable=not self.sto or DISABLE):
 
             r2 = np.mean([c.dataset.trace for c in self.clients])
@@ -186,11 +187,13 @@ class SGD(ABC):
 
     @abstractmethod
     def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
+        """Processing of the gradient before applying the update."""
         pass
 
     @abstractmethod
     def compute_gradient(client, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool)\
             -> np.ndarray:
+        """Compute the gradient to be applied for the update."""
         pass
 
 
@@ -264,6 +267,7 @@ class SeriesOfSGD:
         self.dict_of_sgd = {}
 
     def append(self, list_of_sgd: List[SGDRun]) -> None:
+        """Append a new list of SGD runs to the series."""
         for serie in list_of_sgd:
             assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
             if serie.label in self.dict_of_sgd:
@@ -272,4 +276,5 @@ class SeriesOfSGD:
                 self.dict_of_sgd[serie.label] = [serie]
 
     def save(self, filename: str) -> None:
+        """Save the series of SGD runs."""
         pickle_saver(self, filename)

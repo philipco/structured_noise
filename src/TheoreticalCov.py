@@ -7,18 +7,22 @@ from src.SyntheticDataset import AbstractDataset
 
 
 def compute_inversion(matrix: np.ndarray) -> np.ndarray:
+    """Inverse a matrix."""
     return np.linalg.inv(matrix)
 
 
 def compute_limit_distrib(inv_sigma: np.ndarray, error_cov: np.ndarray) -> np.ndarray:
+    """Compute the limit distribution given by the TCL."""
     return inv_sigma @ error_cov @ inv_sigma
 
 
 def compute_empirical_covariance(random_vector: np.ndarray) -> np.ndarray:
+    """Compute the covariance of a vector."""
     return random_vector.T.dot(random_vector) / random_vector.shape[0]
 
 
 def compress_and_compute_covariance(dataset: AbstractDataset, compressor: CompressionModel) -> [np.ndarray, np.ndarray]:
+    """Compress a dataset, then compute its covariance."""
     X = dataset.X
     X_compressed = X.copy()
     for i in range(len(X)):
@@ -28,6 +32,7 @@ def compress_and_compute_covariance(dataset: AbstractDataset, compressor: Compre
 
 
 def get_theoretical_cov(dataset: AbstractDataset, nb_clients: int, compression_name: str) -> np.ndarray:
+    """Return the theoretical covariance of a compressor."""
 
     sigma = dataset.second_moment_cov / nb_clients
     diag_sigma = np.diag(np.diag(sigma))
@@ -61,6 +66,7 @@ def get_theoretical_cov(dataset: AbstractDataset, nb_clients: int, compression_n
 
 
 def compute_theoretical_trace(dataset: AbstractDataset, compression_name: str) -> float:
+    """Return the theoretical trace of a compressor."""
     sigma = dataset.second_moment_cov
     diag_sigma = np.diag(np.diag(sigma))
     sigma_inv = np.linalg.inv(sigma)

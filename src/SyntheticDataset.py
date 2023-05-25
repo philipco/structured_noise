@@ -26,6 +26,7 @@ class AbstractDataset:
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, noiseless: bool = None,
                         reg: int = None, step: str = None) -> None:
+        """Return the hash of the dataset."""
         hash = "{4}runs-N{0}-D{1}-P{2}-{3}".format(self.size_dataset, self.dim, self.power_cov, self.heterogeneity, nb_runs)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -44,7 +45,7 @@ class AbstractDataset:
         return hash
 
     def define_compressors(self, s: int = None) -> None:
-
+        """Define the all the compressors that are used for our experiments with the adapted level of compression."""
         if s is None:
             self.LEVEL_QTZ = 1
         else:
@@ -81,6 +82,7 @@ class AbstractDataset:
         print("Omega rand1:", self.rand1.omega_c)
 
     def set_step_size(self) -> None:
+        """Define the step-size."""
         self.L = np.max(self.eigenvalues)
         self.trace = np.trace(self.upper_sigma)
         self.gamma = 1 / ((self.sparsificator.omega_c + 1) * self.trace)
@@ -92,6 +94,7 @@ class SyntheticDataset(AbstractDataset):
                          use_ortho_matrix: bool, do_logistic_regression: bool, heterogeneity: str,
                          client_id: int, eigenvalues: np.array = None, w0_seed: int = 42,
                          lower_sigma: int = None) -> None:
+        """Generate the synthetic dataset."""
         self.do_logistic_regression = do_logistic_regression
         self.generate_constants(dim, size_dataset, power_cov, r_sigma, nb_clients, use_ortho_matrix,
                                 client_id=client_id, eigenvalues=eigenvalues, heterogeneity=heterogeneity,
@@ -105,6 +108,7 @@ class SyntheticDataset(AbstractDataset):
     def generate_constants(self, dim: int, size_dataset: int, power_cov: int, r_sigma: int, nb_clients: int,
                            use_ortho_matrix: bool, heterogeneity: str, client_id: int, eigenvalues: np.array = None,
                            w0_seed: int = 42, lower_sigma: int = None) -> None:
+        """Generate the constants that parametrizes the synthetic dataset."""
         self.dim = dim
         self.nb_clients = nb_clients
         if lower_sigma is None:
@@ -165,10 +169,12 @@ class SyntheticDataset(AbstractDataset):
         self.second_moment_cov = self.upper_sigma + m_carre
 
     def regenerate_dataset(self) -> None:
+        """Regenerate the synthethic datasets."""
         self.generate_X()
         self.generate_Y()
 
     def generate_X(self, features_distribution: str = "normal") -> None:
+        """Generate the features of the synthethic dataset."""
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         if features_distribution == "diamond":
             self.X = diamond_distribution(size_generator)
@@ -182,6 +188,7 @@ class SyntheticDataset(AbstractDataset):
         self.Xcarre = self.X.T @ self.X / size_generator
 
     def generate_Y(self) -> None:
+        """Generate the output of the synthethic dataset."""
         size_generator = min(self.size_dataset, MAX_SIZE_DATASET)
         self.Y = self.X @ self.w_star
         self.epsilon = np.random.normal(0, np.sqrt(self.lower_sigma), size=size_generator)
@@ -189,7 +196,7 @@ class SyntheticDataset(AbstractDataset):
         self.Z = self.X.T @ self.Y / size_generator
 
     def normalize(self) -> None:
-        """Normalize the features."""
+        """Normalize the features of the synthethic dataset."""
         standardize_data = StandardScaler().fit_transform(self.X)
         self.X = standardize_data
 

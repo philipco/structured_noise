@@ -27,7 +27,8 @@ class QuantumDataset(Dataset):
         return self.data[index].float(), self.labels[index].float()  # type(torch.LongTensor)
 
 
-def prepare_quantum():
+def prepare_quantum() -> [np.ndarray, np.ndarray, int]:
+    """Pre-processing of the quantum dataset."""
 
     raw_data= pd.read_csv('{0}/quantum/phy_train.csv'.format(get_path_to_datasets()), sep="\t", header=None)
 

@@ -23,7 +23,6 @@ IMG_SIZE = 16
 resize = transforms.Resize((IMG_SIZE, IMG_SIZE))
 
 
-
 class RealLifeDataset(AbstractDataset):
 
     def __init__(self, dataset_name: str, s=None) -> None:
@@ -37,14 +36,15 @@ class RealLifeDataset(AbstractDataset):
             print("Preparing the dataset.")
             self.load_data(dataset_name)
             self.define_compressors(s)
-            self.define_constants()
+            self.define_w0()
             self.w_star = None
             self.real_dataset = True
             create_folder_if_not_existing("pickle/real_dataset/")
             pickle_saver(self, "pickle/real_dataset/{0}".format(dataset_name))
             print("Done dataset preparation.")
 
-    def define_constants(self, w0_seed: int = 42) -> None:
+    def define_w0(self, w0_seed: int = 42) -> None:
+        """Define the initial point for SGD."""
         if w0_seed is not None:
             self.w0 = np.zeros(self.dim)
         else:
@@ -56,6 +56,7 @@ class RealLifeDataset(AbstractDataset):
         print("New omega rand1:", self.rand1.omega_c)
 
     def regenerate_dataset(self) -> None:
+        """"Regenerate the dataset for a new SGD."""
         # Concatenate X_complete and Y along the last axis
         data = np.concatenate((self.X, self.Y.reshape(-1, 1)), axis=-1)
 
@@ -68,6 +69,7 @@ class RealLifeDataset(AbstractDataset):
 
 
     def load_data(self, dataset_name: str):
+        """Load the dataset and pre-process it."""
         path_to_dataset = get_path_to_datasets()
         if dataset_name == 'cifar10':
 
@@ -175,6 +177,7 @@ class RealLifeDataset(AbstractDataset):
         self.compute_sigma_inv()
 
     def compute_sigma(self) -> None:
+        """Compute the covariance of the features without preprocessing, with PCA, with normalization."""
         self.upper_sigma = np.cov(self.X.T)
         self.upper_sigma_pca = np.cov(self.X_pca.T)
         self.upper_sigma_normalized = np.cov(self.X_normalized.T)
@@ -183,6 +186,7 @@ class RealLifeDataset(AbstractDataset):
 
 
     def compute_sigma_inv(self) -> None:
+        """Inverse the covariance of the features without preprocessing, with PCA, with normalization."""
         self.upper_sigma_inv_raw = np.linalg.inv(self.upper_sigma_raw)
         self.upper_sigma_inv = np.linalg.inv(self.upper_sigma)
         self.upper_sigma_inv_pca = np.linalg.inv(self.upper_sigma_pca)
@@ -190,6 +194,7 @@ class RealLifeDataset(AbstractDataset):
 
 
     def keep_sub_set(self, indices) -> None:
+        """Keep a subset of a dataset given some indices."""
         self.size_dataset = len(indices)
         self.X, self.X_pca, self.X_normalized, self.X_raw = self.X[indices], self.X_pca[indices], self.X_normalized[indices], self.X_raw[indices]
         self.Y = self.Y[indices]
@@ -197,6 +202,7 @@ class RealLifeDataset(AbstractDataset):
 
     def string_for_hash(self, nb_runs: int, stochastic: bool = False, batch_size: int = 1, reg: int = None,
                         step: str = None, heterogeneity: str = None, memory: bool = False) -> str:
+        """Return the hash of the dataset."""
         hash = "{0}runs-N{1}-D{2}".format(nb_runs, self.size_dataset, self.dim)
         if self.name:
             hash = "{0}-{1}".format(self.name, hash)
@@ -244,6 +250,7 @@ def diriclet_split(Y: np.ndarray, nb_clients: int, dirichlet_coef: int = 1) -> n
 
 
 def random_split(Y: np.ndarray, nb_clients: int) -> np.ndarray:
+    """Split randomly the dataset."""
     indices = np.arange(len(Y))
     random.shuffle(indices)
     return [indices[i::nb_clients] for i in range(nb_clients)]
@@ -272,6 +279,7 @@ def find_cluster(embedded_data: np.ndarray, nb_cluster: int = 10) -> np.ndarray:
     return split
 
 def tsne_split(X: np.ndarray, nb_clients: int, dataset_name: str) -> np.ndarray:
+    """Split the dataset by clustering it TSNE representation (equal-size split)."""
 
     if not file_exist("pickle/real_dataset/{0}-tsne-split.pkl".format(dataset_name)):
 
@@ -287,6 +295,7 @@ def tsne_split(X: np.ndarray, nb_clients: int, dataset_name: str) -> np.ndarray:
 
 def split_across_clients(dataset: RealLifeDataset, nb_clients: int, heterogeneity: str, dataset_name: str) \
         -> List[RealLifeDataset]:
+    """Split the dataset across different clients."""
 
     if heterogeneity == "dirichlet":
         random_indices = diriclet_split(dataset.Y, nb_clients, dirichlet_coef=0.2)
