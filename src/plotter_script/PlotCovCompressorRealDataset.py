@@ -37,7 +37,7 @@ FONTSIZE = 16
 LINESIZE = 4
 
 
-def compute_cov(dataset: RealLifeDataset, compressor: CompressionModel, squantization: List[int]):
+def compute_cov(dataset: RealLifeDataset, compressor: CompressionModel, squantization: List[int]) -> List[np.ndarray]:
     """Compute the covariances of the dataset for quantization and sparsification for different level of compression."""
 
     all_cov = []
@@ -47,8 +47,8 @@ def compute_cov(dataset: RealLifeDataset, compressor: CompressionModel, squantiz
             compressor.reset_level(s)
         if compressor.get_name() == "Sparsification":
             compressor.reset_level(1 / (np.sqrt(dataset.dim) / s + 1))
-        X = dataset.X_complete
-        X_compressed = dataset.X_complete.copy()
+        X = dataset.X
+        X_compressed = dataset.X.copy()
 
         print("\n>>>>>>> {0}\t omega: {1}".format(compressor.get_name(), compressor.omega_c))
         for i in tqdm(range(dataset.size_dataset)):

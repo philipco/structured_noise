@@ -45,7 +45,7 @@ FOLDER = "../pictures/schema/"
 create_folder_if_not_existing(FOLDER)
 
 
-def plot_distribution_and_ellipse(dataset: SyntheticDataset, compressor: CompressionModel, ax: plt.Axes):
+def plot_distribution_and_ellipse(dataset: SyntheticDataset, compressor: CompressionModel, ax: plt.Axes) -> None:
     """Plot the distribution and its corresponding ellipse."""
 
     all_compressed_point = []

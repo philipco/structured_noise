@@ -41,7 +41,7 @@ STOCHASTIC = True
 NB_RUNS = 5
 
 
-def plot_sgd(dict_sgd: Dict[int], x_log_scale: np.ndarray, hash_string: str):
+def plot_sgd(dict_sgd: Dict[int], x_log_scale: np.ndarray, hash_string: str) -> None:
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0

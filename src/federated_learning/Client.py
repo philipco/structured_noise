@@ -1,7 +1,6 @@
 """
-Created by Constantin Philippenko, 29th April 2022.
+Created by Constantin Philippenko, 09th August 2022.
 """
-import random
 from typing import List
 
 import numpy as np
@@ -28,7 +27,7 @@ class Client:
         self.avg_w = self.w
         self.local_memory = np.zeros(dim)
 
-    def regenerate_dataset(self):
+    def regenerate_dataset(self) -> None:
         self.dataset.generate_X()
         self.dataset.generate_Y()
         self.w = self.dataset.w0
@@ -57,7 +56,7 @@ class ClientRealDataset:
         self.w = w
         self.avg_w = avg_w
 
-    def regenerate_dataset(self):
+    def regenerate_dataset(self) -> None:
         # Concatenate X_complete and Y along the last axis
         data = np.concatenate((self.dataset.X, self.dataset.Y.reshape(-1, 1)), axis=-1)
 
@@ -69,7 +68,7 @@ class ClientRealDataset:
         self.dataset.Y = data[:, -1].astype(np.int64)
 
 
-def check_clients(clients: List[Client], heterogeneity: str):
+def check_clients(clients: List[Client], heterogeneity: str) -> None:
     for c in clients[1:]:
         # assert (clients[0].dataset.w0 == c.dataset.w0).any()
         if heterogeneity == "wstar":

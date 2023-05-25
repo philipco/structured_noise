@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 from tqdm import tqdm
 
 from src.CompressionModel import Quantization, CompressionModel
-from src.SyntheticDataset import SyntheticDataset
+from src.SyntheticDataset import SyntheticDataset, AbstractDataset
 from src.TheoreticalCov import get_theoretical_cov
 from src.federated_learning.Client import Client
 from src.utilities.Utilities import create_folder_if_not_existing
@@ -41,7 +41,7 @@ FONTSIZE = 20
 LINESIZE = 4
 
 
-def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel):
+def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel) -> [np.ndarray, np.ndarray]:
     """Compute the diagonal of the given compressor's covariance."""
 
     X = dataset.X
@@ -60,7 +60,8 @@ def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel):
     return diag, cov_matrix # Warning: if the eigenvalues are increasing, don't forget to sort the diag.
 
 
-def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim: int):
+def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim: int) \
+        -> [List[np.ndarray], AbstractDataset]:
     """Compute the diagonal of each compressor's covariance (considering the covariance's average of all clients)."""
 
     upper_sigma = np.mean([clients[i].dataset.upper_sigma for i in range(len(clients))], axis=0)
@@ -86,7 +87,7 @@ def compute_diag_matrices(dataset: SyntheticDataset, clients: List[Client], dim:
     return all_diagonals, dataset
 
 
-def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
+def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients: int) -> List[np.ndarray]:
     """Compute the theoretical diagonal of each compressor's covariance (take as input the covariance's average of all
     clients)."""
 
@@ -102,7 +103,7 @@ def compute_theoretical_diag(dataset: SyntheticDataset, nb_clients, labels):
             all_covariance[i] = dataset.ortho_matrix.T.dot(all_covariance[i]).dot(dataset.ortho_matrix)
 
     all_diagonals = [np.diag(cov) for cov in all_covariance]
-    return all_diagonals, labels
+    return all_diagonals
 
 
 if __name__ == '__main__':
@@ -113,12 +114,12 @@ if __name__ == '__main__':
                for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
     all_diagonals, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
-    all_theoretical_diagonals, theoretical_labels = compute_theoretical_diag(dataset, len(clients), labels=labels)
+    all_theoretical_diagonals = compute_theoretical_diag(dataset, len(clients))
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
     for (diagonal, label) in zip(all_diagonals, labels):
         axes[0].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE)
-    for (diagonal, label) in zip(all_theoretical_diagonals, theoretical_labels):
+    for (diagonal, label) in zip(all_theoretical_diagonals, labels):
         axes[1].plot(np.log10(np.arange(1, DIM + 1)), np.log10(diagonal), label=label, lw = LINESIZE, linestyle="--")
 
     for ax in axes:

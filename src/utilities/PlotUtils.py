@@ -8,6 +8,9 @@ from matplotlib import transforms, pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import FormatStrFormatter
 
+from src.CompressionModel import CompressionModel
+from src.SGD import SeriesOfSGD
+
 FONTSIZE = 15
 LINESIZE = 3
 
@@ -16,13 +19,13 @@ COLORS_DOUBLE = ["tab:blue", "tab:orange", "tab:orange", "tab:green", "tab:green
           "tab:purple", "tab:purple", "tab:brown", "tab:brown"]
 
 
-def create_gif(file_names, gif_name, duration: int = 400, loop: int = 0):
+def create_gif(file_names: List[str], gif_name: str, duration: int = 400, loop: int = 0):
     images = [Image.open(fn) for fn in file_names]
     images[0].save(gif_name, format="GIF", append_images=images,
                    save_all=True, duration=duration, loop=loop)
 
 
-def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = None):
+def plot_eigen_values(all_sgd: SeriesOfSGD, hash_string: str = None, custom_legend: List = None):
     fig, ax = plt.subplots(figsize=(6.5, 6))
 
     i = 0
@@ -49,7 +52,8 @@ def plot_eigen_values(all_sgd, hash_string: str = None, custom_legend: List = No
         plt.show()
 
 
-def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False):
+def setup_plot_with_SGD(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
+                        with_artemis: bool = False):
     fig, axes = plt.subplots(2, figsize=(8, 7))
 
     i = 0
@@ -93,8 +97,8 @@ def setup_plot_with_SGD(all_sgd, optimal_loss, hash_string: str = None, custom_l
         plt.show()
 
 
-def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend: List = None, with_artemis=False,
-                  stochastic: bool = True):
+def plot_only_avg(all_sgd: SeriesOfSGD, optimal_loss: float, hash_string: str = None, custom_legend: List = None,
+                  with_artemis: bool = False):
     fig, ax = plt.subplots(figsize=(8, 4))
 
     i = 0
@@ -129,8 +133,9 @@ def plot_only_avg(all_sgd, optimal_loss, hash_string: str = None, custom_legend:
         plt.show()
 
 
-def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_covariance, covariance, ax_max,
-                               plot_eig: bool = True, nb_pts_to_plot: int = 250, taille_pts: int = 10):
+def add_scatter_plot_to_figure(ax: plt.Axes, X: np.ndarray, all_compressed_point: np.ndarray,
+                               compressor: CompressionModel, data_covariance:np.ndarray, covariance: np.ndarray,
+                               ax_max: int, plot_eig: bool = True, nb_pts_to_plot: int = 250, taille_pts: int = 10):
 
     mask = (np.abs(X[:, 0]) <= ax_max) & (np.abs(X[:, 1]) <= ax_max)
     result = X[mask]
@@ -164,7 +169,7 @@ def add_scatter_plot_to_figure(ax, X, all_compressed_point, compressor, data_cov
 
 
 
-def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
+def plot_ellipse(cov: np.ndarray, label: str, ax: plt.Axes, n_std: float = 1.0, plot_eig: bool = False, **kwargs):
     """ Plot an ellipse centered on zero given a 2D-covariance matrix."""
 
     Q, D, _ = np.linalg.svd(cov)
@@ -192,7 +197,8 @@ def plot_ellipse(cov, label, ax, n_std=1.0, plot_eig: bool = False, **kwargs):
         ax.arrow(0, 0, V2[0], V2[1], head_width=0.5, **kwargs)
 
 
-def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
+def confidence_ellipse(cov: np.ndarray, label: str, ax: plt.Axes, n_std: float = 1.0, facecolor: str = 'none',
+                       **kwargs):
     """
     Plot an ellipse centered on zero given a 2D-covariance matrix.
 
@@ -215,15 +221,13 @@ def confidence_ellipse(cov, label, ax, n_std=1.0, facecolor='none', **kwargs):
     matplotlib.patches.Ellipse
     """
     pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
-    # Using a special case to obtain the eigenvalues of this
-    # two-dimensionl dataset.
+    # Using a special case to obtain the eigenvalues of this two-dimensionl dataset.
     ell_radius_x = np.sqrt(1 + pearson)
     ell_radius_y = np.sqrt(1 - pearson)
     ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
                       facecolor=facecolor, **kwargs)
 
-    # Calculating the stdandard deviation of x from
-    # the squareroot of the variance and multiplying
+    # Calculating the stdandard deviation of x from the squareroot of the variance and multiplying
     # with the given number of standard deviations.
     scale_x = np.sqrt(cov[0, 0]) * n_std
 

@@ -7,12 +7,13 @@ import math
 from abc import abstractmethod, ABC
 from typing import List
 
+import numpy as np
 from numpy.linalg import inv
 from tqdm import tqdm
 
 from src.CompressionModel import CompressionModel, Quantization
 from src.JITProduct import *
-from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset
+from src.SyntheticDataset import MAX_SIZE_DATASET, SyntheticDataset, AbstractDataset
 from src.federated_learning.Client import Client, ClientRealDataset
 from src.utilities.PickleHandler import pickle_saver
 from src.utilities.Utilities import print_mem_usage
@@ -24,7 +25,7 @@ REGULARIZATION = 0
 
 DISABLE = False
 
-def log_sampling_xaxix(size_dataset, nb_epoch: int = 1):
+def log_sampling_xaxix(size_dataset: int, nb_epoch: int = 1) -> np.ndarray:
     size_dataset *= nb_epoch
     log_len = np.int(math.log10(size_dataset))
     residual_len = math.log10(size_dataset) - log_len
@@ -35,25 +36,7 @@ def log_sampling_xaxix(size_dataset, nb_epoch: int = 1):
     return log_xaxis
 
 
-class SeriesOfSGD:
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.dict_of_sgd = {}
-
-    def append(self, list_of_sgd):
-        for serie in list_of_sgd:
-            assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
-            if serie.label in self.dict_of_sgd:
-                self.dict_of_sgd[serie.label].append(serie)
-            else:
-                self.dict_of_sgd[serie.label] = [serie]
-
-    def save(self, filename: str):
-        pickle_saver(self, filename)
-
-
-def compute_wstar(clients: ClientRealDataset, step_size, batch_size):
+def compute_wstar(clients: ClientRealDataset, batch_size: int) -> float:
     print(">>>>> Computing w_star.")
     # We temporaly set w_star to zero in order to run the SGD.
     for c in clients:
@@ -113,13 +96,7 @@ class SGD(ABC):
         self.reg = reg
         self.compressor = Quantization(0, dim=self.dim)
 
-    def compute_federated_empirical_risk(self, w, avg_w) -> [float, float]:
-        # Bien réfléchir au calcul de la loss dans le cas fédéré !!!
-        loss = np.mean([self.compute_empirical_risk(w, c.dataset.X, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
-        avg_loss = np.mean([self.compute_empirical_risk(avg_w, c.dataset.X, c.dataset.Y, c.dataset.upper_sigma) for c in self.clients])
-        return loss, avg_loss
-
-    def compute_federated_true_risk(self, w, avg_w) -> [float, float]:
+    def compute_federated_true_risk(self, w: np.ndarray, avg_w: np.ndarray) -> [float, float]:
         true_federated_risk = [
             wAw_product(0.5, minus(w, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
             - wAw_product(0.5, minus(self.w_star, self.clients[i].dataset.w_star), self.clients[i].dataset.upper_sigma)
@@ -132,15 +109,8 @@ class SGD(ABC):
                 ]
         return np.mean(true_federated_risk, axis=0), np.mean(true_federated_avg_risk, axis=0)
 
-    def compute_empirical_risk(self, w, data, labels, sigma):
-        return 0.5 * np.linalg.norm(data @ w - labels) ** 2 / len(labels)
-
-    def compute_true_risk(self, w, data, labels, sigma):
-        if data is None:
-            return 0
-        return wAw_product(0.5, minus(w, self.w_star), sigma)
-
-    def compute_stochastic_gradient(self, w, dataset, index, additive_stochastic_gradient):
+    def compute_stochastic_gradient(self, w: np.ndarray, dataset: AbstractDataset, index: int,
+                                    additive_stochastic_gradient: bool) -> np.ndarray:
         if additive_stochastic_gradient:
             return self.compute_additive_stochastic_gradient(w, dataset.X, dataset.Y, index)
         if self.batch_size > 1:
@@ -151,14 +121,15 @@ class SGD(ABC):
 
         return (x @ w - y) @ x / len(y)
 
-    def compute_full_gradient(self, w, dataset):
+    def compute_full_gradient(self, w: np.ndarray, dataset: AbstractDataset) -> np.ndarray:
         return dataset.upper_sigma @ (w - dataset.w_star)
 
-    def compute_additive_stochastic_gradient(self, w, data, labels, index):
+    def compute_additive_stochastic_gradient(self, w: np.ndarray, data: np.ndarray, labels: np.ndarray, index: int) \
+            -> np.ndarray:
         x, y = data[index], labels[index]
         return self.D.dot(w) - y * x
 
-    def sgd_update(self, w, gradient, gamma):
+    def sgd_update(self, w: np.ndarray, gradient: np.ndarray, gamma: float) -> np.ndarray:
         return w - gamma * (gradient + self.reg * (w - self.w0))
 
     def gradient_descent(self, label: str = None) -> SGDRun:
@@ -214,69 +185,91 @@ class SGD(ABC):
                       label=label)
 
     @abstractmethod
-    def gradient_processing(self, grad, client: Client):
+    def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
         pass
 
     @abstractmethod
-    def compute_gradient(client, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+    def compute_gradient(client, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool)\
+            -> np.ndarray:
         pass
 
 
 class FullGD(SGD):
 
-    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+    def compute_gradient(self, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool) \
+            -> np.ndarray:
         return self.compute_full_gradient(w, dataset)
 
-    def gradient_processing(self, grad, client: Client):
+    def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
         return grad
 
 
 class SGDVanilla(SGD):
 
-    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+    def compute_gradient(self, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool) \
+            -> np.ndarray:
         if self.sto:
             return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
         else:
             return self.compute_full_gradient(w, dataset)
 
-    def gradient_processing(self, grad, client: Client):
+    def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
         return grad
 
 
 class SGDCompressed(SGD):
 
-    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, reg: int = 0, start_averaging: int = 0,) -> None:
+    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1,
+                 sto: bool = True, batch_size: int = 1, reg: int = 0, start_averaging: int = 0,) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size, start_averaging, reg)
         self.compressor = compressor
 
-    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+    def compute_gradient(self, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool) \
+            -> np.ndarray:
         if self.sto:
             return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
         else:
             return self.compute_full_gradient(w, dataset)
 
-    def gradient_processing(self, grad, client: Client):
+    def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
         return self.compressor.compress(grad)
 
 
 class SGDArtemis(SGD):
 
-    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1, sto: bool = True,
-                 batch_size: int = 1, reg: int = 0, start_averaging: int = 0,) -> None:
+    def __init__(self, clients: List[Client], step_formula, compressor: CompressionModel, nb_epoch: int = 1,
+                 sto: bool = True, batch_size: int = 1, reg: int = 0, start_averaging: int = 0) -> None:
         super().__init__(clients, step_formula, nb_epoch, sto, batch_size, reg)
         self.compressor = compressor
 
-    def compute_gradient(self, w, dataset: SyntheticDataset, idx, additive_stochastic_gradient):
+    def compute_gradient(self, w: np.ndarray, dataset: AbstractDataset, idx: int, additive_stochastic_gradient: bool) \
+            -> np.ndarray:
         if self.sto:
             return self.compute_stochastic_gradient(w, dataset, idx, additive_stochastic_gradient)
         else:
             return self.compute_full_gradient(w, dataset)
 
-    def gradient_processing(self, grad, client: Client):
+    def gradient_processing(self, grad: np.ndarray, client: Client) -> np.ndarray:
         compressed = self.compressor.compress(grad - client.local_memory)
         compressed_grad = compressed + client.local_memory
         alpha = 1 / (2*(self.compressor.omega_c + 1))
         client.local_memory += alpha * compressed
         return compressed_grad
 
+
+class SeriesOfSGD:
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.dict_of_sgd = {}
+
+    def append(self, list_of_sgd: List[SGDRun]) -> None:
+        for serie in list_of_sgd:
+            assert isinstance(serie, SGDRun), "The object added to the series is not of type SGDRun."
+            if serie.label in self.dict_of_sgd:
+                self.dict_of_sgd[serie.label].append(serie)
+            else:
+                self.dict_of_sgd[serie.label] = [serie]
+
+    def save(self, filename: str) -> None:
+        pickle_saver(self, filename)

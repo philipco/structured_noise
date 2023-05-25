@@ -2,22 +2,23 @@
 
 import numpy as np
 
-from src.SyntheticDataset import SyntheticDataset
+from src.CompressionModel import CompressionModel
+from src.SyntheticDataset import AbstractDataset
 
 
-def compute_inversion(matrix):
+def compute_inversion(matrix: np.ndarray) -> np.ndarray:
     return np.linalg.inv(matrix)
 
 
-def compute_limit_distrib(inv_sigma, error_cov):
+def compute_limit_distrib(inv_sigma: np.ndarray, error_cov: np.ndarray) -> np.ndarray:
     return inv_sigma @ error_cov @ inv_sigma
 
 
-def compute_empirical_covariance(random_vector):
+def compute_empirical_covariance(random_vector: np.ndarray) -> np.ndarray:
     return random_vector.T.dot(random_vector) / random_vector.shape[0]
 
 
-def compress_and_compute_covariance(dataset, compressor):
+def compress_and_compute_covariance(dataset: AbstractDataset, compressor: CompressionModel) -> [np.ndarray, np.ndarray]:
     X = dataset.X
     X_compressed = X.copy()
     for i in range(len(X)):
@@ -26,7 +27,7 @@ def compress_and_compute_covariance(dataset, compressor):
     return cov_matrix, X_compressed
 
 
-def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name: str):
+def get_theoretical_cov(dataset: AbstractDataset, nb_clients: int, compression_name: str) -> np.ndarray:
 
     sigma = dataset.second_moment_cov / nb_clients
     diag_sigma = np.diag(np.diag(sigma))
@@ -59,7 +60,7 @@ def get_theoretical_cov(dataset: SyntheticDataset, nb_clients, compression_name:
     return None
 
 
-def compute_theoretical_trace(dataset: SyntheticDataset, compression_name: str):
+def compute_theoretical_trace(dataset: AbstractDataset, compression_name: str) -> float:
     sigma = dataset.second_moment_cov
     diag_sigma = np.diag(np.diag(sigma))
     sigma_inv = np.linalg.inv(sigma)

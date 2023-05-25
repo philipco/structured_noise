@@ -1,5 +1,5 @@
 """
-Created by Constantin Philippenko, 29th December 2021.
+Created by Constantin Philippenko, 20th January 2022.
 
 This python file provide facilities to quantize tensors.
 """

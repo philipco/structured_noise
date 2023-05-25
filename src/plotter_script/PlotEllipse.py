@@ -16,7 +16,7 @@ from tqdm import tqdm
 from src.CompressionModel import *
 from src.SyntheticDataset import SyntheticDataset
 from src.TheoreticalCov import get_theoretical_cov, compress_and_compute_covariance
-from src.utilities.PlotUtils import confidence_ellipse, create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
+from src.utilities.PlotUtils import create_gif, COLORS, FONTSIZE, add_scatter_plot_to_figure
 from src.utilities.Utilities import create_folder_if_not_existing
 
 matplotlib.rcParams.update({
@@ -51,7 +51,8 @@ else:
 create_folder_if_not_existing(FOLDER)
 
 
-def get_all_covariances(dataset: SyntheticDataset, my_compressors: List[CompressionModel]):
+def get_all_covariances(dataset: SyntheticDataset, my_compressors: List[CompressionModel]) \
+        -> [List[np.ndarray], List[np.ndarray]]:
     """Return all compressors' covariances and compressed points."""
 
     all_covariances = []
@@ -64,7 +65,8 @@ def get_all_covariances(dataset: SyntheticDataset, my_compressors: List[Compress
     return all_covariances, all_compressed_points
 
 
-def plot_compressed_points(compressor: CompressionModel, X: np.ndarray, i: int, folder: str, ax_max: plt.Axes):
+def plot_compressed_points(compressor: CompressionModel, X: np.ndarray, i: int, folder: str, ax_max: plt.Axes) \
+        -> np.ndarray:
     """Plot the compressed points on the given axis."""
     compressed_point_i = np.array([compressor.compress(X[i]) for j in range(NB_RANDOM_COMPRESSION)])
 
@@ -84,7 +86,7 @@ def plot_compressed_points(compressor: CompressionModel, X: np.ndarray, i: int, 
 
 
 def plot_some_random_compressed_points(X: np.ndarray, all_compressed_point: np.ndarray, filename: str,
-                                       ax_max: plt.Axes):
+                                       ax_max: plt.Axes) -> None:
     """Plot a 3x3 grid with the features and one random point that is compressed for each subplot."""
     fig, axis = plt.subplots(3, 3, figsize=(10, 8))
     axis_flat = axis.flat
@@ -109,7 +111,7 @@ def plot_some_random_compressed_points(X: np.ndarray, all_compressed_point: np.n
 
 def plot_compression_process_by_compressor(dataset: SyntheticDataset, compressor: CompressionModel,
                                            data_covariance: np.ndarray, covariance_compr: np.ndarray,
-                                           compressed_points: np.ndarray, ax: plt.Axes):
+                                           compressed_points: np.ndarray, ax: plt.Axes) -> float:
     """For the given compressor: (1) plot a 3x3 grid with one random compressed point, (2) create a gif showing how
     features are compressed, and (3) add the points scatter plot with their corresponding ellipse to the axis. """
 
@@ -139,7 +141,8 @@ def plot_compression_process_by_compressor(dataset: SyntheticDataset, compressor
 
 
 def plot_compression_process(dataset: SyntheticDataset, my_compressors: List[CompressionModel],
-                             covariances: List[np.ndarray], compressed_points: List[np.ndarray], labels: List[str]):
+                             covariances: List[np.ndarray], compressed_points: List[np.ndarray],
+                             labels: List[str]) -> None:
     """For all compressors, build the scatter plot with their corresponding ellipse, create a 3x3 grid with random
     compressed points and a gif."""
     nb_of_columns = len(labels) - 1

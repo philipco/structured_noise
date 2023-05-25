@@ -41,7 +41,7 @@ COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:b
 HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
 
 
-def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel):
+def compute_diag(dataset: SyntheticDataset, compressor: CompressionModel) -> np.ndarray:
     """Compute the diagonal of the given compressor's covariance."""
 
     X = dataset.X
