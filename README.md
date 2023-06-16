@@ -3,8 +3,8 @@
 
 We present here the code of the experimental parts of the following paper:
 ```
-C. Philippenko and A. Dieuleveut, *Convergence rates for distributed, compressed and averaged least-squares regression: 
-application to Federated Learning*, 2023.
+C. Philippenko and A. Dieuleveut, *Convergence rates for distributed, compressed and averaged 
+least-squares regression: application to Federated Learning*, 2023.
 ```
 
 In this paper, we investigate the impact of compression on stochastic gradient algorithms for machine learning, a 
@@ -30,11 +30,11 @@ selection.
 
 ## Figures
 
-### Impact of $\Tr{\mathfrac{C}(\mathcal{C}, p_M) M^{-1} }$
+### Impact of $\mathrm{Tr}{\mathfrak{C}(\mathcal{C}, p_M) M^{-1} }$
 
-We plot $\Tr{\mathfrac{C}(\mathcal{C}, p_M) M^{-1} }$ w.r.t.~the worst-case-variance-level 
+We plot $\mathrm{Tr}{\mathfrak{C}(\mathcal{C}, p_M) M^{-1} }$ w.r.t.~the worst-case-variance-level 
 $\omega of the compression in three scenarios: **(top-row)** -- with data standardization,
-thus $\mathrm{Diag}{M}$ is constant equal to $1$; **(middle-row)** -- with a PCA, thus with a
+thus $\mathrm{Diag}(M)$ is constant equal to $1$; **(middle-row)** -- with a PCA, thus with a
 diagonal covariance $M$ ; and **(bottom-row)** -- without any data transformation.
 As a pre-processing, we have resized images of the cifar-10 dataset to a 
 $16 \times 16$ dimension. 
@@ -45,10 +45,27 @@ $16 \times 16$ dimension.
 </p>
 
 ### Averaged compressed SGD
+
+1. High eigenvalues decay. **Left**: diagoonal covariance. **Right**: non-diagonal covariance.
   
 <p float="left">
   <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog.png" alt="SGD diagonal" width="400"/>
   <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog-ortho.png" alt="SGD not diagonal" width="400"/>
+</p>
+
+2. **Left**: high eigenvalues decay, non-diagoonal covariance, horizon-dependent step-size.
+**Right**: low eigenvalues decay, non-diagonal covariance.
+  
+<p float="left">
+  <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog-ortho-horizon.png" alt="SGD horizon-dependent step-size" width="400"/>
+  <img src="pictures_for_README/C1-5runs-N10000000-D100-P1-homog-ortho.png" alt="SGD low eigenvalues decay" width="400"/>
+</p>
+
+2. Real dataset for $\omega = 1$. **Left**: quantum, **right**: cifar10.
+
+<p float="left">
+  <img src="pictures_for_README/C1-quantum-5runs-N50000-D65.png" alt="SGD quantum" width="400"/>
+  <img src="pictures_for_README/C1-cifar10-5runs-N50000-D256.png" alt="SGD cifar10" width="400"/>
 </p>
 
 ## Experiments
