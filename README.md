@@ -30,13 +30,13 @@ selection.
 
 ## Figures
 
-### Impact of compression in 2 dimensions
+### Impact of compression on additive noise covariance in 2 dimensions
 
 We illustrate how compression affects the additive noise covariance, in a simple 
 2-dimensional case,  for both a non-diagonal matrix $M$ and a diagonal one. 
 
-1. $H$ not diagonal. Scatter plot of $(x_k)_{i=1}^K$ / $(\mathcal{C}(x_k))_{i=1}^K$
-with its ellipse $\mathcal{E}_{\mathrm{Cov} {x_k}}$/$\mathcal{E}_{\mathrm{Cov} {\mathcal{C} (x_k)}}$.
+1. $H$ not diagonal. Scatter plot of $(x_k)\_{i=1}^K$ // $(\mathcal{C}(x_k))\_{i=1}^K$
+with its ellipse $\mathcal{E}\_{\mathrm{Cov} {x_k}}$/$\mathcal{E}_{\mathrm{Cov} {\mathcal{C} (x_k)}}$.
 
 <img src="pictures_for_README/scatter_plot.png" alt="Scatter plot" width="800"/>
 
