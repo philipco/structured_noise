@@ -21,14 +21,36 @@ From our analysis, several take-aways can be identified.
 1. Quantization-based compression schemes do not have \emph{Lipschitz in squared expectation} regularity but satisfy a 
 Hölder condition. Because of that, their convergence is degraded, yet they asymptotically achieve a rate comparable to 
 projection-based compressors, in which the limit covariance is similar.
-2. Rand-$h$ and partial participation with probability $(h/d)$ satisfy the same variance condition. Yet the convergence 
+2. Rand-h and partial participation with probability $h/d$ satisfy the same variance condition. Yet the convergence 
 of compressed least mean squares algorithms for partial participation is more robust to ill-conditioned problems.
 3. The asymptotic convergence rate is expected to be at least as good for quantization than for sparsification or 
 randomized coordinate selection, *if* the features are standardized. On the contrary, if the features are independent
 and the feature vector is normalized, then quantization is worse than  sparsification or randomized coordinate 
 selection.
 
-   
+## Figures
+
+### Impact of $\Tr{\mathfrac{C}(\mathcal{C}, p_M) M^{-1} }$
+
+We plot $\Tr{\mathfrac{C}(\mathcal{C}, p_M) M^{-1} }$ w.r.t.~the worst-case-variance-level 
+$\omega of the compression in three scenarios: **(top-row)** -- with data standardization,
+thus $\mathrm{Diag}{M}$ is constant equal to $1$; **(middle-row)** -- with a PCA, thus with a
+diagonal covariance $M$ ; and **(bottom-row)** -- without any data transformation.
+As a pre-processing, we have resized images of the cifar-10 dataset to a 
+$16 \times 16$ dimension. 
+
+<p float="left">
+  <img src="pictures_for_README/omega_quantum.png" alt="Trace quantim" width="400"/>
+  <img src="pictures_for_README/omega_cifar10.png" alt="Trace cifar10" width="400"/>
+</p>
+
+### Averaged compressed SGD
+  
+<p float="left">
+  <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog.png" alt="SGD diagonal" width="400"/>
+  <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog-ortho.png" alt="SGD not diagonal" width="400"/>
+</p>
+
 ## Experiments
 
 Run the following commands.
