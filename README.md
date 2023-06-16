@@ -30,9 +30,9 @@ selection.
 
 ## Figures
 
-### Impact of $\mathrm{Tr}{\mathfrak{C}(\mathcal{C}, p_M) M^{-1} }$
+### Impact of $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$
 
-We plot $\mathrm{Tr}{\mathfrak{C}(\mathcal{C}, p_M) M^{-1} }$ w.r.t.~the worst-case-variance-level 
+We plot $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$ w.r.t.~the worst-case-variance-level 
 $\omega of the compression in three scenarios: **(top-row)** -- with data standardization,
 thus $\mathrm{Diag}(M)$ is constant equal to $1$; **(middle-row)** -- with a PCA, thus with a
 diagonal covariance $M$ ; and **(bottom-row)** -- without any data transformation.
@@ -44,7 +44,7 @@ $16 \times 16$ dimension.
   <img src="pictures_for_README/omega_cifar10.png" alt="Trace cifar10" width="400"/>
 </p>
 
-### Averaged compressed SGD
+### Averaged compressed SGD on one client
 
 1. High eigenvalues decay. **Left**: diagoonal covariance. **Right**: non-diagonal covariance.
   
@@ -54,21 +54,46 @@ $16 \times 16$ dimension.
 </p>
 
 2. **Left**: high eigenvalues decay, non-diagoonal covariance, horizon-dependent step-size.
-**Right**: low eigenvalues decay, non-diagonal covariance.
+**Right**: slow eigenvalues decay, non-diagonal covariance.
   
 <p float="left">
   <img src="pictures_for_README/C1-5runs-N10000000-D100-P4-homog-ortho-horizon.png" alt="SGD horizon-dependent step-size" width="400"/>
   <img src="pictures_for_README/C1-5runs-N10000000-D100-P1-homog-ortho.png" alt="SGD low eigenvalues decay" width="400"/>
 </p>
 
-2. Real dataset for $\omega = 1$. **Left**: quantum, **right**: cifar10.
+3. Real dataset for $\omega = 1$. **Left**: quantum, **right**: cifar10.
 
 <p float="left">
   <img src="pictures_for_README/C1-quantum-5runs-N50000-D65.png" alt="SGD quantum" width="400"/>
   <img src="pictures_for_README/C1-cifar10-5runs-N50000-D256.png" alt="SGD cifar10" width="400"/>
 </p>
 
-## Experiments
+### Averaged compressed SGD in Federated learning setting
+
+#### Covariate-shift
+
+1. **Left**: no-shift i.e. $\forall i,j \in [N], H_i = H_j$. **Right**: $\forall i,j \in [N], H_i \neq H_j$.
+<p float="left">
+  <img src="pictures_for_README/C10-5runs-N1000000-D100-P4-homog-ortho.png" alt="SGD diagonal" width="400"/>
+  <img src="pictures_for_README/C10-5runs-N1000000-D100-P4-sigma-ortho.png" alt="SGD not diagonal" width="400"/>
+</p>
+
+2. Real dataset for $\omega = 1$ with a TSNE-based split. **Left**: quantum, **right**: cifar10. 
+<p float="left">
+  <img src="pictures_for_README/C10-quantum-5runs-N5000-D65-tsne.png" alt="SGD diagonal" width="400"/>
+  <img src="pictures_for_README/C10-cifar10-5runs-N5000-D256-tsne.png" alt="SGD not diagonal" width="400"/>
+</p>
+
+#### Concept-shift wih slow eigenvalues decay using a memory mechanism
+
+**Left**: batch stochastic gradient. **Right**: true gradient $\textsl{g}_k^i = \nabla F_i$.
+
+<p float="left">
+  <img src="pictures_for_README/C10-5runs-N10000000-D100-P1-wstar-ortho-b32-artemis.png" alt="Batch SGD FL with memory" width="400"/>
+  <img src="pictures_for_README/C10-5runs-N10000000-D100-P1-wstar-ortho-full-artemis.png" alt="GD FL with memory" width="400"/>
+</p>
+
+## Running experiments
 
 Run the following commands.
 
