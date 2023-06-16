@@ -30,6 +30,22 @@ selection.
 
 ## Figures
 
+### Impact of compression in 2 dimensions
+
+We illustrate how compression affects the additive noise covariance, in a simple 
+2-dimensional case,  for both a non-diagonal matrix $M$ and a diagonal one. 
+
+1. $\xCov$ not diagonal. Scatter plot of $(x_k)_{i=1}^K$ / $(\C(x_k))_{i=1}^K$
+with its ellipse $\mathcal{E}_{\Cov {x_k}}$}/$\mathcal{E}_{\Cov {\C (x_k)}}$.
+
+<img src="pictures_for_README/scatter_plot.png" alt="Scatter plot" width="800"/>
+
+2. $\xCov$ diagonal. Scatter plot of $(x_k)_{i=1}^K$/$(\C(x_k))_{i=1}^K$
+with its ellipse $\mathcal{E}_{\Cov {x_k}}$/$\mathcal{E}_{\Cov {\C (x_k)}}$.
+
+<img src="pictures_for_README/scatter_plot-ortho.png" alt="Scatter plot not-diagonal" width="800"/>
+  
+
 ### Impact of $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$ using real dataset
 
 We plot $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$ w.r.t.~the worst-case-variance-level 
@@ -40,7 +56,7 @@ As a pre-processing, we have resized images of the cifar-10 dataset to a
 $16 \times 16$ dimension. 
 
 <p float="left">
-  <img src="pictures_for_README/omega_quantum.png" alt="Trace quantim" width="400"/>
+  <img src="pictures_for_README/omega_quantum.png" alt="Trace quantum" width="400"/>
   <img src="pictures_for_README/omega_cifar10.png" alt="Trace cifar10" width="400"/>
 </p>
 
