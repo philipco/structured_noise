@@ -3,8 +3,8 @@
 
 We present here the code of the experimental parts of the following paper:
 ```
-C. Philippenko and A. Dieuleveut, *Convergence rates for distributed, compressed and averaged 
-least-squares regression: application to Federated Learning*, 2023.
+C. Philippenko and A. Dieuleveut, Convergence rates for distributed, compressed and averaged 
+least-squares regression: application to Federated Learning, 2023.
 ```
 
 In this paper, we investigate the impact of compression on stochastic gradient algorithms for machine learning, a 
@@ -18,7 +18,7 @@ and on the noise covariance, enabling the analysis of various randomizing mechan
 We then extend our results to the case of federated learning.
 
 From our analysis, several take-aways can be identified.
-1. Quantization-based compression schemes do not have \emph{Lipschitz in squared expectation} regularity but satisfy a 
+1. Quantization-based compression schemes do not have *Lipschitz in squared expectation* regularity but satisfy a 
 Hölder condition. Because of that, their convergence is degraded, yet they asymptotically achieve a rate comparable to 
 projection-based compressors, in which the limit covariance is similar.
 2. Rand-h and partial participation with probability $h/d$ satisfy the same variance condition. Yet the convergence 
@@ -30,7 +30,7 @@ selection.
 
 ## Figures
 
-### Impact of $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$
+### Impact of $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$ using real dataset
 
 We plot $\mathrm{Tr}(\mathfrak{C}(\mathcal{C}, p_M) M^{-1} )$ w.r.t.~the worst-case-variance-level 
 $\omega of the compression in three scenarios: **(top-row)** -- with data standardization,
@@ -86,7 +86,7 @@ $16 \times 16$ dimension.
 
 #### Concept-shift wih slow eigenvalues decay using a memory mechanism
 
-**Left**: batch stochastic gradient. **Right**: true gradient $\textsl{g}_k^i = \nabla F_i$.
+**Left**: batch stochastic gradient. **Right**: true gradient $g_k^i = \nabla F_i$.
 
 <p float="left">
   <img src="pictures_for_README/C10-5runs-N10000000-D100-P1-wstar-ortho-b32-artemis.png" alt="Batch SGD FL with memory" width="400"/>
@@ -95,7 +95,7 @@ $16 \times 16$ dimension.
 
 ## Running experiments
 
-Run the following commands.
+Run the following commands to generate the illustrative figures in the article.
 
 ```python3 -m src.plotter_script.PlotTrace```
 
