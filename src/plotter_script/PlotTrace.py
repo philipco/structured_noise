@@ -36,6 +36,8 @@ END_DIM = 100
 FONTSIZE = 20
 LINESIZE = 4
 
+WITH_STANDARDISATION = True
+
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown", "tab:cyan"]
 
 HETEROGENEITY = "homog" # "wstar" "sigma" "homog"
@@ -69,6 +71,9 @@ def compute_trace(clients: List[Client], dataset: SyntheticDataset, dim: int, us
     dataset.power_cov = power_cov
     dataset.upper_sigma = upper_sigma
     dataset.generate_X()
+
+    if WITH_STANDARDISATION:
+        dataset.normalize()
 
     no_compressor = Quantization(0, dim=dim)
 
@@ -113,8 +118,6 @@ if __name__ == '__main__':
             for i in range(len(labels)):
                 theoretical_trace_by_operators[i].append(all_theoretical_trace[i])
 
-
-
         for i in range(len(labels)):
             axes[k].plot(np.log10(range_trace), trace_by_operators[i], label=labels[i], lw=LINESIZE, color=COLORS[i])
             axes[k].plot(np.log10(range_trace), theoretical_trace_by_operators[i], label='_nolegend_', lw=LINESIZE,
@@ -134,6 +137,8 @@ if __name__ == '__main__':
     create_folder_if_not_existing(folder)
 
     hash = dataset.string_for_hash(nb_runs=1)
+    if WITH_STANDARDISATION:
+        hash = "{0}-std".format(hash)
 
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig("{0}/C{1}-{2}.pdf".format(folder, NB_CLIENTS, hash), bbox_inches='tight', dpi=600)

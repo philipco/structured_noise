@@ -8,7 +8,6 @@ import random
 from typing import List
 
 import matplotlib
-import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from tqdm import tqdm
