@@ -113,7 +113,7 @@ if __name__ == '__main__':
     clients = [Client(i, DIM, SIZE_DATASET // NB_CLIENTS, POWER_COV, NB_CLIENTS, USE_ORTHO_MATRIX, HETEROGENEITY)
                for i in range(NB_CLIENTS)]
     dataset = SyntheticDataset()
-    all_diagonals, dataset = compute_diag_matrices(dataset, clients, dim=DIM, labels=labels)
+    all_diagonals, dataset = compute_diag_matrices(dataset, clients, dim=DIM)
     all_theoretical_diagonals = compute_theoretical_diag(dataset, len(clients))
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 6))
